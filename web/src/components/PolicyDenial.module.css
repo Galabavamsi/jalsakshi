@@ -1,37 +1,73 @@
+/*
+ * A Cedar deny reads like a notice on the panchayat board: indigo ink on white, a firm left rule,
+ * no alarm red. The rule is doing its job; nothing is broken.
+ */
+
 .panel {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--s3) var(--s4);
-  align-items: start;
-  padding: var(--s5);
-  border: 2px solid var(--st-no);
+  gap: var(--s4);
+  padding: var(--s5) var(--s5) var(--s5) calc(var(--s5) + 4px);
+  border: 1.5px solid var(--rule-strong);
   border-radius: var(--radius);
   background: var(--sheet);
-  box-shadow: inset 6px 0 0 var(--st-no);
+  box-shadow:
+    inset 8px 0 0 var(--ink),
+    var(--shadow-board);
+  animation: notice-in 260ms ease-out both;
 }
 
-.panel > button {
-  grid-column: 2;
-  justify-self: start;
+@media (max-width: 559px) {
+  .panel {
+    padding: var(--s4) var(--s4) var(--s4) calc(var(--s4) + 6px);
+  }
 }
 
-.icon {
-  color: var(--st-no);
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
 }
 
-.body {
+.seal {
   display: grid;
-  gap: var(--s1);
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--wall-2);
+  color: var(--ink);
 }
 
 .title {
-  color: var(--st-no);
   font-size: var(--t-l);
+  font-weight: 750;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.title :global(.bi-en) {
+  font-size: 0.7em;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+.reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+}
+
+.reasonText {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: var(--s1);
 }
 
 .reasonHi {
   font-size: var(--t-xl);
-  font-weight: 700;
+  font-weight: 750;
   line-height: 1.35;
   color: var(--ink);
 }
@@ -41,14 +77,105 @@
   color: var(--ink-2);
 }
 
-.policy {
-  margin-top: var(--s2);
-  font-size: var(--t-xs);
-  color: var(--ink-3);
+.explain {
+  display: grid;
+  gap: var(--s3);
+  margin: 0;
+  padding: var(--s4) 0 0;
+  border-top: 1px solid var(--rule);
 }
 
-.policy code {
-  font-family: inherit;
+@media (min-width: 760px) {
+  .explain {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--s5);
+  }
+}
+
+.explain div {
+  display: grid;
+  gap: var(--s1);
+  align-content: start;
+}
+
+.explain dt {
+  font-size: var(--t-s);
   font-weight: 700;
+  color: var(--jal-deep);
+}
+
+.explain dt :global(.bi-en) {
+  color: var(--jal-deep);
+}
+
+.explain dd {
+  margin: 0;
+  font-size: var(--t-s);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.foot {
+  display: grid;
+  gap: var(--s3);
+}
+
+.decided {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  font-size: var(--t-xs);
   color: var(--ink-2);
+}
+
+.ruleId {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px var(--s2);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  background: var(--wall);
+  color: var(--ink-2);
+  font-weight: 650;
+}
+
+.ruleId code {
+  font-family: inherit;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.demoNote {
+  justify-self: start;
+  padding: 2px var(--s2);
+  border: 1px dashed var(--stamp);
+  border-radius: 6px;
+  background: var(--stamp-wash);
+  color: var(--stamp);
+  font-size: var(--t-xs);
+  font-weight: 650;
+}
+
+.demoNote :global(.bi-en) {
+  color: var(--stamp);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

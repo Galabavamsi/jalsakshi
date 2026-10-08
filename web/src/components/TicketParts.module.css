@@ -178,3 +178,51 @@
     transform: rotate(-6deg) scale(1);
   }
 }
+
+/* ---------------------------------------------------------------- household confirmations */
+
+.confirmations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s4);
+}
+
+.slots {
+  display: flex;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slots li {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.slotYes {
+  background: var(--stamp);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--stamp-wash);
+}
+
+.slotWait {
+  border: 2px dashed var(--stamp);
+  background: var(--sheet);
+}
+
+.confirmText {
+  flex: 1 1 16rem;
+  color: var(--stamp);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.confirmText :global(.bi-en) {
+  color: var(--ink-2);
+  font-weight: 500;
+}

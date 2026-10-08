@@ -25,19 +25,25 @@ function yesNo(value: boolean | null | undefined): Bilingual {
 
 function Claim({ summary }: { summary: VillageSummary }) {
   const { village } = summary;
+  const declared = yesNo(village.claimed_hgj);
+  const certified = yesNo(village.hgj_certified);
   return (
-    <section className={styles.claim} aria-label="State claim">
-      <Bi as="h3" hi="राज्य का दावा" en="What the state reports" className={styles.sideTitle} />
-      <dl className={styles.facts}>
-        <div>
-          <Bi as="dt" hi="हर घर जल घोषित" en="Declared Har Ghar Jal" />
-          <Bi as="dd" t={yesNo(village.claimed_hgj)} />
-        </div>
-        <div>
-          <Bi as="dt" hi="ग्राम सभा से प्रमाणित" en="Certified by Gram Sabha" />
-          <Bi as="dd" t={yesNo(village.hgj_certified)} />
-        </div>
-      </dl>
+    <section className={styles.claim} aria-label="What the state record says">
+      <Bi as="h3" hi="सरकारी रिकॉर्ड में" en="In the state record" className={styles.sideTitle} />
+      <p className={styles.claimBig}>
+        <span lang="hi">
+          हर घर जल: <strong>{declared.hi}</strong>
+        </span>
+        <span lang="en" className={styles.bigEn}>
+          Declared Har Ghar Jal (tap water in every home): {declared.en}
+        </span>
+      </p>
+      <p className={styles.certified}>
+        <span lang="hi">
+          ग्राम सभा का प्रमाणपत्र: <strong>{certified.hi}</strong>
+        </span>{' '}
+        <span lang="en">(Certified by the Gram Sabha: {certified.en})</span>
+      </p>
       {village.claimed_source && <SourceBadge source={village.claimed_source} />}
     </section>
   );
@@ -46,19 +52,19 @@ function Claim({ summary }: { summary: VillageSummary }) {
 function Witness({ summary }: { summary: VillageSummary }) {
   const o = summary.observed_7d;
   return (
-    <section className={styles.witness} aria-label="Household answers">
+    <section className={styles.witness} aria-label="What households said">
       <Bi
         as="h3"
-        hi="घरों की गवाही, पिछले 7 दिन"
-        en="What households said, last 7 days"
+        hi="घरों ने फ़ोन पर बताया, पिछले 7 दिन"
+        en="What households said by phone, last 7 days"
         className={styles.sideTitle}
       />
       <p className={styles.big}>
         <span lang="hi">
-          {WINDOW_DAYS} में से <strong className="num">{o.supplied}</strong> दिन पानी आया
+          {WINDOW_DAYS} में से <strong className="num">{o.supplied}</strong> दिन पूरा पानी
         </span>
         <span lang="en" className={styles.bigEn}>
-          Water came on {o.supplied} of {WINDOW_DAYS} days
+          Full supply on {o.supplied} of {WINDOW_DAYS} days
         </span>
       </p>
       <TallyTiles observed={o} />

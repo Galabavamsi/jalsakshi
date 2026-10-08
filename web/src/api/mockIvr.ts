@@ -27,7 +27,7 @@ export const PROMPTS = {
   'operator.summary_dirty': 'Aaj gaon ke {households} gharon ne bataya ki paani gandla tha.',
   'operator.q_fixed': 'Agar samasya theek ho gayi hai to ek dabaiye. Abhi nahi to do dabaiye.',
   'operator.ack_fixed': 'Dhanyavaad. Hum gharon se pushti karenge, phir shikayat band hogi.',
-  'operator.ack_pending': 'Theek hai. Hum kal phir sampark karenge.',
+  'operator.ack_pending': 'Theek hai. Marammat ho jaane par Panchayat ko batayein, phir gharon se pushti hogi.',
 } as const;
 
 export type PromptKey = keyof typeof PROMPTS;

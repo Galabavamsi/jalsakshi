@@ -52,7 +52,7 @@ flowchart LR
 |---|---|
 | Orchestration | Step Functions (Map, `waitForTaskToken`, Retry/Catch), EventBridge Scheduler |
 | Compute | Lambda (Python 3.12, Powertools), API Gateway HTTP API |
-| Data | DynamoDB (single table, PITR), S3 (prompt audio, evidence sheets) |
+| Data | DynamoDB (single table, PITR), S3 (prompt audio, daily data-source cache) |
 | AI | Amazon Bedrock (Claude Haiku 4.5 via the **India** cross-region profile, so inference stays in Mumbai and Hyderabad; Nova 2 Lite fallback), **Strands Agents** (open source) |
 | Policy | **Cedar** (open source): consent, calling hours, quorum-before-close, department privacy |
 | Web | CloudFront + S3, Cognito |

@@ -20,7 +20,8 @@ two demo villages in Durg district, 14 days of statuses, one open ticket (verify
 confirmations) and one `CLOSED_VERIFIED` ticket with a reopen in its history. Every number is
 labelled demo and `simulated`. Simulator calls in mock mode record check-ins, recompute today's
 status with a mirror of rule r1, and open, reopen or verify tickets, so the whole loop can be
-shown offline.
+shown offline. Seeded calls always fall inside 09:00-21:00 IST; before a village's check-in
+time, today shows as "calls at 10:30" rather than a made-up status.
 
 ## Environment (build time)
 
@@ -65,5 +66,9 @@ tests/          vitest (node): client, mock API, IVR flow, simulator reducer, he
 The page is limewash with indigo (`#EDF2F5`) and indigo ink, with the blue of painted
 Har Ghar Jal walls (`#1F5FAE`) for actions and headlines. Rubber-stamp violet (`#5A3E9B`) marks
 what households verified, and the same hatched violet marks anything simulated. Day statuses
-always pair colour with an icon shape and a word. Type is Anek Devanagari (UI) and
+always pair colour with an icon shape and a word. A Cedar deny is shown as an ink-on-white
+notice, never as an error: the rule's own reason, why the rule exists, what happens next, and
+the policy id (`lib/policy.ts`). The phone simulator shows each IVR prompt in Devanagari with
+English below and the keypad choices (`lib/prompts.ts`); the audio itself is the romanised
+Hindi from `prompts/hi.yaml`. Type is Anek Devanagari (UI) and
 Tiro Devanagari Hindi (the printed Gram Sabha sheet), both self-hosted.

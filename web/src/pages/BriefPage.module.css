@@ -33,10 +33,23 @@
 }
 
 .form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
   gap: var(--s3);
+}
+
+.form > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (min-width: 620px) {
+  .form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
 }
 
 .field {
@@ -47,6 +60,8 @@
 }
 
 .field input {
+  width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding: var(--s2) var(--s3);
   border: 1.5px solid var(--rule-strong);
@@ -68,9 +83,9 @@
 }
 
 .byAgent {
-  border: 1.5px solid var(--stamp);
-  background: var(--stamp-wash);
-  color: var(--stamp);
+  border: 1.5px solid var(--ink-2);
+  background: var(--wall-2);
+  color: var(--ink);
 }
 
 .byTemplate {
@@ -190,4 +205,31 @@
   .printNote {
     display: block;
   }
+}
+
+.gist {
+  display: grid;
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-left: 6px solid var(--jal);
+  border-radius: var(--radius-s);
+  background: var(--sheet);
+}
+
+.gistTitle {
+  font-size: var(--t-s);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.gistHi {
+  font-size: var(--t-l);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.gistEn {
+  font-size: var(--t-s);
+  color: var(--ink-2);
 }

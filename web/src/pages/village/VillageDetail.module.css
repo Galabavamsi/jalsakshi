@@ -416,3 +416,99 @@
   font-size: var(--t-s);
   color: var(--ink-2);
 }
+
+/* ---------------------------------------------------------------- claim against witness */
+
+.summary {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: var(--shadow-board);
+}
+
+@media (min-width: 820px) {
+  .summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) auto;
+    gap: var(--s5);
+    align-items: start;
+  }
+
+  .summaryWitness,
+  .summaryToday {
+    padding-left: var(--s5);
+    border-left: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 819px) {
+  .summaryWitness,
+  .summaryToday {
+    padding-top: var(--s4);
+    border-top: 1px solid var(--rule);
+  }
+}
+
+.summaryClaim,
+.summaryWitness,
+.summaryToday {
+  display: grid;
+  gap: var(--s2);
+  align-content: start;
+  justify-items: start;
+  min-width: 0;
+}
+
+.summaryLabel {
+  font-size: var(--t-s);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.summaryValue {
+  display: grid;
+  gap: 2px;
+  font-size: var(--t-l);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.painted,
+.stamped {
+  font-size: 1.6em;
+  font-weight: 800;
+}
+
+.painted {
+  color: var(--jal);
+}
+
+.stamped {
+  color: var(--stamp);
+}
+
+.summaryEn {
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.summaryPending {
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.summaryCert {
+  font-size: var(--t-s);
+  color: var(--ink-2);
+}
+
+.summaryCert strong {
+  color: var(--ink);
+}
+
+.summaryCert [lang='en'] {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}

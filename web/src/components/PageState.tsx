@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { ApiError } from '../api/client';
+import { ApiError, PolicyDeniedError } from '../api/client';
 import type { Bilingual } from '../lib/format';
 import { Bi } from './Bi';
 import { IconRefresh } from './Icons';
+import { PolicyDenial } from './PolicyDenial';
 import styles from './PageState.module.css';
 
 /** Plain-language explanation of a failed request. */
@@ -37,17 +38,30 @@ export function Loading({ label }: { label?: Bilingual }) {
   );
 }
 
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+  return (
+    <button type="button" className="btn btn-quiet" onClick={onRetry}>
+      <IconRefresh />
+      <Bi hi="फिर से कोशिश करें" en="Try again" />
+    </button>
+  );
+}
+
+/**
+ * A failed request in plain words. A Cedar deny (403 with a reason) is not a failure: it is shown
+ * as the rule's notice, with the same retry button.
+ */
 export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  if (error instanceof PolicyDeniedError) {
+    return (
+      <PolicyDenial denied={error.denied}>{onRetry && <RetryButton onRetry={onRetry} />}</PolicyDenial>
+    );
+  }
   const text = describeError(error);
   return (
     <div className={styles.error} role="alert">
       <Bi t={text} className={styles.errorText} />
-      {onRetry && (
-        <button type="button" className="btn btn-quiet" onClick={onRetry}>
-          <IconRefresh />
-          <Bi hi="फिर से कोशिश करें" en="Try again" />
-        </button>
-      )}
+      {onRetry && <RetryButton onRetry={onRetry} />}
     </div>
   );
 }

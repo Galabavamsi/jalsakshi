@@ -8,6 +8,7 @@ import { PolicyDenial } from '../components/PolicyDenial';
 import { useAsync } from '../hooks/useAsync';
 import { cx } from '../lib/cx';
 import { PURPOSE, ROLE } from '../lib/labels';
+import { promptCaption } from '../lib/prompts';
 import type { LogEntry } from '../lib/simSession';
 import { PhoneScreen } from './simulator/PhoneScreen';
 import { useSimCall } from './simulator/useSimCall';
@@ -59,19 +60,31 @@ function Transcript({ log }: { log: LogEntry[] }) {
   }
   return (
     <ol className={styles.transcript} role="log" aria-label="Call transcript">
-      {log.map((e) => (
-        <li key={e.id} className={cx(styles.entry, styles[e.who])} ref={e.id === log[log.length - 1]?.id ? end : undefined}>
-          <span lang="hi" className={styles.entryHi}>
-            {e.hi}
-          </span>
-          {e.en && (
-            <span lang="en" className={styles.entryEn}>
-              {e.en}
+      {log.map((e) => {
+        const caption = e.who === 'ivr' && e.key ? promptCaption(e.key, e.hi) : null;
+        return (
+          <li
+            key={e.id}
+            className={cx(styles.entry, styles[e.who])}
+            ref={e.id === log[log.length - 1]?.id ? end : undefined}
+          >
+            <span lang="hi" className={styles.entryHi}>
+              {caption ? caption.hi : e.hi}
             </span>
-          )}
-          {e.key && <span className={styles.entryKey}>{e.key}</span>}
-        </li>
-      ))}
+            {(caption?.en ?? e.en) && (
+              <span lang="en" className={styles.entryEn}>
+                {caption?.en ?? e.en}
+              </span>
+            )}
+            {caption && (
+              <span className={styles.entryKey}>
+                <span lang="hi">आवाज़ में</span> <span lang="en">(spoken)</span>:{' '}
+                <span lang="hi-Latn">{e.hi}</span>
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -98,11 +111,13 @@ export function SimulatorPage() {
   const inCall = ['dialing', 'live', 'sending'].includes(state.phase);
   const phoneRef = useRef<HTMLDivElement>(null);
 
-  // On a phone the keypad sits below the form; bring it into view when a call starts.
+  // On a phone the keypad sits below the form; bring its screen into view when a call starts.
+  // Wider screens show form, phone and transcript side by side, so nothing needs to move there.
   useEffect(() => {
     if (state.phase !== 'dialing') return;
+    if (!window.matchMedia('(max-width: 759px)').matches) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    phoneRef.current?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    phoneRef.current?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
   }, [state.phase]);
   const startCall = () => {
     if (setup) void call.start(toRequest(setup));

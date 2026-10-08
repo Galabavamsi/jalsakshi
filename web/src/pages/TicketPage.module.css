@@ -74,3 +74,17 @@
   font-size: var(--t-s);
   color: var(--ink-2);
 }
+
+.verify {
+  display: grid;
+  gap: var(--s3);
+  padding-bottom: var(--s4);
+  margin-bottom: var(--s1);
+  border-bottom: 1px solid var(--rule);
+}
+
+.cardTitle {
+  font-size: var(--t-m);
+  font-weight: 700;
+  color: var(--ink-2);
+}

@@ -1,9 +1,9 @@
 /** Turns ticket events into words: who did it and what the detail fields mean. */
 
-import type { DayStatusValue, OperatorRole, TicketEvent } from '../api/types';
+import type { DayStatusValue, OperatorRole, TicketEvent, WaterAnswer } from '../api/types';
 import { DAY_STATUSES } from '../api/types';
 import type { Bilingual } from './format';
-import { ROLE, STATUS } from './labels';
+import { ROLE, STATUS, WATER } from './labels';
 
 /** Display names for operator and household ids, built from the village detail. */
 export type People = Record<string, Bilingual>;
@@ -63,6 +63,10 @@ function isRole(value: unknown): value is OperatorRole {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(ROLE, value);
 }
 
+function isWater(value: unknown): value is WaterAnswer {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(WATER, value);
+}
+
 function isStatus(value: unknown): value is DayStatusValue {
   return typeof value === 'string' && (DAY_STATUSES as readonly string[]).includes(value);
 }
@@ -86,7 +90,13 @@ function entryFor(key: string, value: unknown, people: People): DetailEntry | nu
     return { label: { hi: 'किसे', en: 'who' }, value: who ? `${who.hi} (${who.en})` : String(value) };
   }
   if (key === 'digits') return { label: { hi: 'दबाया', en: 'pressed' }, value: String(value) };
-  if (key === 'water') return { label: { hi: 'जवाब', en: 'answer' }, value: String(value) };
+  if (key === 'water') {
+    const water = isWater(value) ? WATER[value] : null;
+    return {
+      label: { hi: 'जवाब', en: 'answer' },
+      value: water ? `${water.hi} (${water.en})` : String(value),
+    };
+  }
   if (key === 'rule_version') return { label: { hi: 'नियम', en: 'rule' }, value: String(value) };
   if (key === 'policy_id') return { label: { hi: 'Cedar नियम', en: 'policy' }, value: String(value) };
   const text = typeof value === 'object' ? JSON.stringify(value) : String(value);

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
-import type { HouseholdMasked, IsoDate } from '../api/types';
+import type { DayStatus, HouseholdMasked, IsoDate } from '../api/types';
 import { Bi } from '../components/Bi';
 import { IconBack, IconDoc } from '../components/Icons';
 import { ErrorNote, Loading } from '../components/PageState';
 import { StatusLegend, StatusStrip } from '../components/StatusStrip';
-import { useAsync } from '../hooks/useAsync';
+import { useAsync, type AsyncState } from '../hooks/useAsync';
 import { addDays, istDate } from '../lib/time';
+import { ClaimSummary } from './village/ClaimSummary';
 import { ContextPanel } from './village/ContextPanel';
 import { DayDetail } from './village/DayDetail';
 import { HouseholdList, OperatorList } from './village/People';
@@ -17,11 +18,19 @@ import styles from './village/VillageDetail.module.css';
 
 const STRIP_DAYS = 14;
 
-function StripSection({ vid, households }: { vid: string; households: HouseholdMasked[] }) {
-  const api = useApi();
-  const today = istDate(new Date());
-  const from = addDays(today, -(STRIP_DAYS - 1));
-  const days = useAsync(() => api.getDays(vid, from, today), `days:${vid}:${from}:${today}`);
+function StripSection({
+  vid,
+  households,
+  days,
+  from,
+  today,
+}: {
+  vid: string;
+  households: HouseholdMasked[];
+  days: AsyncState<DayStatus[]>;
+  from: IsoDate;
+  today: IsoDate;
+}) {
   const [picked, setPicked] = useState<IsoDate | null>(null);
   const list = days.data ?? [];
   const selectedDate = picked ?? list[list.length - 1]?.date ?? null;
@@ -62,6 +71,9 @@ export function VillageDetailPage() {
   const api = useApi();
   const detail = useAsync(() => api.getVillage(vid), `village:${vid}`);
   const tickets = useAsync(() => api.listTickets({ village_id: vid }), `tickets:${vid}`);
+  const today = istDate(new Date());
+  const from = addDays(today, -(STRIP_DAYS - 1));
+  const days = useAsync(() => api.getDays(vid, from, today), `days:${vid}:${from}:${today}`);
 
   if (detail.loading && !detail.data) {
     return (
@@ -93,6 +105,7 @@ export function VillageDetailPage() {
           en={`${village.block} block, ${village.district} district. ${callable} households are called daily at ${village.checkin_local_time} IST. At least ${village.quorum} must answer for the day to count.`}
           className={styles.intro}
         />
+        <ClaimSummary village={village} days={days.data} today={today} />
         <div className={styles.actions}>
           <RunCheckin villageId={village.id} households={callable} />
           <Link to={`/villages/${encodeURIComponent(village.id)}/brief`} className="btn btn-secondary">
@@ -104,7 +117,13 @@ export function VillageDetailPage() {
 
       <div className={styles.columns}>
         <div className={styles.mainCol}>
-          <StripSection vid={village.id} households={households} />
+          <StripSection
+            vid={village.id}
+            households={households}
+            days={days}
+            from={from}
+            today={today}
+          />
           <section className={styles.section} aria-labelledby="tickets-title">
             <Bi as="h2" id="tickets-title" hi="शिकायतें" en="Repair tickets" className="section-title" />
             {tickets.loading && !tickets.data && <Loading />}

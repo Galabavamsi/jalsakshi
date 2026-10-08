@@ -1,7 +1,7 @@
 .hero {
   display: grid;
   gap: var(--s3);
-  margin-bottom: var(--s7);
+  margin-bottom: var(--s6);
   max-width: 46rem;
 }
 
@@ -120,25 +120,35 @@
   min-width: 0;
 }
 
-.facts {
-  display: grid;
-  gap: var(--s3);
-}
-
-.facts div {
+/* The state's claim is set like a painted Har Ghar Jal wall: big, blue, certain. */
+.claimBig {
   display: grid;
   gap: 2px;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
 }
 
-.facts dt {
+.claimBig strong {
+  font-size: 1.6em;
+  font-weight: 800;
+  color: var(--jal);
+}
+
+.certified {
   font-size: var(--t-s);
   color: var(--ink-2);
 }
 
-.facts dd {
-  margin: 0;
-  font-size: var(--t-l);
-  font-weight: 700;
+.certified strong {
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.certified [lang='en'] {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
 }
 
 .versus {
@@ -185,7 +195,7 @@
 .big strong {
   font-size: 1.6em;
   font-weight: 800;
-  color: var(--jal-deep);
+  color: var(--stamp);
 }
 
 .bigEn {

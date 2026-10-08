@@ -6,7 +6,8 @@
 
   display: grid;
   gap: var(--s4);
-  width: min(100%, 320px);
+  width: 100%;
+  max-width: 352px;
   padding: var(--s4) var(--s4) var(--s5);
   border-radius: 34px 34px 44px 44px;
   background: linear-gradient(180deg, #2c3852, var(--body) 30%, var(--body-edge));
@@ -37,7 +38,7 @@
 }
 
 .screen {
-  min-height: 236px;
+  min-height: 256px;
   padding: var(--s3);
   border: 3px solid #0e1422;
   border-radius: 10px;
@@ -89,7 +90,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 54px;
+  min-height: 50px;
   border: 0;
   border-radius: 12px 12px 18px 18px;
   background: linear-gradient(180deg, #f4f6f9, #d9dfe7);

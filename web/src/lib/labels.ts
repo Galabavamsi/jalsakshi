@@ -122,7 +122,7 @@ const EVENT_KIND: Record<string, Bilingual> = {
   verify_answer: { hi: 'एक घर ने जवाब दिया', en: 'A household answered' },
   reopened: { hi: 'घर ने कहा पानी अभी नहीं, फिर खुली', en: 'A household said no water, reopened' },
   closed_verified: { hi: 'घरों ने पुष्टि की, बंद', en: 'Closed after households confirmed' },
-  close_denied: { hi: 'बंद करने से नियम ने रोका', en: 'Close blocked by policy' },
+  close_denied: { hi: 'बंद करने की कोशिश, नियम ने रोका', en: 'Close attempted, held back by a rule' },
   escalated: { hi: 'PHED को भेजी (सिम्युलेटेड)', en: 'Escalated to PHED (simulated)' },
   day_still_bad: { hi: 'अगले दिन भी समस्या, नई शिकायत नहीं', en: 'Still failing; no duplicate ticket' },
   note: { hi: 'टिप्पणी', en: 'Note' },

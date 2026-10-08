@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { isMock } from '../appConfig';
 import { useAuth } from '../auth/AuthContext';
 import { cx } from '../lib/cx';
@@ -11,6 +11,11 @@ const NAV = [
   { to: '/activity', hi: 'गतिविधि', en: 'Activity', Icon: IconPulse, end: false },
   { to: '/simulator', hi: 'फ़ोन सिम्युलेटर', en: 'Phone simulator', Icon: IconPhone, end: false },
 ];
+
+/** Village pages, tickets and briefs all sit under "Villages" in the navigation. */
+function underVillages(pathname: string): boolean {
+  return pathname.startsWith('/villages/') || pathname.startsWith('/tickets/');
+}
 
 function DemoBanner() {
   return (
@@ -42,6 +47,7 @@ function Account() {
 
 /** Page chrome: brand, navigation (a bottom bar on phones) and the demo label. */
 export function Layout() {
+  const { pathname } = useLocation();
   return (
     <div className={styles.shell}>
       <a className={styles.skip} href="#main">
@@ -69,7 +75,12 @@ export function Layout() {
                 <NavLink
                   to={to}
                   end={end}
-                  className={({ isActive }) => cx(styles.navLink, isActive && styles.active)}
+                  className={({ isActive }) =>
+                    cx(
+                      styles.navLink,
+                      (isActive || (to === '/' && underVillages(pathname))) && styles.active,
+                    )
+                  }
                 >
                   <Icon size={22} />
                   <Bi hi={hi} en={en} />

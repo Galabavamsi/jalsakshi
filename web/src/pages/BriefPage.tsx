@@ -9,7 +9,7 @@ import { Markdown } from '../components/Markdown';
 import { SourceBadge } from '../components/SourceBadge';
 import { useAsync } from '../hooks/useAsync';
 import { cx } from '../lib/cx';
-import { dateTime } from '../lib/format';
+import { dateTime, type Bilingual } from '../lib/format';
 import { addDays, istDate } from '../lib/time';
 import styles from './BriefPage.module.css';
 
@@ -82,6 +82,73 @@ function RangeForm({ range, onApply }: { range: Range; onApply: (r: Range) => vo
   );
 }
 
+const NUMBER_LABEL: Record<string, Bilingual> = {
+  days: { hi: 'कुल दिन', en: 'days in the period' },
+  supplied: { hi: 'पूरा पानी आया (दिन)', en: 'days with full supply' },
+  partial: { hi: 'थोड़ा पानी (दिन)', en: 'days with partial supply' },
+  no_supply: { hi: 'पानी नहीं आया (दिन)', en: 'days with no supply' },
+  dirty: { hi: 'गंदा पानी (दिन)', en: 'days with dirty water' },
+  unverified: { hi: 'पुष्टि नहीं (दिन)', en: 'days with too few answers' },
+  supplied_pct: { hi: 'पूरे पानी वाले दिन (%)', en: 'share of days with full supply (%)' },
+  households: { hi: 'पंजीकृत घर', en: 'registered households' },
+  tickets_opened: { hi: 'खुली शिकायतें', en: 'tickets opened' },
+  tickets_closed_verified: {
+    hi: 'घरों की पुष्टि से बंद शिकायतें',
+    en: 'tickets closed on households’ confirmation',
+  },
+  median_hours_to_verified_fix: {
+    hi: 'पुष्ट मरम्मत में लगे घंटे (माध्यिका)',
+    en: 'median hours to a confirmed repair',
+  },
+};
+
+function numberLabel(key: string): Bilingual {
+  const words = key.replace(/_/g, ' ');
+  return NUMBER_LABEL[key] ?? { hi: words, en: words };
+}
+
+function count(numbers: Brief['numbers'], key: string): number | null {
+  const value = numbers[key];
+  return typeof value === 'number' ? value : null;
+}
+
+/**
+ * The sheet's main numbers as one sentence in Hindi and English, so someone who does not read
+ * the Hindi sheet still gets its point. Only numbers the API returned are used.
+ */
+function Gist({ numbers }: { numbers: Brief['numbers'] }) {
+  const days = count(numbers, 'days');
+  const supplied = count(numbers, 'supplied');
+  const noSupply = count(numbers, 'no_supply');
+  const opened = count(numbers, 'tickets_opened');
+  const closed = count(numbers, 'tickets_closed_verified');
+  if (days === null || supplied === null) return null;
+  const hi = [`${days} में से ${supplied} दिन घरों ने पूरा पानी आने की बात कही`];
+  const en = [`Households reported full supply on ${supplied} of ${days} days`];
+  if (noSupply !== null && noSupply > 0) {
+    hi.push(`${noSupply} दिन पानी नहीं आया`);
+    en.push(`no water on ${noSupply}`);
+  }
+  const tail =
+    opened !== null && closed !== null
+      ? {
+          hi: ` ${opened} ${opened === 1 ? 'शिकायत खुली' : 'शिकायतें खुलीं'}; घरों की पुष्टि से बंद: ${closed}।`,
+          en: ` ${opened} repair ${opened === 1 ? 'ticket' : 'tickets'} opened, ${closed} closed after households confirmed.`,
+        }
+      : { hi: '', en: '' };
+  return (
+    <section className={cx(styles.gist, 'no-print')} aria-labelledby="gist-title">
+      <Bi as="h2" id="gist-title" hi="पत्र का सार" en="The sheet in one line" className={styles.gistTitle} />
+      <p className={styles.gistHi} lang="hi">
+        {hi.join(', ')}।{tail.hi}
+      </p>
+      <p className={styles.gistEn} lang="en">
+        {en.join(', ')}.{tail.en}
+      </p>
+    </section>
+  );
+}
+
 function Numbers({ numbers }: { numbers: Brief['numbers'] }) {
   const rows = Object.entries(numbers);
   if (rows.length === 0) return null;
@@ -92,12 +159,17 @@ function Numbers({ numbers }: { numbers: Brief['numbers'] }) {
       </summary>
       <table>
         <tbody>
-          {rows.map(([key, value]) => (
-            <tr key={key}>
-              <th scope="row">{key.replace(/_/g, ' ')}</th>
-              <td className="num">{value ?? 'null'}</td>
-            </tr>
-          ))}
+          {rows.map(([key, value]) => {
+            const label = numberLabel(key);
+            return (
+              <tr key={key}>
+                <th scope="row">
+                  <Bi t={label} />
+                </th>
+                <td className="num">{value ?? '–'}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </details>
@@ -146,6 +218,7 @@ export function BriefPage() {
       {brief.data && (
         <>
           <GeneratedBy brief={brief.data} />
+          <Gist numbers={brief.data.numbers} />
           <article className={styles.sheet} aria-label="Gram Sabha evidence sheet">
             <Markdown source={brief.data.markdown_hi} />
             <footer className={styles.sources}>

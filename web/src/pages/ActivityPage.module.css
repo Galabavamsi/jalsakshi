@@ -81,9 +81,10 @@
   --tone-wash: var(--jal-wash);
 }
 
+/* A rule holding something back is a notice, not an alarm (same ink as the policy panel). */
 .policy {
-  --tone: var(--st-no);
-  --tone-wash: var(--st-no-wash);
+  --tone: var(--ink);
+  --tone-wash: var(--wall-2);
 }
 
 .ticket {
@@ -143,4 +144,9 @@
   justify-self: start;
   font-size: var(--t-s);
   font-weight: 650;
+}
+
+.lede {
+  max-width: 60ch;
+  color: var(--ink-2);
 }

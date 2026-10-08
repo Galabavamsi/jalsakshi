@@ -9,7 +9,7 @@ import {
   IconDrop,
   IconPlay,
   IconPulse,
-  IconShield,
+  IconRule,
   IconTicket,
 } from '../components/Icons';
 import { Empty, ErrorNote, Loading } from '../components/PageState';
@@ -25,7 +25,7 @@ const POLL_MS = 5000;
 
 function iconFor(kind: string) {
   const k = kind.toLowerCase();
-  if (k.includes('policy') || k.includes('denied')) return IconShield;
+  if (k.includes('policy') || k.includes('denied')) return IconRule;
   if (k.includes('run')) return IconPlay;
   if (k.includes('call') || k.includes('checkin')) return IconCall;
   if (k.includes('ticket')) return IconTicket;
@@ -119,6 +119,11 @@ export function ActivityPage() {
     <div className="page">
       <header className={styles.header}>
         <Bi as="h1" hi="गतिविधि" en="Activity" className={styles.title} />
+        <Bi
+          hi="कॉल, दिन की स्थिति, शिकायतें और नियमों के फ़ैसले, जैसे-जैसे होते हैं।"
+          en="Calls, day statuses, tickets and rule decisions, as they happen."
+          className={styles.lede}
+        />
         <div className={styles.liveRow}>
           <p className={cx(styles.live, paused && styles.paused)} role="status">
             <span className={styles.dot} aria-hidden="true" />

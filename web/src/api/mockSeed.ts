@@ -6,7 +6,7 @@
  * Dates are generated relative to "now" so the strip always ends today (IST).
  */
 
-import { addDays, istDate, istInstant, istNoon, minutesFrom } from '../lib/time';
+import { addDays, istDate, istHour, istInstant, istNoon, minutesFrom } from '../lib/time';
 import type {
   ActivityItem,
   CheckInMasked,
@@ -228,6 +228,24 @@ function notAfter(at: Date, now: Date): Date {
   return at.getTime() > now.getTime() ? minutesFrom(now, -5) : at;
 }
 
+/**
+ * When the Nayapara operator pressed "fixed": about 2.5 hours ago, but always inside the calling
+ * window (09:00-21:00 IST) with room for the verification call 30 minutes later. A late-night or
+ * early-morning load moves it to 20:00 IST on the latest day that allows it.
+ */
+export function operatorFixedAt(now: Date): Date {
+  const t = minutesFrom(now, -150);
+  const day = istDate(t);
+  if (t.getTime() > istInstant(day, '20:00').getTime()) return istInstant(day, '20:00');
+  if (istHour(t) < 9) return istInstant(addDays(day, -1), '20:00');
+  return t;
+}
+
+/** True once a day's scheduled check-in has run and been reconciled (16 minutes after the start). */
+function checkinDone(date: IsoDate, hhmm: string, now: Date): boolean {
+  return minutesFrom(istInstant(date, hhmm), 16).getTime() <= now.getTime();
+}
+
 function maskedHousehold(vid: string, h: HouseholdSeed, now: Date): HouseholdMasked {
   return {
     id: h.id,
@@ -353,7 +371,7 @@ function event(
 function nayaparaTicket(today: IsoDate, now: Date): Ticket {
   const d2 = addDays(today, -2);
   const d1 = addDays(today, -1);
-  const fixedAt = minutesFrom(now, -150);
+  const fixedAt = operatorFixedAt(now);
   const events = [
     event(istInstant(d2, '10:46'), 'system:reconcile', 'opened', null, 'OPEN', {
       day_status: 'NO_SUPPLY',
@@ -453,7 +471,7 @@ function amlidihTicket(today: IsoDate): Ticket {
 
 function seedActivity(today: IsoDate, now: Date): ActivityItem[] {
   const y = addDays(today, -1);
-  const fixedAt = minutesFrom(now, -150);
+  const fixedAt = operatorFixedAt(now);
   const items: ActivityItem[] = [
     {
       at: istInstant(y, '10:30').toISOString(),
@@ -483,13 +501,7 @@ function seedActivity(today: IsoDate, now: Date): ActivityItem[] {
       text_en: 'Amlidih: water supplied (3 of 3 said yes).',
       text_hi: 'अमलीडीह: पानी आया (3 में से 3 ने हाँ कहा)।',
     },
-    {
-      at: notAfter(istInstant(today, '10:46'), now).toISOString(),
-      kind: 'day_status',
-      village_id: 'v-nayapara',
-      text_en: 'Nayapara: partial supply today (3 of 4 answered).',
-      text_hi: 'नयापारा: आज थोड़ा पानी आया (4 में से 3 घरों ने जवाब दिया)।',
-    },
+
     {
       at: fixedAt.toISOString(),
       kind: 'ticket',
@@ -505,6 +517,15 @@ function seedActivity(today: IsoDate, now: Date): ActivityItem[] {
       text_hi: 'नयापारा: घर 2 ने पुष्टि की कि पानी आ रहा है (2 में से 1)।',
     },
   ];
+  if (checkinDone(today, '10:30', now)) {
+    items.push({
+      at: istInstant(today, '10:46').toISOString(),
+      kind: 'day_status',
+      village_id: 'v-nayapara',
+      text_en: 'Nayapara: partial supply today (3 of 4 answered).',
+      text_hi: 'नयापारा: आज थोड़ा पानी आया (4 में से 3 घरों ने जवाब दिया)।',
+    });
+  }
   return items.sort((a, b) => a.at.localeCompare(b.at));
 }
 
@@ -530,6 +551,8 @@ export function seedMockState(now: Date): MockState {
     state.households.push(...seed.households.map((h) => maskedHousehold(village.id, h, now)));
     seed.days.forEach((_, i) => {
       const date = addDays(today, i - (SEED_DAYS - 1));
+      // Today's calls have not happened yet before the village's check-in time.
+      if (!checkinDone(date, village.checkin_local_time, now)) return;
       const checkins = dayCheckins(seed, date, i, now);
       const computedAt = notAfter(
         minutesFrom(istInstant(date, village.checkin_local_time), 16),
@@ -553,7 +576,7 @@ export function seedMockState(now: Date): MockState {
     };
   }
   addLeakNote(state, addDays(today, -2));
-  addVerifyAnswer(state, now);
+  addVerifyAnswer(state, minutesFrom(operatorFixedAt(now), 30));
   state.tickets.push(nayaparaTicket(today, now), amlidihTicket(today));
   state.activity = seedActivity(today, now);
   return state;
@@ -570,8 +593,7 @@ function addLeakNote(state: MockState, date: IsoDate): void {
 }
 
 /** The single verification "yes" so far on the Nayapara ticket. */
-function addVerifyAnswer(state: MockState, now: Date): void {
-  const at = minutesFrom(now, -120);
+function addVerifyAnswer(state: MockState, at: Date): void {
   state.checkins.push({
     village_id: 'v-nayapara',
     date: istDate(at),

@@ -29,3 +29,29 @@
   border: 1.5px dotted var(--rule-strong);
   background: transparent;
 }
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s4);
+  margin: var(--s2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-s);
+  line-height: 1.35;
+}
+
+.counts li {
+  color: var(--st, var(--ink-2));
+  font-weight: 650;
+}
+
+.counts [lang='en'] {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.noData {
+  color: var(--ink-3);
+}

@@ -1,8 +1,8 @@
 .header {
   display: grid;
-  gap: var(--s3);
-  margin-bottom: var(--s6);
-  max-width: 48rem;
+  gap: var(--s2);
+  margin-bottom: var(--s5);
+  max-width: 52rem;
 }
 
 .titleRow {
@@ -13,7 +13,7 @@
 }
 
 .title {
-  font-size: var(--t-2xl);
+  font-size: var(--t-xl);
   font-weight: 800;
 }
 
@@ -33,17 +33,22 @@
 }
 
 .lede {
+  font-size: var(--t-s);
   color: var(--ink-2);
 }
 
 .layout {
+  --phone-w: 352px;
+
   display: grid;
   gap: var(--s6);
 }
 
+/* The phone gets a fixed column so it never changes width while a call runs. */
 @media (min-width: 760px) {
   .layout {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) var(--phone-w);
+    align-items: start;
   }
 
   .transcriptCol {
@@ -53,8 +58,7 @@
 
 @media (min-width: 1100px) {
   .layout {
-    grid-template-columns: minmax(17rem, 0.85fr) auto minmax(18rem, 1fr);
-    align-items: start;
+    grid-template-columns: minmax(15rem, 0.8fr) var(--phone-w) minmax(18rem, 1fr);
   }
 
   .transcriptCol {
@@ -168,14 +172,50 @@
 }
 
 .prompt {
-  font-size: var(--t-m);
-  font-weight: 650;
-  line-height: 1.4;
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--t-l);
+  font-weight: 700;
+  line-height: 1.35;
 }
 
-.promptKey {
+.promptEn {
+  font-size: var(--t-s);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.choices {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: var(--s2) 0 0;
+  border-top: 1px dashed rgb(16 38 31 / 0.35);
+  list-style: none;
+  font-size: var(--t-m);
+  font-weight: 700;
+}
+
+.choices li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.choiceEn {
   font-size: var(--t-xs);
-  opacity: 0.75;
+  font-weight: 500;
+}
+
+.choiceKey {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid currentColor;
+  border-radius: 7px;
+  font-size: var(--t-m);
+  font-variant-numeric: lining-nums;
 }
 
 .ask {

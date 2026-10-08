@@ -1,4 +1,5 @@
 import { IconSpeaker } from '../../components/Icons';
+import { promptCaption } from '../../lib/prompts';
 import { timerRunning, type SimState } from '../../lib/simSession';
 import styles from './Simulator.module.css';
 
@@ -13,14 +14,14 @@ function Line({ hi, en }: { hi: string; en: string }) {
   );
 }
 
-/** What the phone's display shows for each moment of a call. */
+/** What the phone's display shows for each moment of a call: the question and the keys to press. */
 export function PhoneScreen({ state }: { state: SimState }) {
   if (state.phase === 'idle') {
     return <Line hi="तैयार। हरा बटन दबाकर कॉल शुरू करें।" en="Ready. Press the green key to start a call." />;
   }
-  if (state.phase === 'dialing') return <Line hi="कॉल लग रहा है" en="Connecting" />;
+  if (state.phase === 'dialing') return <Line hi="कॉल लग रहा है…" en="Connecting" />;
   if (state.phase === 'failed') {
-    return <Line hi="कॉल नहीं हो पाया" en={state.denied ? 'Blocked by policy' : state.error ?? 'Call failed'} />;
+    return <Line hi="कॉल नहीं हो पाया" en={state.denied ? 'Held back by a rule' : state.error ?? 'Call failed'} />;
   }
   if (state.phase === 'ended') {
     return <Line hi="कॉल समाप्त। नया कॉल हरे बटन से।" en="Call ended. Press green for a new call." />;
@@ -28,6 +29,8 @@ export function PhoneScreen({ state }: { state: SimState }) {
 
   const waiting = state.waiting;
   const running = timerRunning(state);
+  const caption = state.screen ? promptCaption(state.screen.key, state.screen.text) : null;
+  const choices = waiting?.kind === 'digits' ? caption?.choices : undefined;
   return (
     <div className={styles.lcd} aria-live="polite">
       <p className={styles.lcdHeader}>
@@ -35,20 +38,38 @@ export function PhoneScreen({ state }: { state: SimState }) {
         {state.audio.length > 0 && (
           <span className={styles.playing}>
             <IconSpeaker size={16} />
-            <span lang="en">audio</span>
+            <span lang="hi">बोल रहा है</span>
           </span>
         )}
       </p>
-      {state.screen && (
-        <>
+      {state.screen &&
+        (caption ? (
+          <p className={styles.prompt}>
+            <span lang="hi">{caption.hi}</span>
+            <span lang="en" className={styles.promptEn}>
+              {caption.en}
+            </span>
+          </p>
+        ) : (
           <p className={styles.prompt} lang="hi">
             {state.screen.text}
           </p>
-          <p className={styles.promptKey}>{state.screen.key}</p>
-        </>
+        ))}
+      {choices && (
+        <ul className={styles.choices}>
+          {choices.map((c) => (
+            <li key={c.key}>
+              <span className={styles.choiceKey}>{c.key}</span>
+              <span lang="hi">{c.label.hi}</span>
+              <span lang="en" className={styles.choiceEn}>
+                {c.label.en}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
       {state.phase === 'sending' && <Line hi="भेज रहे हैं" en="Sending" />}
-      {waiting?.kind === 'digits' && (
+      {waiting?.kind === 'digits' && !choices && (
         <p className={styles.ask}>
           <span lang="hi">अब नंबर दबाएँ</span>{' '}
           <span lang="en">(press a key{state.buffer ? `: ${state.buffer}` : ''})</span>
