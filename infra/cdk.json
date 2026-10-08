@@ -25,7 +25,9 @@
     "stages": {
       "dev-vamsi": {
         "voice_provider": "vobiz",
-        "retry_wait_minutes": 2
+        "retry_wait_minutes": 2,
+        "web_domain": "jalsakshi.humanslop.in",
+        "web_cert_arn": "arn:aws:acm:us-east-1:301745146083:certificate/e578b0cd-a732-4e56-bc04-e3fc2db45d57"
       }
     }
   }

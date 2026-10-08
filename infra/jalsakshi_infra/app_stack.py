@@ -234,7 +234,9 @@ class AppStack(cdk.Stack):
             api_name=self.cfg.name("api"),
             create_default_stage=False,
             cors_preflight=apigw.CorsPreflightOptions(
-                allow_origins=[web.web_url, *self.cfg.local_origins],
+                allow_origins=list(
+                    dict.fromkeys([web.web_url, web.cdn_url, *self.cfg.local_origins])
+                ),
                 allow_methods=[
                     apigw.CorsHttpMethod.GET,
                     apigw.CorsHttpMethod.POST,
