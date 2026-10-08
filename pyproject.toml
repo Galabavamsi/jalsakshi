@@ -1,0 +1,46 @@
+[project]
+name = "jalsakshi"
+version = "0.1.0"
+description = "Household-verified village tap-water supply: Hindi phone check-ins, verified repairs, Gram Sabha evidence."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.8",
+    "boto3>=1.35",
+    "aws-lambda-powertools>=3.0",
+    "cedarpy>=4.1",
+    "strands-agents>=1.50",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "hypothesis>=6.112",
+    "moto[dynamodb,s3,ssm,stepfunctions]>=5.0",
+    "ruff>=0.7",
+    "python-dotenv>=1.0",
+]
+infra = [
+    "aws-cdk-lib>=2.200",
+    "constructs>=10.3",
+]
+
+[tool.uv]
+# Not built as a wheel: tests use pythonpath=src, and Lambda assets are bundled by infra/.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["web", "infra/cdk.out"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

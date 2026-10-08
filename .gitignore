@@ -1,0 +1,41 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+*.egg-info/
+build/
+dist/
+
+# cdk
+infra/cdk.out/
+infra/cdk.context.json
+
+# web
+web/node_modules/
+web/dist/
+
+# audio renders / local artifacts
+prompts/out/
+*.wav
+*.mp3
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# research dumps never belong in the repo
+.research_tmp/
+.research_scripts/
+.scratch/
+
+.scratch_dl/

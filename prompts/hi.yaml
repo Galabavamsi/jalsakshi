@@ -1,0 +1,23 @@
+# Hindi IVR prompt catalog. Keys are referenced by voice/flow.py and rendered to audio by prompts/render.py.
+# Keep sentences short and plain, so they work on 8 kHz phone lines and for Chhattisgarhi speakers.
+version: 1
+language: hi-IN
+household:
+  greet: "Namaste. JalSakshi se bol rahe hain. Aapke gaon ke nal ke paani ke baare mein teen chhote sawaal hain."
+  q_water: "Aaj nal mein paani aaya? Haan ke liye ek, nahi ke liye do, thoda sa aaya to teen dabaiye."
+  q_hours: "Kitne ghante paani aaya? Shunya se nau tak number dabaiye."
+  q_clean: "Paani saaf tha? Saaf ke liye ek, gandla ke liye do dabaiye."
+  q_note: "Kuch aur batana ho to beep ke baad pandrah second bolein. Nahi to hash dabaiye."
+  bye: "Dhanyavaad. Aapka jawab gaon ki Gram Sabha tak pahunchega."
+  invalid: "Maaf kijiye, samajh nahi aaya. Phir se sunte hain."
+verify:
+  greet: "Namaste. JalSakshi se bol rahe hain. Aapne bataya tha ki nal mein paani nahi aa raha tha."
+  q_water: "Kya ab nal mein paani aa raha hai? Haan ke liye ek, nahi ke liye do dabaiye."
+  bye: "Dhanyavaad. Aapki pushti ke bina shikayat band nahi hogi."
+operator:
+  greet: "Namaste. JalSakshi se Nal Jal Mitra ke liye soochna hai."
+  summary_no_supply: "Aaj gaon ke {households} gharon ne bataya ki nal mein paani nahi aaya."
+  summary_dirty: "Aaj gaon ke {households} gharon ne bataya ki paani gandla tha."
+  q_fixed: "Agar samasya theek ho gayi hai to ek dabaiye. Abhi nahi to do dabaiye."
+  ack_fixed: "Dhanyavaad. Hum gharon se pushti karenge, phir shikayat band hogi."
+  ack_pending: "Theek hai. Hum kal phir sampark karenge."
