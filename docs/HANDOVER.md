@@ -26,7 +26,7 @@ Update the **Status** table whenever you start or finish something. This is how 
 | Sun 11 Oct | Polish, README, architecture diagram, Builder Center blog. **Video locked 16:00, submit by 19:00** |
 
 ## Status
-_Last updated Fri 9 Oct 2026, 00:20 IST. Stage **dev-vamsi** is deployed in ap-south-1: API https://pcin3mmqo8.execute-api.ap-south-1.amazonaws.com, console https://d3axprdstjr7n8.cloudfront.net, prompt audio https://d2l0x4lf85o8ao.cloudfront.net/prompts/hi. Voice provider is still `simulator`._
+_Last updated Fri 9 Oct 2026, 00:20 IST. Stage **dev-vamsi** is deployed in ap-south-1: API https://pcin3mmqo8.execute-api.ap-south-1.amazonaws.com, console https://d3axprdstjr7n8.cloudfront.net, prompt audio https://d2l0x4lf85o8ao.cloudfront.net/prompts/hi. Voice provider is **vobiz** (set per stage in `infra/cdk.json` → `stages`, with `retry_wait_minutes` 2 for filming). Console logins: `vamsi` and `varun` (Panchayat Secretary group). Custom domain `jalsakshi.humanslop.in` is waiting on DNS validation in Cloudflare._
 
 | Area | Owner | State | Notes |
 |---|---|---|---|
