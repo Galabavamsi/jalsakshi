@@ -1,0 +1,146 @@
+.header {
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s6);
+}
+
+.title {
+  font-size: var(--t-2xl);
+  font-weight: 800;
+}
+
+.title :global(.bi-en) {
+  font-size: 0.5em;
+  font-weight: 500;
+}
+
+.liveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s5);
+}
+
+.live {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 650;
+  color: var(--st-supplied);
+}
+
+.live :global(.bi-en) {
+  color: inherit;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px var(--st-supplied-wash);
+}
+
+.paused {
+  color: var(--ink-3);
+}
+
+.paused .dot {
+  box-shadow: none;
+}
+
+.day {
+  max-width: 56rem;
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s6);
+}
+
+.dayTitle {
+  font-size: var(--t-l);
+  font-weight: 750;
+  color: var(--ink-2);
+}
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 3.4rem 36px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  padding: var(--s3) var(--s2);
+  border-bottom: 1px solid var(--rule);
+  --tone: var(--jal-deep);
+  --tone-wash: var(--jal-wash);
+}
+
+.policy {
+  --tone: var(--st-no);
+  --tone-wash: var(--st-no-wash);
+}
+
+.ticket {
+  --tone: var(--stamp);
+  --tone-wash: var(--stamp-wash);
+}
+
+.fresh {
+  animation: arrive 2.4s ease-out;
+}
+
+@keyframes arrive {
+  from {
+    background: var(--tone-wash);
+  }
+
+  to {
+    background: transparent;
+  }
+}
+
+.time {
+  padding-top: 6px;
+  font-size: var(--t-s);
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--tone-wash);
+  color: var(--tone);
+}
+
+.body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.textHi {
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.textEn {
+  font-size: var(--t-s);
+  color: var(--ink-3);
+}
+
+.village {
+  justify-self: start;
+  font-size: var(--t-s);
+  font-weight: 650;
+}

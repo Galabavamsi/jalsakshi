@@ -1,0 +1,57 @@
+.loading {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s6) 0;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.drip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--jal);
+  animation: drip 1.2s ease-in-out infinite;
+}
+
+@keyframes drip {
+  0%,
+  100% {
+    opacity: 0.35;
+    translate: 0 -3px;
+  }
+
+  50% {
+    opacity: 1;
+    translate: 0 3px;
+  }
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin: var(--s4) 0;
+  padding: var(--s4) var(--s5);
+  border-left: 6px solid var(--st-no);
+  border-radius: var(--radius-s);
+  background: var(--st-no-wash);
+}
+
+.errorText {
+  color: var(--st-no);
+  font-weight: 650;
+}
+
+.empty {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s5);
+  border: 1.5px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+}

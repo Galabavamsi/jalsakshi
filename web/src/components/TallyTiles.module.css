@@ -1,0 +1,31 @@
+.wrap {
+  min-width: 0;
+}
+
+.tiles {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--st);
+  border-radius: 6px;
+  background: var(--st-wash);
+  color: var(--st);
+}
+
+.tile:global(.st-UNVERIFIED) {
+  border-style: dashed;
+}
+
+.none {
+  border: 1.5px dotted var(--rule-strong);
+  background: transparent;
+}

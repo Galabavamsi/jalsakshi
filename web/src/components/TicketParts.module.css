@@ -1,0 +1,180 @@
+.badge {
+  display: inline-flex;
+  padding: var(--s1) var(--s3);
+  border: 1.5px solid var(--jal);
+  border-radius: var(--radius-s);
+  background: var(--jal-wash);
+  color: var(--jal-deep);
+  font-weight: 700;
+  font-size: var(--t-s);
+  line-height: 1.25;
+}
+
+.badge :global(.bi-en) {
+  color: inherit;
+}
+
+.toneVerified {
+  border-color: var(--stamp);
+  background: var(--stamp-wash);
+  color: var(--stamp);
+}
+
+.toneBad {
+  border-color: var(--st-no);
+  background: var(--st-no-wash);
+  color: var(--st-no);
+}
+
+/* ---------------------------------------------------------------- progress */
+
+.progressWrap {
+  display: grid;
+  gap: var(--s2);
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--s1);
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.step::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: -50%;
+  width: 100%;
+  height: 3px;
+  background: var(--rule);
+}
+
+.step:first-child::before {
+  display: none;
+}
+
+.dot {
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--sheet);
+}
+
+.stepLabel {
+  font-size: var(--t-s);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.stepLabel :global(.bi-en) {
+  font-size: 0.8em;
+}
+
+.done {
+  color: var(--ink-2);
+}
+
+.done::before,
+.current::before {
+  background: var(--jal);
+}
+
+.done .dot {
+  border-color: var(--jal);
+  background: var(--jal);
+}
+
+.current {
+  color: var(--jal-deep);
+}
+
+.current .dot {
+  border-color: var(--jal);
+  box-shadow: 0 0 0 4px var(--jal-wash);
+}
+
+.current:last-child {
+  color: var(--stamp);
+}
+
+.current:last-child .dot {
+  border-color: var(--stamp);
+  background: var(--stamp);
+  box-shadow: 0 0 0 4px var(--stamp-wash);
+}
+
+.currentBad .dot {
+  border-color: var(--st-no);
+  box-shadow: 0 0 0 4px var(--st-no-wash);
+}
+
+.offPath {
+  color: var(--st-no);
+  font-weight: 700;
+  font-size: var(--t-s);
+}
+
+/* ---------------------------------------------------------------- stamp */
+
+.stamp {
+  display: inline-grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--s3) var(--s5);
+  border: 4px double var(--stamp);
+  border-radius: 14px;
+  color: var(--stamp);
+  transform: rotate(-6deg);
+  mix-blend-mode: multiply;
+  animation: stamp-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  text-align: center;
+}
+
+.stampHi {
+  font-size: var(--t-2xl);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stampSub {
+  font-size: var(--t-s);
+  font-weight: 700;
+}
+
+.stampEn {
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+.stampDate {
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1.5px solid currentColor;
+  font-size: var(--t-xs);
+  font-weight: 700;
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-14deg) scale(1.35);
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1);
+  }
+}

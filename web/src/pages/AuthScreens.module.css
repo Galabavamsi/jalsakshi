@@ -1,0 +1,60 @@
+.frame {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--s6) var(--gutter);
+}
+
+.card {
+  display: grid;
+  gap: var(--s4);
+  justify-items: start;
+  width: min(100%, 34rem);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--jal);
+  color: #fff;
+}
+
+.word {
+  font-size: var(--t-hero);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--jal);
+}
+
+.tagline {
+  font-size: var(--t-xl);
+  font-weight: 700;
+}
+
+.tagline :global(.bi-en) {
+  font-size: 0.62em;
+  font-weight: 500;
+}
+
+.who {
+  color: var(--ink-2);
+}
+
+.who code,
+.missing code {
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.missing {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.notFound {
+  font-size: var(--t-2xl);
+  margin-bottom: var(--s4);
+}

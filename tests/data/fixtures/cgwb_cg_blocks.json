@@ -1,0 +1,140 @@
+{
+ "displayFieldName": "block",
+ "fieldAliases": {
+  "block": "BLOCK",
+  "district": "DISTRICT",
+  "class": "CLASS",
+  "sgw_dev_pe": "Stage of Ground Water  Development (%)"
+ },
+ "fields": [
+  {
+   "name": "block",
+   "type": "esriFieldTypeString",
+   "alias": "BLOCK",
+   "length": 50
+  },
+  {
+   "name": "district",
+   "type": "esriFieldTypeString",
+   "alias": "DISTRICT",
+   "length": 100
+  },
+  {
+   "name": "class",
+   "type": "esriFieldTypeString",
+   "alias": "CLASS",
+   "length": 100
+  },
+  {
+   "name": "sgw_dev_pe",
+   "type": "esriFieldTypeDouble",
+   "alias": "Stage of Ground Water  Development (%)"
+  }
+ ],
+ "features": [
+  {
+   "attributes": {
+    "block": "Janjgir (Nawagarh)",
+    "district": "Janjgir-Champa",
+    "class": "Safe",
+    "sgw_dev_pe": 20.95429331
+   }
+  },
+  {
+   "attributes": {
+    "block": "Gurur",
+    "district": "Balod",
+    "class": "Critical",
+    "sgw_dev_pe": 93.86671133
+   }
+  },
+  {
+   "attributes": {
+    "block": "Gunderdehi",
+    "district": "Balod",
+    "class": "Semi Critical",
+    "sgw_dev_pe": 72.06306868
+   }
+  },
+  {
+   "attributes": {
+    "block": "Doundi",
+    "district": "Balod",
+    "class": "Safe",
+    "sgw_dev_pe": 66.14173771
+   }
+  },
+  {
+   "attributes": {
+    "block": "Doundi Lohara",
+    "district": "Balod",
+    "class": "Safe",
+    "sgw_dev_pe": 57.11737371
+   }
+  },
+  {
+   "attributes": {
+    "block": "Balod",
+    "district": "Balod",
+    "class": "Semi Critical",
+    "sgw_dev_pe": 84.32082237
+   }
+  },
+  {
+   "attributes": {
+    "block": "Saja",
+    "district": "Bemetara",
+    "class": "Semi Critical",
+    "sgw_dev_pe": 88.95414765
+   }
+  },
+  {
+   "attributes": {
+    "block": "Nawagarh",
+    "district": "Bemetara",
+    "class": "Critical",
+    "sgw_dev_pe": 90.77869112
+   }
+  },
+  {
+   "attributes": {
+    "block": "Berla",
+    "district": "Bemetara",
+    "class": "Critical",
+    "sgw_dev_pe": 97.29498468
+   }
+  },
+  {
+   "attributes": {
+    "block": "Bemetara",
+    "district": "Bemetara",
+    "class": "Critical",
+    "sgw_dev_pe": 91.99001068
+   }
+  },
+  {
+   "attributes": {
+    "block": "Patan",
+    "district": "Durg",
+    "class": "Safe",
+    "sgw_dev_pe": 58.14662356
+   }
+  },
+  {
+   "attributes": {
+    "block": "Durg",
+    "district": "Durg",
+    "class": "Semi Critical",
+    "sgw_dev_pe": 87.2421636
+   }
+  },
+  {
+   "attributes": {
+    "block": "Dhamdha",
+    "district": "Durg",
+    "class": "Semi Critical",
+    "sgw_dev_pe": 84.16122213
+   }
+  }
+ ]
+}

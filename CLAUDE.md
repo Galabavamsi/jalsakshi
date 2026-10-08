@@ -31,9 +31,11 @@ Ownership: **Vamsi** owns voice, agent, data and prompts. **Varun** owns core, p
 uv sync --all-groups                      # install Python deps
 uv run ruff check . ; uv run ruff format . # lint / format
 uv run pytest -q                          # all tests (no AWS needed; boto3 stubbed with moto)
+uv run python scripts/build_lambda.py     # ALWAYS before deploy: builds build/lambda (Linux wheels)
+cd infra ; npx aws-cdk@2 deploy --all -c stage=dev-<name> [-c voice_provider=vobiz]   # your own stack
+uv run python scripts/seed_demo.py --stage dev-<name> --allowlist --ivr-token --schedules
 uv run python prompts/render.py --stage dev-<name>   # render Hindi prompts with Sarvam → S3
-cd infra ; uv run cdk deploy --all -c stage=dev-<name>   # your own stack
-cd web ; pnpm install ; pnpm dev           # console on localhost
+cd web ; pnpm install ; pnpm dev           # console on localhost (VITE_API_MODE=mock works offline)
 ```
 Each developer deploys their own stage (`dev-vamsi`, `dev-varun`). Only `demo` is used for recording, deployed from `main`.
 

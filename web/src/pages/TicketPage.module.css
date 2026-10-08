@@ -1,0 +1,76 @@
+.header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s5);
+  margin: var(--s3) 0 var(--s6);
+}
+
+.titleBlock {
+  display: grid;
+  gap: var(--s3);
+  flex: 1 1 22rem;
+}
+
+.kicker {
+  font-size: var(--t-s);
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.title {
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--t-2xl);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.titleEn {
+  font-size: var(--t-m);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+  font-size: var(--t-s);
+  color: var(--ink-2);
+}
+
+.stampWrap {
+  flex: none;
+  padding: var(--s2) var(--s4);
+}
+
+.section {
+  display: grid;
+  gap: var(--s4);
+  margin-bottom: var(--s7);
+}
+
+.actions {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s5);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: var(--shadow-board);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.rule {
+  font-size: var(--t-s);
+  color: var(--ink-2);
+}

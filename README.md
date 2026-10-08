@@ -78,14 +78,34 @@ Voice: Vobiz Indian DID with our own Lambda serving the call flow. Hindi prompts
 
 ## Run it
 
-Prerequisites: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20+ + pnpm, AWS CDK, an AWS account with Bedrock access in `ap-south-1`.
+Prerequisites: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20.19+ + pnpm 9, an AWS CLI profile for an account with Bedrock access in `ap-south-1`. CDK runs through `npx aws-cdk@2`.
+
+**Locally, no AWS needed** (tests stub every AWS and network call):
 
 ```bash
 uv sync --all-groups
-uv run pytest -q
-cp .env.example .env        # add your Sarvam / Vobiz keys locally (never commit)
-cd infra && uv run cdk deploy --all -c stage=dev-<you>
+uv run ruff check . && uv run pytest -q
+cd web && pnpm install && pnpm test && pnpm dev:mock   # console on seeded demo data, labelled simulated
 ```
+
+**Your own stage** (`dev-<you>`, always `ap-south-1`):
+
+```bash
+cp .env.example .env                                  # local keys + TEST_NUMBERS (gitignored, never commit)
+uv run python scripts/build_lambda.py                 # Lambda asset with Linux wheels -> build/lambda (do this first)
+cd infra
+npx aws-cdk@2 bootstrap aws://<account-id>/ap-south-1 # once per account
+npx aws-cdk@2 deploy --all -c stage=dev-<you>         # voice_provider=simulator by default
+cd ..
+uv run python scripts/seed_demo.py --stage dev-<you> --allowlist --ivr-token --schedules
+uv run python prompts/render.py --stage dev-<you>      # Hindi prompt audio (Sarvam Bulbul) -> S3 + CloudFront
+```
+
+Then:
+- Put the vendor secrets in SSM as SecureString under `/jalsakshi/dev-<you>/`: `sarvam_api_key`, `vobiz_auth_id`, `vobiz_auth_token`, `vobiz_did`.
+- Enable Bedrock model access in `ap-south-1` for Claude Haiku 4.5 (`in.` profile) and Nova 2 Lite (`global.` profile). Without it the brief falls back to its template.
+- Console against the stage: copy `web/.env.example` to `web/.env.local`, fill it from the stack outputs (`ApiUrl`, `CognitoDomain`, `UserPoolClientId`, `WebUrl`/auth/callback), run `pnpm build`, and deploy `JalSakshi-dev-<you>-Web` again. Add users to a role group (`PANCHAYAT_SECRETARY`, `NAL_JAL_MITRA`, ...).
+- Real phone calls: once the Vobiz DID is live, redeploy with `-c voice_provider=vobiz`. Only numbers on the stage's consent allowlist are ever dialled, and only 09:00–21:00 IST.
 
 ## Repository layout
 

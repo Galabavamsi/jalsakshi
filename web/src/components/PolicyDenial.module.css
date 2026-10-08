@@ -1,0 +1,54 @@
+.panel {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s3) var(--s4);
+  align-items: start;
+  padding: var(--s5);
+  border: 2px solid var(--st-no);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: inset 6px 0 0 var(--st-no);
+}
+
+.panel > button {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.icon {
+  color: var(--st-no);
+}
+
+.body {
+  display: grid;
+  gap: var(--s1);
+}
+
+.title {
+  color: var(--st-no);
+  font-size: var(--t-l);
+}
+
+.reasonHi {
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.reasonEn {
+  font-size: var(--t-m);
+  color: var(--ink-2);
+}
+
+.policy {
+  margin-top: var(--s2);
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}
+
+.policy code {
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--ink-2);
+}

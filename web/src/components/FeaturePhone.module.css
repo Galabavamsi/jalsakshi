@@ -1,0 +1,130 @@
+.phone {
+  --body: #253047;
+  --body-edge: #1a2235;
+  --lcd: #b9d7c4;
+  --lcd-ink: #10261f;
+
+  display: grid;
+  gap: var(--s4);
+  width: min(100%, 320px);
+  padding: var(--s4) var(--s4) var(--s5);
+  border-radius: 34px 34px 44px 44px;
+  background: linear-gradient(180deg, #2c3852, var(--body) 30%, var(--body-edge));
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.12),
+    inset 0 -3px 0 rgb(0 0 0 / 0.25),
+    0 24px 40px -24px rgb(24 35 63 / 0.7);
+}
+
+.top {
+  display: grid;
+  justify-items: center;
+  gap: var(--s1);
+}
+
+.speaker {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: #0e1422;
+}
+
+.brand {
+  font-size: var(--t-xs);
+  font-weight: 650;
+  color: #c9c2e6;
+  letter-spacing: 0.04em;
+}
+
+.screen {
+  min-height: 236px;
+  padding: var(--s3);
+  border: 3px solid #0e1422;
+  border-radius: 10px;
+  background: var(--lcd);
+  color: var(--lcd-ink);
+  box-shadow: inset 0 2px 8px rgb(16 38 31 / 0.25);
+  overflow: hidden;
+}
+
+.callRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--s2);
+}
+
+.round {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 52px;
+  border: 0;
+  border-radius: 26px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+}
+
+.round:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.call {
+  background: var(--st-supplied);
+}
+
+.hang {
+  background: var(--st-no);
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s2);
+}
+
+.key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  border: 0;
+  border-radius: 12px 12px 18px 18px;
+  background: linear-gradient(180deg, #f4f6f9, #d9dfe7);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 #aab4c2;
+  line-height: 1;
+}
+
+.key:active:not(:disabled),
+.pressed {
+  transform: translateY(2px);
+  box-shadow: inset 0 -1px 0 #aab4c2;
+  background: linear-gradient(180deg, #dce7f5, #c4d3e6);
+}
+
+.key:disabled {
+  cursor: not-allowed;
+  color: #7a8597;
+}
+
+.digit {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.dev {
+  margin-top: 2px;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.round:focus-visible,
+.key:focus-visible {
+  outline: 3px solid #f6d365;
+  outline-offset: 2px;
+}

@@ -1,1 +1,4 @@
-﻿"""Provider-agnostic Hindi IVR engine plus Vobiz, Bolna and simulator adapters. See docs/ARCHITECTURE.md section 9."""
+"""Hindi IVR engine (provider-agnostic) plus Vobiz and simulator adapters.
+
+See docs/ARCHITECTURE.md sections 9 and 13.
+"""

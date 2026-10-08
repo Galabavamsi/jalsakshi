@@ -1,0 +1,349 @@
+/*
+ * JalSakshi console: design tokens and shared primitives.
+ *
+ * Palette: whitewash with indigo (neel chuna) for the page, indigo ink for text, the blue of
+ * painted Har Ghar Jal walls for action, and rubber-stamp violet for anything households have
+ * verified. Day statuses each have an ink and a wash, and always appear with an icon and words.
+ */
+
+:root {
+  color-scheme: light;
+
+  --wall: #edf2f5;
+  --wall-2: #e1e8ed;
+  --sheet: #ffffff;
+  --ink: #18233f;
+  --ink-2: #46536f;
+  --ink-3: #5b6782;
+  --rule: #c8d3dc;
+  --rule-strong: #9fb0bf;
+
+  --jal: #1f5fae;
+  --jal-deep: #174a87;
+  --jal-wash: #dbe7f5;
+  --stamp: #5a3e9b;
+  --stamp-wash: #ece6f7;
+
+  --st-supplied: #1c7350;
+  --st-supplied-wash: #ddf0e6;
+  --st-partial: #8a5408;
+  --st-partial-wash: #fbebcf;
+  --st-no: #a52f27;
+  --st-no-wash: #f8deda;
+  --st-dirty: #664527;
+  --st-dirty-wash: #ede2d3;
+  --st-unverified: #545e70;
+  --st-unverified-wash: #e6eaef;
+
+  --font-ui: 'Anek Devanagari Variable', 'Nirmala UI', 'Kohinoor Devanagari', 'Noto Sans Devanagari',
+    system-ui, sans-serif;
+  --font-doc: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', 'Nirmala UI', Georgia, serif;
+
+  --t-xs: 0.875rem;
+  --t-s: 1rem;
+  --t-m: 1.125rem;
+  --t-l: 1.375rem;
+  --t-xl: 1.75rem;
+  --t-2xl: 2.25rem;
+  --t-hero: clamp(2.5rem, 9vw, 4.5rem);
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 72px;
+
+  --gutter: 16px;
+  --radius: 12px;
+  --radius-s: 8px;
+  --shadow-board: 0 1px 0 var(--rule), 0 14px 28px -22px rgb(24 35 63 / 0.45);
+  --nav-h: 76px;
+}
+
+@media (min-width: 720px) {
+  :root {
+    --gutter: 32px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--t-m);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ol,
+ul,
+dl,
+figure {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+a {
+  color: var(--jal-deep);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+[lang='en'] {
+  line-height: 1.35;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ bilingual text */
+
+.bi {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.05em;
+  min-width: 0;
+}
+
+.bi-en {
+  font-size: 0.78em;
+  font-weight: 450;
+  color: var(--ink-3);
+  letter-spacing: 0.005em;
+}
+
+.bi-inline {
+  display: inline;
+}
+
+.bi-inline .bi-en::before {
+  content: ' / ';
+}
+
+/* ------------------------------------------------------------------ buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 52px;
+  padding: var(--s2) var(--s5) var(--s2) var(--s4);
+  border: 2px solid transparent;
+  border-radius: var(--radius-s);
+  background: none;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn svg {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.btn .bi-en {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-primary {
+  background: var(--jal);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--jal-deep);
+}
+
+.btn-secondary {
+  background: var(--sheet);
+  border-color: var(--jal);
+  color: var(--jal-deep);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--jal-wash);
+}
+
+.btn-stamp {
+  background: var(--stamp);
+  color: #fff;
+}
+
+.btn-stamp:hover:not(:disabled) {
+  background: #4a3183;
+}
+
+.btn-quiet {
+  border-color: var(--rule-strong);
+  color: var(--ink-2);
+  min-height: 44px;
+  font-weight: 550;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--wall-2);
+}
+
+/* ------------------------------------------------------------------ page scaffolding */
+
+.page {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: var(--s6) var(--gutter) var(--s8);
+}
+
+.painted {
+  font-weight: 800;
+  font-size: var(--t-hero);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--jal);
+}
+
+.section-title {
+  font-size: var(--t-xl);
+  font-weight: 700;
+}
+
+.section-title .bi-en {
+  font-size: 0.6em;
+  font-weight: 500;
+}
+
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backlink svg {
+  width: 20px;
+  height: 20px;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ------------------------------------------------------------------ status palette hooks */
+
+.st-SUPPLIED {
+  --st: var(--st-supplied);
+  --st-wash: var(--st-supplied-wash);
+}
+
+.st-PARTIAL {
+  --st: var(--st-partial);
+  --st-wash: var(--st-partial-wash);
+}
+
+.st-NO_SUPPLY {
+  --st: var(--st-no);
+  --st-wash: var(--st-no-wash);
+}
+
+.st-DIRTY {
+  --st: var(--st-dirty);
+  --st-wash: var(--st-dirty-wash);
+}
+
+.st-UNVERIFIED {
+  --st: var(--st-unverified);
+  --st-wash: var(--st-unverified-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,248 @@
+.hero {
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s7);
+  max-width: 46rem;
+}
+
+.lede {
+  font-size: var(--t-l);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.ledeEn {
+  font-size: var(--t-s);
+  color: var(--ink-3);
+  max-width: 60ch;
+}
+
+.boards {
+  display: grid;
+  gap: var(--s6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A village is a board on the wall: the painted band on its left edge is today's status. */
+.board {
+  padding: var(--s5) var(--s4);
+  border-left: 10px solid var(--st, var(--jal));
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: var(--shadow-board);
+}
+
+.noToday {
+  --st: var(--rule-strong);
+}
+
+@media (min-width: 720px) {
+  .board {
+    padding: var(--s6);
+  }
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4) var(--s6);
+}
+
+.name h2 {
+  font-size: var(--t-2xl);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.name h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.name h2 a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.place {
+  margin-top: var(--s1);
+  color: var(--ink-2);
+}
+
+.today {
+  display: grid;
+  gap: var(--s1);
+  justify-items: start;
+}
+
+.todayLabel {
+  font-size: var(--t-s);
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.pending {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.compare {
+  display: grid;
+  gap: var(--s5);
+  margin-top: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--rule);
+}
+
+@media (min-width: 820px) {
+  .compare {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.35fr);
+    align-items: stretch;
+  }
+}
+
+.sideTitle {
+  font-size: var(--t-m);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.claim,
+.witness {
+  display: grid;
+  gap: var(--s3);
+  align-content: start;
+  justify-items: start;
+  min-width: 0;
+}
+
+.facts {
+  display: grid;
+  gap: var(--s3);
+}
+
+.facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.facts dt {
+  font-size: var(--t-s);
+  color: var(--ink-2);
+}
+
+.facts dd {
+  margin: 0;
+  font-size: var(--t-l);
+  font-weight: 700;
+}
+
+.versus {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ink-3);
+  font-size: var(--t-s);
+  font-weight: 650;
+}
+
+.versus::before,
+.versus::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.versus [lang='en'] {
+  font-size: 0.85em;
+}
+
+@media (min-width: 820px) {
+  .versus {
+    flex-direction: column;
+  }
+
+  .versus::before,
+  .versus::after {
+    width: 1px;
+    height: auto;
+  }
+}
+
+.big {
+  display: grid;
+  gap: 2px;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.big strong {
+  font-size: 1.6em;
+  font-weight: 800;
+  color: var(--jal-deep);
+}
+
+.bigEn {
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-top: var(--s5);
+}
+
+.ticket {
+  display: flex;
+  flex: 1 1 22rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1.5px solid var(--st-no);
+  border-radius: var(--radius-s);
+  background: var(--st-no-wash);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.ticket > svg:first-child {
+  color: var(--st-no);
+}
+
+.ticket:hover {
+  box-shadow: inset 0 0 0 1px var(--st-no);
+}
+
+.ticketText {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.ticketWhen {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.chev {
+  color: var(--ink-3);
+}
+
+.noTicket {
+  color: var(--ink-3);
+  font-weight: 600;
+}

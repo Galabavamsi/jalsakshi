@@ -1,0 +1,65 @@
+.badge {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  max-width: 100%;
+  padding: 5px var(--s3) 6px var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-s);
+  background: var(--sheet);
+  color: var(--ink-2);
+  font-size: var(--t-xs);
+  line-height: 1.3;
+}
+
+.mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--jal);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.source {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: var(--ink-3);
+}
+
+.live .mark {
+  background: var(--st-supplied);
+  border-color: var(--st-supplied);
+}
+
+.daily .mark {
+  background: var(--jal);
+}
+
+.model .mark {
+  border-style: dotted;
+}
+
+.simulated,
+.replay {
+  border: 1.5px dashed var(--ink-3);
+  background: repeating-linear-gradient(135deg, var(--sheet) 0 8px, var(--wall) 8px 11px);
+}
+
+.simulated .mark,
+.replay .mark {
+  border-radius: 2px;
+  transform: rotate(45deg);
+  border-color: var(--stamp);
+  background: var(--stamp-wash);
+}

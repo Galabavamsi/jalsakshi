@@ -1,0 +1,54 @@
+// Entity and request shapes for jalsakshi.cedar. Requests that do not match are rejected,
+// and the engine then fails closed (deny).
+
+// The JalSakshi backend itself (scheduler, Step Functions, Lambda handlers).
+entity System;
+
+// A console user. role is an OperatorRole value from core/models.py.
+entity Operator = {
+  role: String,
+};
+
+entity Household = {
+  village_id: String,
+  consent_given: Bool,
+};
+
+entity Village;
+
+entity Ticket = {
+  village_id: String,
+  quorum: Long,
+};
+
+action PlaceCall appliesTo {
+  principal: [System, Operator],
+  resource: [Household],
+  context: {
+    hour_ist: Long,
+    calls_today: Long,
+    purpose: String,
+  },
+};
+
+action CloseVerified appliesTo {
+  principal: [System, Operator],
+  resource: [Ticket],
+  context: {
+    verify_yes: Long,
+  },
+};
+
+action ViewHouseholdAnswers appliesTo {
+  principal: [Operator],
+  resource: [Village],
+};
+
+// data_age_hours is whole hours rounded up, so "> 24" is exact for fractional ages.
+action PublishEvidence appliesTo {
+  principal: [System, Operator],
+  resource: [Village],
+  context: {
+    data_age_hours: Long,
+  },
+};
