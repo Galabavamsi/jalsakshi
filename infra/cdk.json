@@ -21,6 +21,12 @@
     "@aws-cdk/aws-apigateway:disableCloudWatchRole": true,
     "@aws-cdk/core:enablePartitionLiterals": true,
     "@aws-cdk/aws-iam:standardizedServicePrincipals": true,
-    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+    "@aws-cdk/core:defaultCrossStackReferences": "strong",
+    "stages": {
+      "dev-vamsi": {
+        "voice_provider": "vobiz",
+        "retry_wait_minutes": 2
+      }
+    }
   }
 }

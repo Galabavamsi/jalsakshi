@@ -38,6 +38,8 @@ class StageSettings:
     local_origins: tuple[str, ...] = ("http://localhost:5173",)
     lambda_asset: Path = DEFAULT_LAMBDA_ASSET
     web_dist: Path = DEFAULT_WEB_DIST
+    web_domain: str | None = None
+    web_cert_arn: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -75,15 +77,23 @@ class StageSettings:
 
     @classmethod
     def from_app(cls, app: cdk.App) -> StageSettings:
-        """Read ``-c key=value`` context; the stage falls back to $STAGE, then ``dev``."""
+        """Read settings: ``-c key=value``, then ``stages.<stage>`` in cdk.json, then defaults.
 
-        def ctx(key: str, default: Any = None) -> Any:
-            value = app.node.try_get_context(key)
-            return default if value is None or value == "" else value
-
-        stage = str(ctx("stage", os.environ.get("STAGE", "dev")))
+        Per-stage defaults mean a redeploy cannot silently drop e.g. ``voice_provider=vobiz``.
+        The stage itself falls back to $STAGE, then ``dev``.
+        """
+        stage = app.node.try_get_context("stage") or os.environ.get("STAGE", "dev")
+        stage = str(stage)
         if not _STAGE.match(stage):
             raise ValueError(f"stage must match {_STAGE.pattern}, got {stage!r}")
+        stage_defaults = (app.node.try_get_context("stages") or {}).get(stage) or {}
+
+        def ctx(key: str, default: Any = None) -> Any:
+            for value in (app.node.try_get_context(key), stage_defaults.get(key)):
+                if value is not None and value != "":
+                    return value
+            return default
+
         provider = str(ctx("voice_provider", "simulator")).lower()
         if provider not in {"simulator", "vobiz"}:
             raise ValueError("voice_provider must be simulator or vobiz")
@@ -102,5 +112,7 @@ class StageSettings:
             local_origins=tuple(o.strip() for o in origins.split(",") if o.strip()),
             lambda_asset=Path(ctx("lambda_asset", str(DEFAULT_LAMBDA_ASSET))),
             web_dist=Path(ctx("web_dist", str(DEFAULT_WEB_DIST))),
+            web_domain=ctx("web_domain"),
+            web_cert_arn=ctx("web_cert_arn"),
             tags={"project": "jalsakshi", "stage": stage},
         )

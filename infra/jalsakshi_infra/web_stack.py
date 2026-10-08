@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import aws_cdk as cdk
+from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cognito as cognito
@@ -37,7 +38,8 @@ class WebStack(cdk.Stack):
             auto_delete_objects=True,
         )
         self.distribution = self._distribution(cfg)
-        self.web_url = f"https://{self.distribution.distribution_domain_name}"
+        self.cdn_url = f"https://{self.distribution.distribution_domain_name}"
+        self.web_url = f"https://{cfg.web_domain}" if self._custom_domain(cfg) else self.cdn_url
         self.user_pool = self._user_pool(cfg)
         self.domain = self.user_pool.add_domain(
             "Domain",
@@ -48,6 +50,7 @@ class WebStack(cdk.Stack):
         self.client = self._client(cfg)
         self._deploy_site(cfg)
         cdk.CfnOutput(self, "WebUrl", value=self.web_url)
+        cdk.CfnOutput(self, "CdnDomain", value=self.distribution.distribution_domain_name)
         cdk.CfnOutput(self, "UserPoolId", value=self.user_pool.user_pool_id)
         cdk.CfnOutput(self, "UserPoolClientId", value=self.client.user_pool_client_id)
         cdk.CfnOutput(
@@ -56,7 +59,20 @@ class WebStack(cdk.Stack):
             value=f"https://{self.domain.domain_name}.auth.{REGION}.amazoncognito.com",
         )
 
+    @staticmethod
+    def _custom_domain(cfg: StageSettings) -> bool:
+        """A custom console domain needs both the name and a validated us-east-1 certificate."""
+        return bool(cfg.web_domain and cfg.web_cert_arn)
+
     def _distribution(self, cfg: StageSettings) -> cloudfront.Distribution:
+        domain: dict[str, Any] = {}
+        if self._custom_domain(cfg):
+            domain = {
+                "domain_names": [cfg.web_domain],
+                "certificate": acm.Certificate.from_certificate_arn(
+                    self, "WebCertificate", str(cfg.web_cert_arn)
+                ),
+            }
         spa = [
             cloudfront.ErrorResponse(
                 http_status=status,
@@ -79,6 +95,7 @@ class WebStack(cdk.Stack):
             ),
             error_responses=spa,
             price_class=cloudfront.PriceClass.PRICE_CLASS_200,
+            **domain,
         )
 
     def _user_pool(self, cfg: StageSettings) -> cognito.UserPool:
@@ -109,7 +126,7 @@ class WebStack(cdk.Stack):
         return pool
 
     def _client(self, cfg: StageSettings) -> cognito.UserPoolClient:
-        origins_ = [self.web_url, *cfg.local_origins]
+        origins_ = list(dict.fromkeys([self.web_url, self.cdn_url, *cfg.local_origins]))
         return self.user_pool.add_client(
             "Console",
             user_pool_client_name=cfg.name("console"),
