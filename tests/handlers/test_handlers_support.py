@@ -159,7 +159,7 @@ def test_refresh_writes_each_village(
 ) -> None:
     blocks, state, _ = sample_sources()
     monkeypatch.setattr(context, "fetch_state_hgj", lambda *a, **k: state)
-    monkeypatch.setattr(context, "fetch_block_groundwater", lambda *a, **k: blocks)
+    monkeypatch.setattr(context, "fetch_block_groundwater_or_snapshot", lambda *a, **k: blocks)
 
     def no_rain(*_: Any, **__: Any) -> RainSummary:
         raise context.DataSourceError("open-meteo down")

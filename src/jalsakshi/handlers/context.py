@@ -21,7 +21,7 @@ from jalsakshi.data import (
     RainSummary,
     RetryPolicy,
     StateHGJ,
-    fetch_block_groundwater,
+    fetch_block_groundwater_or_snapshot,
     fetch_state_hgj,
     find_block,
     make_client,
@@ -133,7 +133,9 @@ def refresh(event: Any, context: Any) -> dict[str, Any]:
     villages = config.repository().list_villages()
     with make_client(timeout=FETCH_TIMEOUT_S, retry=FETCH_RETRY) as http:
         state = _attempt("imis", lambda: fetch_state_hgj(STATE_NAME, client=http))
-        blocks = _attempt("cgwb", lambda: fetch_block_groundwater(STATE_CODE, client=http))
+        blocks = _attempt(
+            "cgwb", lambda: fetch_block_groundwater_or_snapshot(STATE_CODE, client=http)
+        )
         written = [_write(cfg.evidence_bucket, v, blocks, state, http) for v in villages]
     return {"villages": len(written), "state_hgj": state is not None, "groundwater": bool(blocks)}
 

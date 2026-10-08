@@ -4,7 +4,13 @@ Every result carries a `SourceTag` (source, url, observed_at when stated, fetche
 Network and parse failures surface as `DataSourceError`, so callers can omit the context block.
 """
 
-from jalsakshi.data.cgwb import BlockGroundwater, fetch_block_groundwater, find_block
+from jalsakshi.data.cgwb import (
+    BlockGroundwater,
+    fetch_block_groundwater,
+    fetch_block_groundwater_or_snapshot,
+    find_block,
+    load_snapshot,
+)
 from jalsakshi.data.http import DataSourceError, RetryPolicy, make_client
 from jalsakshi.data.imis import StateHGJ, fetch_state_hgj
 from jalsakshi.data.openmeteo import DailyRain, RainSummary, rain_last_days
@@ -17,8 +23,10 @@ __all__ = [
     "RetryPolicy",
     "StateHGJ",
     "fetch_block_groundwater",
+    "fetch_block_groundwater_or_snapshot",
     "fetch_state_hgj",
     "find_block",
+    "load_snapshot",
     "make_client",
     "rain_last_days",
 ]

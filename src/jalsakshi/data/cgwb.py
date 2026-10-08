@@ -8,10 +8,13 @@ The assessment is annual, so results are tagged `Freshness.ANNUAL`.
 from __future__ import annotations
 
 import difflib
+import json
 import logging
 import re
 import unicodedata
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -34,6 +37,7 @@ OUT_FIELDS = "block,district,class,sgw_dev_pe"
 PAGE_SIZE = 1000
 MAX_PAGES = 20
 FUZZY_CUTOFF = 0.8
+SNAPSHOT_DIR = Path(__file__).parent / "snapshots"
 
 _STATE_CODE = re.compile(r"[A-Z]{2}")
 _PARENTHETICAL = re.compile(r"\(([^)]*)\)")
@@ -75,6 +79,34 @@ def fetch_block_groundwater(
         freshness=Freshness.ANNUAL,
     )
     return parse_blocks(features, source)
+
+
+def load_snapshot(state_code: str = "CG") -> list[BlockGroundwater]:
+    """The bundled copy of the annual assessment (see scripts/snapshot_cgwb.py).
+
+    India-WRIS often times out from cloud IP ranges; the assessment is annual, so a dated snapshot
+    is an honest stand-in. The source name says "bundled snapshot" and `fetched_at` is its date.
+    """
+    _query_params(state_code)  # same validation as the live path
+    data = json.loads((SNAPSHOT_DIR / f"cgwb_2025_{state_code}.json").read_text("utf-8"))
+    source = SourceTag(
+        source=f"{SOURCE_NAME}, bundled snapshot",
+        url=data.get("url"),
+        fetched_at=datetime.fromisoformat(data["fetched_at"]),
+        freshness=Freshness.ANNUAL,
+    )
+    return parse_blocks(({"attributes": row} for row in data["blocks"]), source)
+
+
+def fetch_block_groundwater_or_snapshot(
+    state_code: str = "CG", *, client: httpx.Client | None = None
+) -> list[BlockGroundwater]:
+    """Live India-WRIS data, or the bundled snapshot when the service fails."""
+    try:
+        return fetch_block_groundwater(state_code, client=client)
+    except DataSourceError as exc:
+        logger.warning("India-WRIS unavailable, using bundled snapshot: %s", exc)
+        return load_snapshot(state_code)
 
 
 def parse_blocks(

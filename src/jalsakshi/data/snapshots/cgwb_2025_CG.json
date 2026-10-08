@@ -1,0 +1,882 @@
+{
+ "fetched_at": "2026-10-08T18:33:13+00:00",
+ "url": "https://arc.indiawris.gov.in/server/rest/services/NWIC/GWR2025_CGWB/MapServer/8/query?where=state%3D%27CG%27&outFields=block%2Cdistrict%2Cclass%2Csgw_dev_pe&orderByFields=district%2Cblock&returnGeometry=false&f=json",
+ "blocks": [
+  {
+   "block": "Balod",
+   "district": "Balod",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 84.32082237
+  },
+  {
+   "block": "Doundi",
+   "district": "Balod",
+   "class": "Safe",
+   "sgw_dev_pe": 66.14173771
+  },
+  {
+   "block": "Doundi Lohara",
+   "district": "Balod",
+   "class": "Safe",
+   "sgw_dev_pe": 57.11737371
+  },
+  {
+   "block": "Gunderdehi",
+   "district": "Balod",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 72.06306868
+  },
+  {
+   "block": "Gurur",
+   "district": "Balod",
+   "class": "Critical",
+   "sgw_dev_pe": 93.86671133
+  },
+  {
+   "block": "Baloda Bazar",
+   "district": "Baloda Bazar",
+   "class": "Safe",
+   "sgw_dev_pe": 44.09488157
+  },
+  {
+   "block": "Bhatapara",
+   "district": "Baloda Bazar",
+   "class": "Safe",
+   "sgw_dev_pe": 45.36619973
+  },
+  {
+   "block": "Kasdol",
+   "district": "Baloda Bazar",
+   "class": "Safe",
+   "sgw_dev_pe": 44.90573226
+  },
+  {
+   "block": "Palari",
+   "district": "Baloda Bazar",
+   "class": "Safe",
+   "sgw_dev_pe": 22.35521239
+  },
+  {
+   "block": "Simga",
+   "district": "Baloda Bazar",
+   "class": "Safe",
+   "sgw_dev_pe": 58.52508089
+  },
+  {
+   "block": "Balrampur",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 43.83433161
+  },
+  {
+   "block": "Kusmi",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 17.90814342
+  },
+  {
+   "block": "Rajpur",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 31.00146449
+  },
+  {
+   "block": "Ramchandrapur",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 45.5369824
+  },
+  {
+   "block": "Shankargarh",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 32.60623266
+  },
+  {
+   "block": "Wadrafnagar",
+   "district": "Balrampur",
+   "class": "Safe",
+   "sgw_dev_pe": 17.65501758
+  },
+  {
+   "block": "Bakawand",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 59.83858629
+  },
+  {
+   "block": "Bastanar",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 13.46505546
+  },
+  {
+   "block": "Bastar",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 51.18053086
+  },
+  {
+   "block": "Darbha",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 22.97737008
+  },
+  {
+   "block": "Jagdalpur",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 44.29449387
+  },
+  {
+   "block": "Lohandiguda",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 19.41139029
+  },
+  {
+   "block": "Tokapal",
+   "district": "Bastar",
+   "class": "Safe",
+   "sgw_dev_pe": 35.20821418
+  },
+  {
+   "block": "Bemetara",
+   "district": "Bemetara",
+   "class": "Critical",
+   "sgw_dev_pe": 91.99001068
+  },
+  {
+   "block": "Berla",
+   "district": "Bemetara",
+   "class": "Critical",
+   "sgw_dev_pe": 97.29498468
+  },
+  {
+   "block": "Nawagarh",
+   "district": "Bemetara",
+   "class": "Critical",
+   "sgw_dev_pe": 90.77869112
+  },
+  {
+   "block": "Saja",
+   "district": "Bemetara",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 88.95414765
+  },
+  {
+   "block": "Bhairamgarh",
+   "district": "Bijapur",
+   "class": "Safe",
+   "sgw_dev_pe": 7.03051
+  },
+  {
+   "block": "Bhopalpattnam",
+   "district": "Bijapur",
+   "class": "Safe",
+   "sgw_dev_pe": 14.95277998
+  },
+  {
+   "block": "Bijapur",
+   "district": "Bijapur",
+   "class": "Safe",
+   "sgw_dev_pe": 21.31096468
+  },
+  {
+   "block": "Usoor",
+   "district": "Bijapur",
+   "class": "Safe",
+   "sgw_dev_pe": 5.38977917
+  },
+  {
+   "block": "Belha",
+   "district": "Bilaspur",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 83.87557422
+  },
+  {
+   "block": "Kota",
+   "district": "Bilaspur",
+   "class": "Safe",
+   "sgw_dev_pe": 25.88487564
+  },
+  {
+   "block": "Masturi",
+   "district": "Bilaspur",
+   "class": "Safe",
+   "sgw_dev_pe": 49.15948494
+  },
+  {
+   "block": "Takhatpur",
+   "district": "Bilaspur",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 75.60407605
+  },
+  {
+   "block": "Dantewada",
+   "district": "Dantewada",
+   "class": "Safe",
+   "sgw_dev_pe": 15.63951821
+  },
+  {
+   "block": "Geedam",
+   "district": "Dantewada",
+   "class": "Safe",
+   "sgw_dev_pe": 33.39377449
+  },
+  {
+   "block": "Katekalyan",
+   "district": "Dantewada",
+   "class": "Safe",
+   "sgw_dev_pe": 12.20125566
+  },
+  {
+   "block": "Kuakonda",
+   "district": "Dantewada",
+   "class": "Safe",
+   "sgw_dev_pe": 21.90981459
+  },
+  {
+   "block": "Dhamtari",
+   "district": "Dhamtari",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 77.15392544
+  },
+  {
+   "block": "Kurud",
+   "district": "Dhamtari",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 79.35621973
+  },
+  {
+   "block": "Magarlod",
+   "district": "Dhamtari",
+   "class": "Safe",
+   "sgw_dev_pe": 66.55906126
+  },
+  {
+   "block": "Nagri",
+   "district": "Dhamtari",
+   "class": "Safe",
+   "sgw_dev_pe": 67.75762893
+  },
+  {
+   "block": "Dhamdha",
+   "district": "Durg",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 84.16122213
+  },
+  {
+   "block": "Durg",
+   "district": "Durg",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 87.2421636
+  },
+  {
+   "block": "Patan",
+   "district": "Durg",
+   "class": "Safe",
+   "sgw_dev_pe": 58.14662356
+  },
+  {
+   "block": "Chhura",
+   "district": "Gariaband",
+   "class": "Safe",
+   "sgw_dev_pe": 66.5602475
+  },
+  {
+   "block": "Deobhog",
+   "district": "Gariaband",
+   "class": "Safe",
+   "sgw_dev_pe": 57.30600482
+  },
+  {
+   "block": "Gariaband",
+   "district": "Gariaband",
+   "class": "Safe",
+   "sgw_dev_pe": 59.67613866
+  },
+  {
+   "block": "Mainpur",
+   "district": "Gariaband",
+   "class": "Safe",
+   "sgw_dev_pe": 47.57857447
+  },
+  {
+   "block": "Rajim/Fingeshwar",
+   "district": "Gariaband",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 78.31175053
+  },
+  {
+   "block": "Gaurela",
+   "district": "Gourela-Pendra-Marwahi",
+   "class": "Safe",
+   "sgw_dev_pe": 31.91192227
+  },
+  {
+   "block": "Marwahi",
+   "district": "Gourela-Pendra-Marwahi",
+   "class": "Safe",
+   "sgw_dev_pe": 32.21581093
+  },
+  {
+   "block": "Pendra",
+   "district": "Gourela-Pendra-Marwahi",
+   "class": "Safe",
+   "sgw_dev_pe": 64.29075687
+  },
+  {
+   "block": "Akaltara",
+   "district": "Janjgir-Champa",
+   "class": "Safe",
+   "sgw_dev_pe": 27.74004261
+  },
+  {
+   "block": "Baloda",
+   "district": "Janjgir-Champa",
+   "class": "Safe",
+   "sgw_dev_pe": 38.53094533
+  },
+  {
+   "block": "Bamhanidih",
+   "district": "Janjgir-Champa",
+   "class": "Safe",
+   "sgw_dev_pe": 26.99116541
+  },
+  {
+   "block": "Janjgir (Nawagarh)",
+   "district": "Janjgir-Champa",
+   "class": "Safe",
+   "sgw_dev_pe": 20.95429331
+  },
+  {
+   "block": "Pamgarh",
+   "district": "Janjgir-Champa",
+   "class": "Safe",
+   "sgw_dev_pe": 22.16536125
+  },
+  {
+   "block": "Bagicha",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 46.14639487
+  },
+  {
+   "block": "Duldula",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 55.36943358
+  },
+  {
+   "block": "Jashpur",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 68.9775929
+  },
+  {
+   "block": "Kansabel",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 59.12600644
+  },
+  {
+   "block": "Kunkuri",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 61.6115767
+  },
+  {
+   "block": "Manora",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 43.10677923
+  },
+  {
+   "block": "Pathalgaon",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 63.44559422
+  },
+  {
+   "block": "Pharsabahar",
+   "district": "Jashpur",
+   "class": "Safe",
+   "sgw_dev_pe": 38.50136122
+  },
+  {
+   "block": "Bodla",
+   "district": "Kabirdham",
+   "class": "Safe",
+   "sgw_dev_pe": 37.15809161
+  },
+  {
+   "block": "Kawardha",
+   "district": "Kabirdham",
+   "class": "Safe",
+   "sgw_dev_pe": 66.85226559
+  },
+  {
+   "block": "Pandariya",
+   "district": "Kabirdham",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 87.39199591
+  },
+  {
+   "block": "Sahaspur Lohara",
+   "district": "Kabirdham",
+   "class": "Safe",
+   "sgw_dev_pe": 59.92570029
+  },
+  {
+   "block": "Antagarh",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 27.76181917
+  },
+  {
+   "block": "Bhanupratapur",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 30.49687792
+  },
+  {
+   "block": "Charama",
+   "district": "Kanker",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 70.31471737
+  },
+  {
+   "block": "Durgukondal",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 22.55919852
+  },
+  {
+   "block": "Kanker",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 55.06780524
+  },
+  {
+   "block": "Koyalibeda",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 22.71110403
+  },
+  {
+   "block": "Narharpur",
+   "district": "Kanker",
+   "class": "Safe",
+   "sgw_dev_pe": 62.25297249
+  },
+  {
+   "block": "Chhuikhadan",
+   "district": "Khairagarh-Chhuikhadan_Gandai",
+   "class": "Safe",
+   "sgw_dev_pe": 47.59800263
+  },
+  {
+   "block": "Khairagarh",
+   "district": "Khairagarh-Chhuikhadan_Gandai",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 77.62573618
+  },
+  {
+   "block": "Baderajpur",
+   "district": "Kondagaon",
+   "class": "Safe",
+   "sgw_dev_pe": 60.64017609
+  },
+  {
+   "block": "Keshkal",
+   "district": "Kondagaon",
+   "class": "Safe",
+   "sgw_dev_pe": 47.37981687
+  },
+  {
+   "block": "Kondagaon",
+   "district": "Kondagaon",
+   "class": "Safe",
+   "sgw_dev_pe": 25.1857857
+  },
+  {
+   "block": "Makdi",
+   "district": "Kondagaon",
+   "class": "Safe",
+   "sgw_dev_pe": 60.06729554
+  },
+  {
+   "block": "Pharasgaon",
+   "district": "Kondagaon",
+   "class": "Safe",
+   "sgw_dev_pe": 47.50522687
+  },
+  {
+   "block": "Kartala",
+   "district": "Korba",
+   "class": "Safe",
+   "sgw_dev_pe": 37.46122844
+  },
+  {
+   "block": "Katghora",
+   "district": "Korba",
+   "class": "Safe",
+   "sgw_dev_pe": 64.43473414
+  },
+  {
+   "block": "Korba",
+   "district": "Korba",
+   "class": "Safe",
+   "sgw_dev_pe": 37.40232214
+  },
+  {
+   "block": "Pali",
+   "district": "Korba",
+   "class": "Safe",
+   "sgw_dev_pe": 50.63848326
+  },
+  {
+   "block": "Podi Uprora",
+   "district": "Korba",
+   "class": "Safe",
+   "sgw_dev_pe": 14.53644053
+  },
+  {
+   "block": "Baikunthpur",
+   "district": "Korea",
+   "class": "Safe",
+   "sgw_dev_pe": 59.39089722
+  },
+  {
+   "block": "Sonhat",
+   "district": "Korea",
+   "class": "Safe",
+   "sgw_dev_pe": 36.53251822
+  },
+  {
+   "block": "Bagbahara",
+   "district": "Mahasamund",
+   "class": "Safe",
+   "sgw_dev_pe": 43.88343491
+  },
+  {
+   "block": "Basna",
+   "district": "Mahasamund",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 87.78984205
+  },
+  {
+   "block": "Mahasamund",
+   "district": "Mahasamund",
+   "class": "Safe",
+   "sgw_dev_pe": 53.07762613
+  },
+  {
+   "block": "Pithora",
+   "district": "Mahasamund",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 75.12775981
+  },
+  {
+   "block": "Saraipali",
+   "district": "Mahasamund",
+   "class": "Safe",
+   "sgw_dev_pe": 57.07644232
+  },
+  {
+   "block": "Bharatpur",
+   "district": "Manendragarh-Chirmiri_Bharatpur",
+   "class": "Safe",
+   "sgw_dev_pe": 9.84612727
+  },
+  {
+   "block": "Khadgawan",
+   "district": "Manendragarh-Chirmiri_Bharatpur",
+   "class": "Safe",
+   "sgw_dev_pe": 44.94357161
+  },
+  {
+   "block": "Manendragarh",
+   "district": "Manendragarh-Chirmiri_Bharatpur",
+   "class": "Safe",
+   "sgw_dev_pe": 44.92345451
+  },
+  {
+   "block": "Ambagarh Chowki",
+   "district": "Mohla-Manpur_Ambagarhchowki",
+   "class": "Safe",
+   "sgw_dev_pe": 52.62856153
+  },
+  {
+   "block": "Manpur",
+   "district": "Mohla-Manpur_Ambagarhchowki",
+   "class": "Safe",
+   "sgw_dev_pe": 23.47749523
+  },
+  {
+   "block": "Mohla",
+   "district": "Mohla-Manpur_Ambagarhchowki",
+   "class": "Safe",
+   "sgw_dev_pe": 44.12490409
+  },
+  {
+   "block": "Lormi",
+   "district": "Mungeli",
+   "class": "Safe",
+   "sgw_dev_pe": 32.82704787
+  },
+  {
+   "block": "Mungeli",
+   "district": "Mungeli",
+   "class": "Safe",
+   "sgw_dev_pe": 58.030254
+  },
+  {
+   "block": "Patharia",
+   "district": "Mungeli",
+   "class": "Safe",
+   "sgw_dev_pe": 57.85221011
+  },
+  {
+   "block": "Narayanpur",
+   "district": "Narayanpur",
+   "class": "Safe",
+   "sgw_dev_pe": 29.53627669
+  },
+  {
+   "block": "Orchha",
+   "district": "Narayanpur",
+   "class": "Safe",
+   "sgw_dev_pe": 2.78090956
+  },
+  {
+   "block": "Dharamjaigarh",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 33.59276777
+  },
+  {
+   "block": "Gharghoda",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 47.42572623
+  },
+  {
+   "block": "Kharsiya",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 53.96891221
+  },
+  {
+   "block": "Lailunga",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 17.22983763
+  },
+  {
+   "block": "Pusaur",
+   "district": "Raigarh",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 87.21154977
+  },
+  {
+   "block": "Raigarh",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 40.28145653
+  },
+  {
+   "block": "Tamnar",
+   "district": "Raigarh",
+   "class": "Safe",
+   "sgw_dev_pe": 62.8393532
+  },
+  {
+   "block": "Abhanpur",
+   "district": "Raipur",
+   "class": "Safe",
+   "sgw_dev_pe": 44.41191179
+  },
+  {
+   "block": "Arang",
+   "district": "Raipur",
+   "class": "Safe",
+   "sgw_dev_pe": 52.08192384
+  },
+  {
+   "block": "Dharsiwa",
+   "district": "Raipur",
+   "class": "Critical",
+   "sgw_dev_pe": 96.81241825
+  },
+  {
+   "block": "Tilda",
+   "district": "Raipur",
+   "class": "Safe",
+   "sgw_dev_pe": 56.59049866
+  },
+  {
+   "block": "Chhuriya",
+   "district": "Rajnandgaon",
+   "class": "Safe",
+   "sgw_dev_pe": 39.82827644
+  },
+  {
+   "block": "Dongargaon",
+   "district": "Rajnandgaon",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 79.21956852
+  },
+  {
+   "block": "Dongargarh",
+   "district": "Rajnandgaon",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 78.174873
+  },
+  {
+   "block": "Rajnandgaon",
+   "district": "Rajnandgaon",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 78.07483995
+  },
+  {
+   "block": "Dabhara",
+   "district": "Sakti",
+   "class": "Safe",
+   "sgw_dev_pe": 64.75033677
+  },
+  {
+   "block": "Jaijaipur",
+   "district": "Sakti",
+   "class": "Safe",
+   "sgw_dev_pe": 36.43383182
+  },
+  {
+   "block": "Malkharoda",
+   "district": "Sakti",
+   "class": "Safe",
+   "sgw_dev_pe": 50.74711675
+  },
+  {
+   "block": "Sakti",
+   "district": "Sakti",
+   "class": "Safe",
+   "sgw_dev_pe": 50.58914067
+  },
+  {
+   "block": "Baramkela",
+   "district": "Sarangarh-Bilairagh",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 77.13586353
+  },
+  {
+   "block": "Bilaigarh",
+   "district": "Sarangarh-Bilairagh",
+   "class": "Safe",
+   "sgw_dev_pe": 16.98967117
+  },
+  {
+   "block": "Sarangarh",
+   "district": "Sarangarh-Bilairagh",
+   "class": "Safe",
+   "sgw_dev_pe": 38.32591527
+  },
+  {
+   "block": "Chhindgarh",
+   "district": "Sukma",
+   "class": "Safe",
+   "sgw_dev_pe": 13.58525189
+  },
+  {
+   "block": "Konta",
+   "district": "Sukma",
+   "class": "Safe",
+   "sgw_dev_pe": 2.17308601
+  },
+  {
+   "block": "Sukma",
+   "district": "Sukma",
+   "class": "Safe",
+   "sgw_dev_pe": 9.57636265
+  },
+  {
+   "block": "Bhaiyathan",
+   "district": "Surajpur",
+   "class": "Safe",
+   "sgw_dev_pe": 49.81549163
+  },
+  {
+   "block": "Odgi",
+   "district": "Surajpur",
+   "class": "Safe",
+   "sgw_dev_pe": 56.82060618
+  },
+  {
+   "block": "Pratappur",
+   "district": "Surajpur",
+   "class": "Safe",
+   "sgw_dev_pe": 63.43990494
+  },
+  {
+   "block": "Premnagar",
+   "district": "Surajpur",
+   "class": "Safe",
+   "sgw_dev_pe": 51.54053557
+  },
+  {
+   "block": "Ramanujnagar",
+   "district": "Surajpur",
+   "class": "Safe",
+   "sgw_dev_pe": 68.17494778
+  },
+  {
+   "block": "Surajpur",
+   "district": "Surajpur",
+   "class": "Semi Critical",
+   "sgw_dev_pe": 81.08674247
+  },
+  {
+   "block": "Ambikapur",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 66.80996551
+  },
+  {
+   "block": "Batauli",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 65.74584976
+  },
+  {
+   "block": "Lakhanpur",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 46.43122339
+  },
+  {
+   "block": "Lundra",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 52.89090246
+  },
+  {
+   "block": "Mainpat",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 39.5958013
+  },
+  {
+   "block": "Sitapur",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 61.39800494
+  },
+  {
+   "block": "Udaipur",
+   "district": "Surguja",
+   "class": "Safe",
+   "sgw_dev_pe": 34.82718269
+  }
+ ]
+}
