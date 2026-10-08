@@ -1,4 +1,4 @@
-/** Hindi + English labels for every enum the console shows. One place, so wording stays consistent. */
+/** English + Hindi labels for every enum the console shows. One place, so wording stays consistent. */
 
 import type {
   CallOutcome,
@@ -14,48 +14,42 @@ import type {
 import type { Bilingual } from './format';
 
 export interface StatusLabel extends Bilingual {
-  /** One word for tight spaces such as the 14-day strip. */
-  short: string;
+  /** One word for tight spaces such as the 14-day strip and the 7-day tally. */
+  short: Bilingual;
   /** What the status means, for tooltips and legends. */
-  meaningHi: string;
-  meaningEn: string;
+  meaning: Bilingual;
 }
 
 export const STATUS: Record<DayStatusValue, StatusLabel> = {
   SUPPLIED: {
     hi: 'पानी आया',
-    en: 'Supplied',
-    short: 'आया',
-    meaningHi: 'घरों ने बताया कि पानी आया',
-    meaningEn: 'Households said water came',
+    en: 'Water came',
+    short: { hi: 'आया', en: 'Came' },
+    meaning: { hi: 'घरों ने बताया कि पानी आया', en: 'Households said water came' },
   },
   PARTIAL: {
     hi: 'थोड़ा पानी',
-    en: 'Partial',
-    short: 'थोड़ा',
-    meaningHi: 'कुछ घरों में पानी कम आया या नहीं आया',
-    meaningEn: 'Some households got little or no water',
+    en: 'Partial supply',
+    short: { hi: 'थोड़ा', en: 'Part' },
+    meaning: { hi: 'कुछ घरों में पानी कम आया या नहीं आया', en: 'Some households got little or no water' },
   },
   NO_SUPPLY: {
     hi: 'पानी नहीं आया',
-    en: 'No supply',
-    short: 'नहीं',
-    meaningHi: 'ज़्यादातर घरों में पानी नहीं आया',
-    meaningEn: 'Most households got no water',
+    en: 'No water',
+    short: { hi: 'नहीं', en: 'None' },
+    meaning: { hi: 'ज़्यादातर घरों में पानी नहीं आया', en: 'Most households got no water' },
   },
   DIRTY: {
     hi: 'गंदा पानी',
     en: 'Dirty water',
-    short: 'गंदा',
-    meaningHi: 'घरों ने बताया कि पानी गंदा था',
-    meaningEn: 'Households said the water was dirty',
+    short: { hi: 'गंदा', en: 'Dirty' },
+    meaning: { hi: 'घरों ने बताया कि पानी गंदा था', en: 'Households said the water was dirty' },
   },
   UNVERIFIED: {
     hi: 'पुष्टि नहीं',
-    en: 'Unverified',
-    short: 'अपुष्ट',
-    meaningHi: 'बहुत कम घरों ने जवाब दिया',
-    meaningEn: 'Too few households answered',
+    en: 'Not confirmed',
+    short: { hi: 'अपुष्ट', en: 'Few' },
+    meaning: { hi: 'बहुत कम घरों ने जवाब दिया', en: 'Too few households answered' },
   },
 };
 

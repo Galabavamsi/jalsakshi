@@ -1,20 +1,75 @@
 .hero {
   display: grid;
-  gap: var(--s3);
+  gap: var(--s4);
   margin-bottom: var(--s6);
-  max-width: 46rem;
+}
+
+/* The wall: a neel wash band behind the painted question */
+.band {
+  padding: var(--s6) var(--s2) var(--s6) 0;
+}
+
+@media (min-width: 720px) {
+  .band {
+    padding: var(--s6) var(--s5) var(--s6) 0;
+  }
+}
+
+.band h1 {
+  max-width: 14ch;
+  text-wrap: balance;
+}
+
+/*
+ * Wide screens: the question on the left, the week's verdict beside it, so the first village's
+ * state record and painted days sit above the fold on a 1440 x 900 recording.
+ */
+@media (min-width: 1100px) {
+  .hero {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-rows: auto auto;
+    align-items: end;
+    column-gap: var(--s7);
+    row-gap: var(--s3);
+  }
+
+  .band {
+    grid-row: 1 / span 2;
+  }
+
+  .lede {
+    align-self: end;
+  }
+
+  .how {
+    align-self: start;
+    padding-bottom: var(--s6);
+  }
+}
+
+/* The neel band runs under the lettering, fading out to the right */
+.heroWash {
+  inset: -22% auto -22% -14%;
+  width: min(108%, 64rem);
+  height: 144%;
+}
+
+/* The household panel is painted edge to edge, a little ragged at the rim */
+.panelWash {
+  inset: -10% -7%;
+  width: 114%;
+  height: 120%;
 }
 
 .lede {
-  font-size: var(--t-l);
-  line-height: 1.55;
-  color: var(--ink-2);
+  font-weight: 550;
+  color: var(--ink);
 }
 
-.ledeEn {
-  font-size: var(--t-s);
-  color: var(--ink-3);
-  max-width: 60ch;
+.how {
+  max-width: 62ch;
+  font-size: var(--t-body);
+  color: var(--ink-2);
 }
 
 .boards {
@@ -25,23 +80,9 @@
   list-style: none;
 }
 
-/* A village is a board on the wall: the painted band on its left edge is today's status. */
 .board {
-  padding: var(--s5) var(--s4);
-  border-left: 10px solid var(--st, var(--jal));
-  border-radius: var(--radius);
-  background: var(--sheet);
-  box-shadow: var(--shadow-board);
-}
-
-.noToday {
-  --st: var(--rule-strong);
-}
-
-@media (min-width: 720px) {
-  .board {
-    padding: var(--s6);
-  }
+  display: grid;
+  gap: var(--s4);
 }
 
 .head {
@@ -49,13 +90,13 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--s4) var(--s6);
+  gap: var(--s3) var(--s6);
 }
 
 .name h2 {
-  font-size: var(--t-2xl);
+  font-size: var(--t-h1);
   font-weight: 750;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .name h2 a {
@@ -70,6 +111,7 @@
 
 .place {
   margin-top: var(--s1);
+  font-size: var(--t-small);
   color: var(--ink-2);
 }
 
@@ -79,8 +121,14 @@
   justify-items: start;
 }
 
+@media (min-width: 560px) {
+  .today {
+    justify-items: end;
+  }
+}
+
 .todayLabel {
-  font-size: var(--t-s);
+  font-size: var(--t-meta);
   font-weight: 650;
   color: var(--ink-2);
 }
@@ -90,118 +138,65 @@
   color: var(--ink-2);
 }
 
+.verdict {
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+
+/* Paint beside print: the state's slip (5) and the households' painted panel (7) */
 .compare {
   display: grid;
-  gap: var(--s5);
-  margin-top: var(--s5);
-  padding-top: var(--s5);
-  border-top: 1px solid var(--rule);
+  gap: 0;
+  align-items: stretch;
 }
 
 @media (min-width: 820px) {
   .compare {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.35fr);
-    align-items: stretch;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
 }
 
-.sideTitle {
-  font-size: var(--t-m);
-  font-weight: 700;
-  color: var(--ink-2);
-}
-
-.claim,
 .witness {
   display: grid;
   gap: var(--s3);
   align-content: start;
   justify-items: start;
   min-width: 0;
+  padding: var(--s4) var(--s2) var(--s4);
 }
 
-/* The state's claim is set like a painted Har Ghar Jal wall: big, blue, certain. */
-.claimBig {
-  display: grid;
-  gap: 2px;
-  font-size: var(--t-xl);
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--ink);
-}
-
-.claimBig strong {
-  font-size: 1.6em;
-  font-weight: 800;
-  color: var(--jal);
-}
-
-.certified {
-  font-size: var(--t-s);
-  color: var(--ink-2);
-}
-
-.certified strong {
-  font-weight: 750;
-  color: var(--ink);
-}
-
-.certified [lang='en'] {
-  font-size: var(--t-xs);
-  color: var(--ink-3);
-}
-
-.versus {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  color: var(--ink-3);
-  font-size: var(--t-s);
-  font-weight: 650;
-}
-
-.versus::before,
-.versus::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--rule);
-}
-
-.versus [lang='en'] {
-  font-size: 0.85em;
+@media (min-width: 480px) {
+  .witness {
+    padding: var(--s4) var(--s4) var(--s5);
+  }
 }
 
 @media (min-width: 820px) {
-  .versus {
-    flex-direction: column;
+  .witness {
+    padding: var(--s3) var(--s2) var(--s4) var(--s6);
   }
+}
 
-  .versus::before,
-  .versus::after {
-    width: 1px;
-    height: auto;
-  }
+.sideTitle {
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--ink-2);
 }
 
 .big {
-  display: grid;
-  gap: 2px;
-  font-size: var(--t-xl);
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: var(--t-lead);
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--ink);
 }
 
-.big strong {
-  font-size: 1.6em;
+.numeral {
+  font-size: var(--t-numeral);
   font-weight: 800;
-  color: var(--stamp);
-}
-
-.bigEn {
-  font-size: var(--t-s);
-  font-weight: 500;
-  color: var(--ink-3);
+  font-stretch: 112.5%;
+  line-height: 1;
+  vertical-align: -0.12em;
+  color: var(--ink);
 }
 
 .foot {
@@ -209,8 +204,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s4);
-  margin-top: var(--s5);
+  gap: var(--s3) var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
 }
 
 .ticket {
@@ -219,40 +215,34 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2) var(--s3);
-  padding: var(--s3) var(--s4);
+  min-height: 48px;
+  padding: var(--s2) var(--s3);
   border: 1.5px solid var(--st-no);
-  border-radius: var(--radius-s);
-  background: var(--st-no-wash);
+  border-radius: var(--r-slip);
+  background: var(--sheet);
   color: var(--ink);
   text-decoration: none;
 }
 
-.ticket > svg:first-child {
+.ticket:hover {
+  background: var(--st-no-wash);
+}
+
+.ticketIcon {
   color: var(--st-no);
 }
 
-.ticket:hover {
-  box-shadow: inset 0 0 0 1px var(--st-no);
-}
-
 .ticketText {
-  display: grid;
   flex: 1 1 12rem;
-  gap: 2px;
-  font-weight: 700;
-}
-
-.ticketWhen {
-  font-size: var(--t-xs);
-  font-weight: 500;
-  color: var(--ink-2);
+  font-weight: 650;
+  line-height: 1.3;
 }
 
 .chev {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .noTicket {
-  color: var(--ink-3);
-  font-weight: 600;
+  color: var(--ink-2);
+  font-weight: 550;
 }

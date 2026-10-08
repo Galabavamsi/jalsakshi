@@ -1,24 +1,22 @@
 /*
- * A Cedar deny reads like a notice on the panchayat board: indigo ink on white, a firm left rule,
- * no alarm red. The rule is doing its job; nothing is broken.
+ * A Cedar refusal is the system speaking: a printed register slip with a red double rule.
+ * Printed, never painted; nothing is broken, a written rule is keeping its promise.
  */
 
 .panel {
   display: grid;
   gap: var(--s4);
-  padding: var(--s5) var(--s5) var(--s5) calc(var(--s5) + 4px);
-  border: 1.5px solid var(--rule-strong);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  box-shadow:
-    inset 8px 0 0 var(--ink),
-    var(--shadow-board);
-  animation: notice-in 260ms ease-out both;
+  padding: var(--s5);
+  border: 6px double var(--st-no);
+  border-radius: var(--r-slip);
+  background-color: var(--register);
+  box-shadow: var(--shadow-slip);
+  color: var(--ink);
 }
 
 @media (max-width: 559px) {
   .panel {
-    padding: var(--s4) var(--s4) var(--s4) calc(var(--s4) + 6px);
+    padding: var(--s4);
   }
 }
 
@@ -32,24 +30,28 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--wall-2);
-  color: var(--ink);
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--st-no);
+  border-radius: 3px;
+  color: var(--st-no);
+  background: var(--sheet);
 }
 
 .title {
-  font-size: var(--t-l);
-  font-weight: 750;
+  font-family: var(--font-record);
+  font-size: var(--t-h2);
+  font-weight: 400;
+  line-height: 1.2;
   color: var(--ink);
-  line-height: 1.25;
 }
 
-.title :global(.bi-en) {
-  font-size: 0.7em;
-  font-weight: 550;
-  color: var(--ink-2);
+.title:focus-visible {
+  outline-offset: 4px;
+}
+
+.title:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .reason {
@@ -60,21 +62,11 @@
 }
 
 .reasonText {
-  display: grid;
-  flex: 1 1 18rem;
-  gap: var(--s1);
-}
-
-.reasonHi {
-  font-size: var(--t-xl);
-  font-weight: 750;
-  line-height: 1.35;
+  flex: 1 1 16rem;
+  font-size: var(--t-lead);
+  font-weight: 650;
+  line-height: 1.4;
   color: var(--ink);
-}
-
-.reasonEn {
-  font-size: var(--t-m);
-  color: var(--ink-2);
 }
 
 .explain {
@@ -82,7 +74,7 @@
   gap: var(--s3);
   margin: 0;
   padding: var(--s4) 0 0;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--register-line);
 }
 
 @media (min-width: 760px) {
@@ -99,18 +91,14 @@
 }
 
 .explain dt {
-  font-size: var(--t-s);
+  font-size: var(--t-meta);
   font-weight: 700;
-  color: var(--jal-deep);
-}
-
-.explain dt :global(.bi-en) {
-  color: var(--jal-deep);
+  color: var(--ink-2);
 }
 
 .explain dd {
   margin: 0;
-  font-size: var(--t-s);
+  font-size: var(--t-small);
   line-height: 1.5;
   color: var(--ink);
 }
@@ -125,7 +113,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2) var(--s3);
-  font-size: var(--t-xs);
+  font-size: var(--t-meta);
   color: var(--ink-2);
 }
 
@@ -134,48 +122,31 @@
   align-items: baseline;
   gap: 6px;
   padding: 2px var(--s2);
-  border: 1px solid var(--rule-strong);
-  border-radius: 6px;
-  background: var(--wall);
+  border: 1px solid var(--st-no);
+  border-radius: 2px;
+  background: var(--sheet);
   color: var(--ink-2);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .ruleId code {
-  font-family: inherit;
-  font-weight: 750;
-  color: var(--ink);
+  font-weight: 700;
+  color: var(--st-no);
 }
 
 .demoNote {
   justify-self: start;
   padding: 2px var(--s2);
   border: 1px dashed var(--stamp);
-  border-radius: 6px;
+  border-radius: 2px;
   background: var(--stamp-wash);
-  color: var(--stamp);
-  font-size: var(--t-xs);
-  font-weight: 650;
-}
-
-.demoNote :global(.bi-en) {
-  color: var(--stamp);
+  color: var(--stamp-deep);
+  font-size: var(--t-meta);
+  font-weight: 600;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s3);
-}
-
-@keyframes notice-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }

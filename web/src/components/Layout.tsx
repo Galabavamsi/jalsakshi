@@ -1,15 +1,16 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { isMock } from '../appConfig';
 import { useAuth } from '../auth/AuthContext';
+import { LanguageSwitcher, useLocale, useT } from '../i18n/locale';
 import { cx } from '../lib/cx';
 import { Bi } from './Bi';
-import { IconPhone, IconPulse, IconTap, IconUser, IconVillage } from './Icons';
+import { IconPhone, IconPulse, IconSignOut, IconTap, IconVillage } from './Icons';
 import styles from './Layout.module.css';
 
 const NAV = [
-  { to: '/', hi: 'गाँव', en: 'Villages', Icon: IconVillage, end: true },
-  { to: '/activity', hi: 'गतिविधि', en: 'Activity', Icon: IconPulse, end: false },
-  { to: '/simulator', hi: 'फ़ोन सिम्युलेटर', en: 'Phone simulator', Icon: IconPhone, end: false },
+  { to: '/', label: { en: 'Villages', hi: 'गाँव' }, Icon: IconVillage, end: true },
+  { to: '/activity', label: { en: 'Activity', hi: 'गतिविधि' }, Icon: IconPulse, end: false },
+  { to: '/simulator', label: { en: 'Phone simulator', hi: 'फ़ोन सिम्युलेटर' }, Icon: IconPhone, end: false },
 ];
 
 /** Village pages, tickets and briefs all sit under "Villages" in the navigation. */
@@ -17,79 +18,116 @@ function underVillages(pathname: string): boolean {
   return pathname.startsWith('/villages/') || pathname.startsWith('/tickets/');
 }
 
-function DemoBanner() {
+/** Violet hatched strip: the same mark every "not real" label in the console carries. */
+export function DemoStrip() {
   return (
-    <div className={styles.demo} role="note">
+    <div className={cx(styles.demo, 'no-print')} role="note">
       <Bi
-        inline
-        hi="डेमो डेटा: इस कंसोल के सभी आँकड़े नमूना हैं और कोई असली कॉल नहीं होता।"
-        en="Demo data: every number here is a sample, and no real calls are placed."
+        en="Demo data: every village, household and number here is a sample. No real calls are placed."
+        hi="डेमो डेटा: यहाँ हर गाँव, घर और संख्या नमूना है। कोई असली कॉल नहीं होता।"
       />
     </div>
   );
 }
 
+/** "JalSakshi" with "जल साक्षी" beneath (swapped in Hindi). */
+export function Wordmark({ className }: { className?: string }) {
+  const { locale } = useLocale();
+  const latin = (
+    <span lang="en" className={styles.wordLatin} translate="no">
+      JalSakshi
+    </span>
+  );
+  const deva = (
+    <span lang="hi" className={styles.wordDeva} translate="no">
+      जल साक्षी
+    </span>
+  );
+  return (
+    <span className={cx(styles.wordmark, locale === 'hi' && styles.wordmarkHi, className)}>
+      {locale === 'hi' ? (
+        <>
+          {deva}
+          {latin}
+        </>
+      ) : (
+        <>
+          {latin}
+          {deva}
+        </>
+      )}
+    </span>
+  );
+}
+
 function Account() {
   const { status, user, signOut } = useAuth();
+  const t = useT();
   if (!user) return null;
+  const name = status === 'disabled' ? t({ en: 'Demo user', hi: 'डेमो उपयोगकर्ता' }) : user.name;
+  const signOutLabel = t({ en: 'Sign out', hi: 'साइन आउट' });
   return (
     <div className={styles.account}>
-      <IconUser size={20} />
-      <span className={styles.userName}>{user.name}</span>
+      <span className={styles.userName}>{name}</span>
       {status === 'signed_in' && (
-        <button type="button" className={cx('btn btn-quiet', styles.signOut)} onClick={signOut}>
-          <Bi hi="साइन आउट" en="Sign out" />
+        <button
+          type="button"
+          className={cx('btn btn-quiet', styles.signOut)}
+          onClick={signOut}
+          aria-label={signOutLabel}
+        >
+          <IconSignOut size={20} />
+          <span className={styles.signOutText}>{signOutLabel}</span>
         </button>
       )}
     </div>
   );
 }
 
-/** Page chrome: brand, navigation (a bottom bar on phones) and the demo label. */
+/** Page chrome: brand, navigation (a bottom bar on phones), the language switcher and the demo label. */
 export function Layout() {
   const { pathname } = useLocation();
+  const t = useT();
   return (
     <div className={styles.shell}>
       <a className={styles.skip} href="#main">
-        सामग्री पर जाएँ (Skip to content)
+        {t({ en: 'Skip to content', hi: 'सामग्री पर जाएँ' })}
       </a>
-      {isMock && <DemoBanner />}
-      <header className={cx(styles.header, 'no-print')}>
-        <Link to="/" className={styles.brand} aria-label="जल साक्षी JalSakshi, home">
-          <span className={styles.mark}>
-            <IconTap size={26} />
-          </span>
-          <span className={styles.wordmark}>
-            <span lang="hi" className={styles.wordHi}>
-              जल साक्षी
+      <header className={cx(styles.banner, 'no-print')}>
+        {isMock && <DemoStrip />}
+        <div className={styles.header}>
+          <Link to="/" className={styles.brand} aria-label={t({ en: 'JalSakshi, home', hi: 'जल साक्षी, मुख्य पन्ना' })}>
+            <span className={styles.mark} aria-hidden="true">
+              <IconTap size={24} />
             </span>
-            <span lang="en" className={styles.wordEn}>
-              JalSakshi console
-            </span>
-          </span>
-        </Link>
-        <nav aria-label="Main" className={styles.nav}>
-          <ul>
-            {NAV.map(({ to, hi, en, Icon, end }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  end={end}
-                  className={({ isActive }) =>
-                    cx(
-                      styles.navLink,
-                      (isActive || (to === '/' && underVillages(pathname))) && styles.active,
-                    )
-                  }
-                >
-                  <Icon size={22} />
-                  <Bi hi={hi} en={en} />
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <Account />
+            <Wordmark />
+          </Link>
+          <nav aria-label={t({ en: 'Main', hi: 'मुख्य' })} className={styles.nav}>
+            <ul>
+              {NAV.map(({ to, label, Icon, end }) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    end={end}
+                    className={({ isActive }) =>
+                      cx(
+                        styles.navLink,
+                        (isActive || (to === '/' && underVillages(pathname))) && styles.active,
+                      )
+                    }
+                  >
+                    <Icon size={22} />
+                    <Bi t={label} />
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className={styles.tools}>
+            <LanguageSwitcher />
+            <Account />
+          </div>
+        </div>
       </header>
       <main id="main" className={styles.main} tabIndex={-1}>
         <Outlet />

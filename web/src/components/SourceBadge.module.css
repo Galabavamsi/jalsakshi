@@ -1,14 +1,16 @@
+/* A printed tag on register paper: where a number came from and how fresh it is. */
 .badge {
   display: inline-flex;
   align-items: flex-start;
   gap: var(--s2);
   max-width: 100%;
   padding: 5px var(--s3) 6px var(--s2);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-s);
-  background: var(--sheet);
+  border: 1px solid var(--register-line);
+  border-radius: var(--r-slip);
+  background: var(--register);
+  box-shadow: var(--shadow-slip);
   color: var(--ink-2);
-  font-size: var(--t-xs);
+  font-size: var(--t-meta);
   line-height: 1.3;
 }
 
@@ -34,7 +36,7 @@
 }
 
 .meta {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .live .mark {
@@ -50,10 +52,11 @@
   border-style: dotted;
 }
 
+/* Not real data: dashed violet edge and a faint hatch, the same mark as the demo strip */
 .simulated,
 .replay {
-  border: 1.5px dashed var(--ink-3);
-  background: repeating-linear-gradient(135deg, var(--sheet) 0 8px, var(--wall) 8px 11px);
+  border: 1.5px dashed var(--stamp);
+  background: repeating-linear-gradient(135deg, var(--register) 0 8px, var(--register-2) 8px 11px);
 }
 
 .simulated .mark,

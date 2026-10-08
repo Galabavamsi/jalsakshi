@@ -11,6 +11,9 @@ importers:
       '@fontsource-variable/anek-devanagari':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/anek-latin':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource/tiro-devanagari-hindi':
         specifier: ^5.3.0
         version: 5.3.0
@@ -345,6 +348,9 @@ packages:
 
   '@fontsource-variable/anek-devanagari@5.3.0':
     resolution: {integrity: sha512-mng3nw6XK5/5agZqIgCHcspyYbXe5HcF3F6b8J3v7He3Ilk4Mp7/irelZnCNde1rPg2JSiC7LeuI9Y9DcZk4yw==}
+
+  '@fontsource-variable/anek-latin@5.3.0':
+    resolution: {integrity: sha512-NqJVtTUYWkPMPXsEy4Ve/xRnXrKLw/gfUYzLidSsdJAMEgNsRNYpJZkorD/xDyBS2mxhfu/y6KsWTetowCQjrQ==}
 
   '@fontsource/tiro-devanagari-hindi@5.3.0':
     resolution: {integrity: sha512-nlREPH/UItPmrRg2RY4O/oQNBtbwAzKyHk3ZexW1b75p8YrjmhdiPWOg9rm6dyM5v8FnIR392BG3Fdhu3+wTkg==}
@@ -1536,6 +1542,8 @@ snapshots:
       levn: 0.4.1
 
   '@fontsource-variable/anek-devanagari@5.3.0': {}
+
+  '@fontsource-variable/anek-latin@5.3.0': {}
 
   '@fontsource/tiro-devanagari-hindi@5.3.0': {}
 

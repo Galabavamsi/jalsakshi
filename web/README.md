@@ -1,7 +1,13 @@
 # JalSakshi operator console (`web/`)
 
-React 18 + Vite + TypeScript. Hindi first, English below. Works from 375 px up.
-Used by the Panchayat Secretary or sarpanch, and in the demo video.
+React 18 + Vite + TypeScript. Works from 375 px up. Used by the Panchayat Secretary or
+sarpanch, and in the demo video.
+
+**Language.** English by default, Hindi via the switcher or `?lang=hi`. The `EN | हिन्दी`
+switcher sits at the top right of every page; the choice is saved in this browser
+(`localStorage['jalsakshi.lang']`), and `?lang=hi|en` sets it for a link or the video. The phone
+IVR, the simulator's phone screen and the printed Gram Sabha sheet are always Hindi: they are the
+villagers' and the Gram Sabha's channel.
 
 ## Run
 
@@ -54,21 +60,28 @@ token is sent as `Authorization: Bearer` to `/api/*` and `/sim/*`; tokens are ke
 src/api/        types.ts (mirrors core/models.py + ARCHITECTURE §13), client.ts (fetch),
                 mock*.ts (offline API), context.tsx
 src/auth/       cognito.ts (PKCE via oidc-client-ts), AuthContext.tsx
+src/i18n/       locale.tsx (English default, ?lang=, saved choice, LanguageSwitcher, useT,
+                pickField), messages.ts (strings with numbers and plurals)
 src/components/ SourceBadge, StatusChip, StatusStrip, TallyTiles, Timeline, TicketParts,
-                PolicyDenial, FeaturePhone, Markdown, Layout, PageState, Icons, Bi
-src/lib/        pure helpers: IST dates, labels, formatting, simulator reducer, markdown
+                PolicyDenial, RegisterSlip, Verdict, VillageName, Wash, FeaturePhone, Markdown,
+                Layout, PageState, Icons, Bi (one language at a time)
+src/lib/        pure helpers: IST dates, labels, formatting, verdict, place names, simulator
+                reducer, markdown
+src/styles/     global.css (tokens and shared objects), watercolour.css (the paint layer)
 src/pages/      Villages, Village detail, Ticket, Gram Sabha brief, Simulator, Activity
-tests/          vitest (node): client, mock API, IVR flow, simulator reducer, helpers
+tests/          vitest (node): client, mock API, IVR flow, simulator reducer, helpers, i18n
 ```
 
 ## Design
 
-The page is limewash with indigo (`#EDF2F5`) and indigo ink, with the blue of painted
-Har Ghar Jal walls (`#1F5FAE`) for actions and headlines. Rubber-stamp violet (`#5A3E9B`) marks
-what households verified, and the same hatched violet marks anything simulated. Day statuses
-always pair colour with an icon shape and a word. A Cedar deny is shown as an ink-on-white
-notice, never as an error: the rule's own reason, why the rule exists, what happens next, and
-the policy id (`lib/policy.ts`). The phone simulator shows each IVR prompt in Devanagari with
-English below and the keypad choices (`lib/prompts.ts`); the audio itself is the romanised
-Hindi from `prompts/hi.yaml`. Type is Anek Devanagari (UI) and
-Tiro Devanagari Hindi (the printed Gram Sabha sheet), both self-hosted.
+"Limewash & Register" (full spec: `docs/DESIGN.md`). What households said is painted in
+watercolour on a limewashed wall (`#E9EFF1`); the state's claim and the system's decisions are
+printed on ruled buff register paper beside it (Tiro Devanagari Hindi for record values). Action
+is neel blue (`#1D5A9E`); anything households verified is stamp-pad violet (`#5A3E9B`), and the
+same hatched violet marks anything simulated. Day statuses always pair colour with an icon shape
+and a word; "Not confirmed" is hatched and "Dirty" stippled. A Cedar deny is a printed refusal
+slip, never an error: the rule's own reason, why the rule exists, what happens next, and the
+policy id (`lib/policy.ts`). Washes are seeded SVG shapes (`components/Wash.tsx`, no dependency),
+at most 8 per page, hidden in print, forced colours and high contrast; nothing animates under
+reduced motion. Type is Anek Latin (English) and Anek Devanagari (Hindi, loaded only when Hindi
+is chosen), both self-hosted.

@@ -1,6 +1,8 @@
-import { useId, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { PolicyDenied } from '../api/types';
 import { isMock } from '../appConfig';
+import { pickField, useLocale, useT } from '../i18n/locale';
+import { clockTime } from '../lib/format';
 import { policyCopy } from '../lib/policy';
 import { Bi } from './Bi';
 import { IconRule } from './Icons';
@@ -12,46 +14,55 @@ interface PolicyDenialProps {
   onDismiss?: () => void;
   /** For verify-needs-quorum: confirmations so far against the number needed. */
   progress?: { yes: number; needed: number } | null;
+  /** Move focus to the title when it appears (an answer to the person's action). */
+  focusOnShow?: boolean;
   /** Extra actions, e.g. "Try again". */
   children?: ReactNode;
 }
 
 /**
- * A Cedar deny, shown as a notice rather than an error: what cannot happen yet, the rule's own
- * reason in Hindi and English, why the rule exists, what happens next, and the rule's id.
+ * A Cedar deny is the system speaking, so it is printed, never painted: a register slip with
+ * what cannot happen yet, the rule's own reason, why the rule exists, what happens next, and
+ * the policy id.
  */
-export function PolicyDenial({ denied, onDismiss, progress, children }: PolicyDenialProps) {
+export function PolicyDenial({ denied, onDismiss, progress, focusOnShow = true, children }: PolicyDenialProps) {
   const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const { locale } = useLocale();
+  const t = useT();
   const copy = policyCopy(denied.policy_id);
+  const [decidedAt] = useState(() => new Date().toISOString());
+
+  useEffect(() => {
+    if (focusOnShow) titleRef.current?.focus();
+  }, [focusOnShow, denied]);
+
   return (
     <section className={styles.panel} role="alert" aria-labelledby={titleId}>
       <header className={styles.head}>
         <span className={styles.seal} aria-hidden="true">
-          <IconRule size={30} />
+          <IconRule size={26} />
         </span>
-        <Bi as="h3" id={titleId} t={copy.title} className={styles.title} />
+        <h3 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>
+          {t(copy.title)}
+        </h3>
       </header>
 
       <div className={styles.reason}>
         {progress && <Confirmations yes={progress.yes} needed={progress.needed} compact />}
-        <div className={styles.reasonText}>
-          <p className={styles.reasonHi} lang="hi">
-            {denied.reason_hi}
-          </p>
-          <p className={styles.reasonEn} lang="en">
-            {denied.reason_en}
-          </p>
-        </div>
+        <p className={styles.reasonText} lang={locale}>
+          {pickField(denied, 'reason', locale)}
+        </p>
       </div>
 
       <dl className={styles.explain}>
         <div>
-          <Bi as="dt" hi="यह नियम क्यों" en="Why this rule" />
+          <Bi as="dt" en="Why this rule" hi="यह नियम क्यों" />
           <Bi as="dd" t={copy.why} />
         </div>
         {copy.next && (
           <div>
-            <Bi as="dt" hi="आगे क्या होगा" en="What happens next" />
+            <Bi as="dt" en="What happens next" hi="आगे क्या होगा" />
             <Bi as="dd" t={copy.next} />
           </div>
         )}
@@ -60,20 +71,19 @@ export function PolicyDenial({ denied, onDismiss, progress, children }: PolicyDe
       <footer className={styles.foot}>
         <p className={styles.decided}>
           <span className={styles.ruleId}>
-            <span lang="en">Cedar</span> <code>{denied.policy_id}</code>
+            {t({ en: 'Cedar policy', hi: 'Cedar नियम' })} <code translate="no">{denied.policy_id}</code>
+          </span>
+          <span className="num">
+            {t({ en: `Decided ${clockTime(decidedAt)} IST`, hi: `${clockTime(decidedAt)} बजे तय` })}
           </span>
           <Bi
-            hi="यह फ़ैसला लिखे हुए नियम से हुआ, किसी व्यक्ति या AI से नहीं।"
-            en="Decided by a written rule, not by a person or an AI."
+            en="By a written rule, not by a person or an AI."
+            hi="लिखे हुए नियम से, किसी व्यक्ति या AI से नहीं।"
           />
         </p>
         {isMock && (
           <p className={styles.demoNote}>
-            <Bi
-              inline
-              hi="डेमो: ब्राउज़र में इसी नियम की नकल चली"
-              en="Demo: a browser copy of this rule ran"
-            />
+            <Bi en="Demo: a browser copy of this rule ran." hi="डेमो: ब्राउज़र में इसी नियम की नकल चली।" />
           </p>
         )}
         {(children || onDismiss) && (
@@ -81,7 +91,7 @@ export function PolicyDenial({ denied, onDismiss, progress, children }: PolicyDe
             {children}
             {onDismiss && (
               <button type="button" className="btn btn-quiet" onClick={onDismiss}>
-                <Bi hi="समझ गए" en="Understood" />
+                <Bi en="Dismiss" hi="ठीक है" />
               </button>
             )}
           </div>

@@ -6,6 +6,8 @@ import { Bi } from '../../components/Bi';
 import { IconCheck, IconPlay } from '../../components/Icons';
 import { ErrorNote } from '../../components/PageState';
 import { PolicyDenial } from '../../components/PolicyDenial';
+import { runCheckinConfirm } from '../../i18n/messages';
+import { useT } from '../../i18n/locale';
 import styles from './VillageDetail.module.css';
 
 type Step =
@@ -19,6 +21,7 @@ type Step =
 /** "Run check-in now": asks once, then starts the CheckInRun state machine. */
 export function RunCheckin({ villageId, households }: { villageId: string; households: number }) {
   const api = useApi();
+  const t = useT();
   const [step, setStep] = useState<Step>({ kind: 'idle' });
 
   async function run() {
@@ -33,11 +36,12 @@ export function RunCheckin({ villageId, households }: { villageId: string; house
 
   if (step.kind === 'confirm' || step.kind === 'running') {
     return (
-      <div className={styles.confirm} role="group" aria-label="Confirm check-in run">
-        <Bi
-          hi={`अभी ${households} घरों को कॉल जाएगा। आज जिन्हें कॉल हो चुका, उन्हें छोड़ दिया जाएगा।`}
-          en={`This calls ${households} households now. Anyone already called today is skipped.`}
-        />
+      <div
+        className={styles.confirm}
+        role="group"
+        aria-label={t({ en: 'Confirm check-in run', hi: 'जाँच कॉल की पुष्टि' })}
+      >
+        <p>{t(runCheckinConfirm, { n: households })}</p>
         <div className={styles.confirmActions}>
           <button
             type="button"
@@ -47,8 +51,8 @@ export function RunCheckin({ villageId, households }: { villageId: string; house
           >
             <IconPlay />
             <Bi
-              hi={step.kind === 'running' ? 'शुरू हो रहा है' : 'हाँ, कॉल शुरू करें'}
               en={step.kind === 'running' ? 'Starting' : 'Yes, start calls'}
+              hi={step.kind === 'running' ? 'शुरू हो रहा है' : 'हाँ, कॉल शुरू करें'}
             />
           </button>
           <button
@@ -57,7 +61,7 @@ export function RunCheckin({ villageId, households }: { villageId: string; house
             onClick={() => setStep({ kind: 'idle' })}
             disabled={step.kind === 'running'}
           >
-            <Bi hi="रुकें" en="Cancel" />
+            <Bi en="Cancel" hi="रुकें" />
           </button>
         </div>
       </div>
@@ -68,18 +72,18 @@ export function RunCheckin({ villageId, households }: { villageId: string; house
     <div className={styles.run}>
       <button type="button" className="btn btn-primary" onClick={() => setStep({ kind: 'confirm' })}>
         <IconPlay />
-        <Bi hi="अभी जाँच कॉल चलाएँ" en="Run check-in now" />
+        <Bi en="Run check-in now" hi="अभी जाँच कॉल चलाएँ" />
       </button>
       {step.kind === 'started' && (
         <p className={styles.started} role="status">
           <IconCheck size={20} />
           <span>
             <Bi
-              hi="जाँच कॉल शुरू हो गए। नतीजे गतिविधि में दिखेंगे।"
               en="Check-in calls started. Results appear in Activity."
+              hi="जाँच कॉल शुरू हो गए। नतीजे गतिविधि में दिखेंगे।"
             />
             <span className={styles.arn}>
-              Step Functions CheckInRun: <span>{step.result.execution_arn}</span>
+              <span lang="en">Step Functions CheckInRun</span>: <code translate="no">{step.result.execution_arn}</code>
             </span>
           </span>
         </p>

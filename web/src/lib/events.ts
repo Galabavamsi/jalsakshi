@@ -31,9 +31,12 @@ export function actorLabel(actor: string, people: People): Bilingual {
   return { hi: actor, en: actor };
 }
 
+/** Data values (ids, numbers) read the same in both languages. */
+const same = (text: string): Bilingual => ({ hi: text, en: text });
+
 export interface DetailEntry {
   label: Bilingual;
-  value: string;
+  value: Bilingual;
 }
 
 const COUNT_LABELS: Record<string, Bilingual> = {
@@ -43,7 +46,7 @@ const COUNT_LABELS: Record<string, Bilingual> = {
   partial: { hi: 'थोड़ा', en: 'partial' },
   dirty: { hi: 'गंदा', en: 'dirty' },
   unreachable: { hi: 'संपर्क नहीं', en: 'unreachable' },
-  households: { hi: 'घर', en: 'households' },
+  households: { hi: 'घर', en: 'households called' },
   verify_yes: { hi: 'पुष्टि में हाँ', en: 'confirmed yes' },
   verify_no: { hi: 'पुष्टि में ना', en: 'said no' },
   quorum: { hi: 'ज़रूरी पुष्टि', en: 'needed' },
@@ -56,8 +59,21 @@ const VIA: Record<string, Bilingual> = {
   console: { hi: 'कंसोल से', en: 'console' },
 };
 
-/** `note` is already the event's label (see labels.eventKey). */
-const HIDDEN = new Set(['call_id', 'note']);
+/** "phone keypad" for DTMF, "speech", "simulator", or the raw value. */
+export function viaName(via: string): Bilingual {
+  return VIA[via] ?? same(via);
+}
+
+/** How an answer or report arrived ("phone keypad"), or null when the event does not say. */
+export function viaLabel(event: Pick<TicketEvent, 'detail'>): Bilingual | null {
+  const via = event.detail?.via;
+  if (via === null || via === undefined) return null;
+  return viaName(String(via));
+}
+
+/** `note` is already the event's label (see labels.eventKey); `via` is shown in the byline. */
+const HIDDEN = new Set(['call_id', 'note', 'via']);
+
 
 function isRole(value: unknown): value is OperatorRole {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(ROLE, value);
@@ -74,33 +90,29 @@ function isStatus(value: unknown): value is DayStatusValue {
 function entryFor(key: string, value: unknown, people: People): DetailEntry | null {
   if (value === null || value === undefined || HIDDEN.has(key)) return null;
   if (key === 'to' && isRole(value)) {
-    return { label: { hi: 'किसे भेजी', en: 'sent to' }, value: `${ROLE[value].hi} (${ROLE[value].en})` };
+    return { label: { hi: 'किसे भेजी', en: 'sent to' }, value: ROLE[value] };
   }
   if ((key === 'day_status' || key === 'status') && isStatus(value)) {
-    return { label: { hi: 'दिन की स्थिति', en: 'day status' }, value: `${STATUS[value].hi} (${STATUS[value].en})` };
+    const s = STATUS[value];
+    return { label: { hi: 'दिन की स्थिति', en: 'day status' }, value: { hi: s.hi, en: s.en } };
   }
   const count = COUNT_LABELS[key];
-  if (count) return { label: count, value: String(value) };
-  if (key === 'via') {
-    const via = VIA[String(value)];
-    return { label: { hi: 'कैसे', en: 'via' }, value: via ? `${via.hi} (${via.en})` : String(value) };
-  }
+  if (count) return { label: count, value: same(String(value)) };
   if (key === 'operator_id' || key === 'household_id') {
     const who = people[String(value)];
-    return { label: { hi: 'किसे', en: 'who' }, value: who ? `${who.hi} (${who.en})` : String(value) };
+    return { label: { hi: 'किसे', en: 'who' }, value: who ?? same(String(value)) };
   }
-  if (key === 'digits') return { label: { hi: 'दबाया', en: 'pressed' }, value: String(value) };
+  if (key === 'digits') return { label: { hi: 'दबाया', en: 'pressed' }, value: same(String(value)) };
   if (key === 'water') {
-    const water = isWater(value) ? WATER[value] : null;
     return {
       label: { hi: 'जवाब', en: 'answer' },
-      value: water ? `${water.hi} (${water.en})` : String(value),
+      value: isWater(value) ? WATER[value] : same(String(value)),
     };
   }
-  if (key === 'rule_version') return { label: { hi: 'नियम', en: 'rule' }, value: String(value) };
-  if (key === 'policy_id') return { label: { hi: 'Cedar नियम', en: 'policy' }, value: String(value) };
+  if (key === 'rule_version') return { label: { hi: 'नियम', en: 'rule' }, value: same(String(value)) };
+  if (key === 'policy_id') return { label: { hi: 'Cedar नियम', en: 'Cedar policy' }, value: same(String(value)) };
   const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
-  return { label: { hi: key, en: key.replace(/_/g, ' ') }, value: text };
+  return { label: { hi: key, en: key.replace(/_/g, ' ') }, value: same(text) };
 }
 
 /** The event's detail object as labelled rows, in a stable order. */

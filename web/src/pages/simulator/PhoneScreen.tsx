@@ -1,4 +1,5 @@
 import { IconSpeaker } from '../../components/Icons';
+import { useT } from '../../i18n/locale';
 import { promptCaption } from '../../lib/prompts';
 import { timerRunning, type SimState } from '../../lib/simSession';
 import styles from './Simulator.module.css';
@@ -14,8 +15,13 @@ function Line({ hi, en }: { hi: string; en: string }) {
   );
 }
 
-/** What the phone's display shows for each moment of a call: the question and the keys to press. */
+/**
+ * What the phone's display shows for each moment of a call: the question and the keys to press.
+ * The phone is the villagers' channel, so its screen is Hindi in both console languages, with a
+ * small English line under each prompt.
+ */
 export function PhoneScreen({ state }: { state: SimState }) {
+  const t = useT();
   if (state.phase === 'idle') {
     return <Line hi="तैयार। हरा बटन दबाकर कॉल शुरू करें।" en="Ready. Press the green key to start a call." />;
   }
@@ -86,7 +92,7 @@ export function PhoneScreen({ state }: { state: SimState }) {
           className={styles.countdown}
           style={{ animationDuration: `${waiting.timeoutS}s` }}
           role="timer"
-          aria-label={`${waiting.timeoutS} seconds to answer`}
+          aria-label={t({ en: `${waiting.timeoutS} seconds to answer`, hi: `जवाब के लिए ${waiting.timeoutS} सेकंड` })}
         />
       )}
     </div>

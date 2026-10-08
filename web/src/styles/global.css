@@ -1,51 +1,67 @@
 /*
- * JalSakshi console: design tokens and shared primitives.
+ * JalSakshi console: "Limewash & Register".
  *
- * Palette: whitewash with indigo (neel chuna) for the page, indigo ink for text, the blue of
- * painted Har Ghar Jal walls for action, and rubber-stamp violet for anything households have
- * verified. Day statuses each have an ink and a wash, and always appear with an icon and words.
+ * What households said is painted in watercolour on a limewashed village wall; the state's claim
+ * and the system's decisions are printed on ruled register paper beside it. The gap between paint
+ * and print is the story. Paint means people; print means the record.
+ *
+ * Every status shows icon + word + colour. Tokens and contrast ratios: docs/DESIGN.md §2.
  */
 
 :root {
   color-scheme: light;
 
-  --wall: #edf2f5;
-  --wall-2: #e1e8ed;
-  --sheet: #ffffff;
-  --ink: #18233f;
-  --ink-2: #46536f;
-  --ink-3: #5b6782;
-  --rule: #c8d3dc;
-  --rule-strong: #9fb0bf;
-
-  --jal: #1f5fae;
-  --jal-deep: #174a87;
-  --jal-wash: #dbe7f5;
+  /* Ground: limewash tinted with neel */
+  --wall: #e9eff1;
+  --wall-2: #dce4e8;
+  --sheet: #fbfcfc;
+  /* Register: record objects only (state claim, Cedar notice, brief, source tags) */
+  --register: #faf5e9;
+  --register-2: #f2ead6;
+  --register-line: #e4dac4;
+  --register-margin: #d98c86; /* decorative only */
+  /* Ink */
+  --ink: #15203a;
+  --ink-2: #424e68;
+  --ink-3: #56617a; /* never on a wash (3.6:1) */
+  --rule: #c5d0d8; /* decorative */
+  --rule-strong: #6e7f93; /* UI borders, 3.5:1 on wall */
+  /* Action (neel) and verification (stamp violet) */
+  --jal: #1d5a9e;
+  --jal-deep: #153f70;
+  --jal-wash: #d9e7f4;
   --stamp: #5a3e9b;
+  --stamp-deep: #47307d;
   --stamp-wash: #ece6f7;
+  --focus: #153f70;
+  /* Day status: ink (text, icons) + wash (fill) */
+  --st-supplied: #17694f;
+  --st-supplied-wash: #dcefe6;
+  --st-partial: #8a5300;
+  --st-partial-wash: #f8e7c6;
+  --st-no: #a3291f;
+  --st-no-wash: #f7dcd6;
+  --st-dirty: #6b4a2a;
+  --st-dirty-wash: #ece1d2;
+  --st-unverified: #555e6e;
+  --st-unverified-wash: #e7e9ec;
 
-  --st-supplied: #1c7350;
-  --st-supplied-wash: #ddf0e6;
-  --st-partial: #8a5408;
-  --st-partial-wash: #fbebcf;
-  --st-no: #a52f27;
-  --st-no-wash: #f8deda;
-  --st-dirty: #664527;
-  --st-dirty-wash: #ede2d3;
-  --st-unverified: #545e70;
-  --st-unverified-wash: #e6eaef;
-
-  --font-ui: 'Anek Devanagari Variable', 'Nirmala UI', 'Kohinoor Devanagari', 'Noto Sans Devanagari',
+  /* Faces. English pages never ask for Anek Devanagari, so its 250 KB never downloads; the few
+     Devanagari names in English mode use the system's Devanagari face. */
+  --font-ui: 'Anek Latin Variable', 'Nirmala UI', 'Kohinoor Devanagari', 'Noto Sans Devanagari',
     system-ui, sans-serif;
-  --font-doc: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', 'Nirmala UI', Georgia, serif;
+  --font-record: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', Georgia, serif;
+  --font-code: ui-monospace, Consolas, 'Cascadia Mono', monospace;
 
-  --t-xs: 0.875rem;
-  --t-s: 1rem;
-  --t-m: 1.125rem;
-  --t-l: 1.375rem;
-  --t-xl: 1.75rem;
-  --t-2xl: 2.25rem;
-  --t-hero: clamp(2.5rem, 9vw, 4.5rem);
+  /* Type scale (14px is the floor) */
+  --t-meta: 0.875rem;
+  --t-small: 0.9375rem;
+  --t-body: 1.0625rem;
+  --t-lead: 1.25rem;
+  --t-h2: 1.5rem;
+  --t-h1: 2.125rem;
+  --t-numeral: 2.75rem;
+  --t-wall: clamp(2.5rem, 1.5rem + 5vw, 4.75rem);
 
   --s1: 4px;
   --s2: 8px;
@@ -57,10 +73,34 @@
   --s8: 72px;
 
   --gutter: 16px;
-  --radius: 12px;
-  --radius-s: 8px;
-  --shadow-board: 0 1px 0 var(--rule), 0 14px 28px -22px rgb(24 35 63 / 0.45);
-  --nav-h: 76px;
+  /* Radii by object, not one radius for everything */
+  --r-board: 14px;
+  --r-slip: 2px;
+  --r-btn: 8px;
+  --shadow-board: 0 1px 0 rgb(21 32 58 / 0.06), 0 18px 30px -24px rgb(21 32 58 / 0.45);
+  --shadow-slip: 0 1px 2px rgb(21 32 58 / 0.14);
+  --nav-h: 72px;
+
+  /* The red double margin of a register page, 12px from the left edge */
+  --margin-lines: linear-gradient(
+    90deg,
+    transparent 12px,
+    var(--register-margin) 12px 13px,
+    transparent 13px 16px,
+    var(--register-margin) 16px 17px,
+    transparent 17px
+  );
+  --ruled-lines: repeating-linear-gradient(transparent 0 27px, var(--register-line) 27px 28px);
+
+  /* Deckled paper edge (static masks): a vertical strip for the right edge, a horizontal one for the bottom */
+  --deckle-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='48'%3E%3Cpath d='M0 0H7L9 4 6 9 8.5 14 5.5 19 9 25 6 30 8.5 36 5 41 8 46 7 48H0Z'/%3E%3C/svg%3E");
+  --deckle-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='10'%3E%3Cpath d='M0 0V7L4 9 9 6 14 8.5 19 5.5 25 9 30 6 36 8.5 41 5 46 8 48 7V0Z'/%3E%3C/svg%3E");
+  /* Dry-brush outline for empty states: 1.5px, 6/4 dash, in --rule-strong */
+  --dry-brush: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' rx='10' ry='12' fill='none' stroke='%236E7F93' stroke-width='3' stroke-dasharray='6 4'/%3E%3C/svg%3E");
+}
+
+:root[data-locale='hi'] {
+  --font-ui: 'Anek Latin Variable', 'Anek Devanagari Variable', 'Nirmala UI', system-ui, sans-serif;
 }
 
 @media (min-width: 720px) {
@@ -83,12 +123,20 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--wall);
+  background-color: var(--wall);
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: var(--t-m);
-  line-height: 1.6;
+  font-size: var(--t-body);
+  font-weight: 420;
+  line-height: 1.5;
+  font-variant-numeric: lining-nums;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html:lang(hi) body {
+  font-weight: 450;
+  line-height: 1.7;
 }
 
 h1,
@@ -106,14 +154,33 @@ figure {
 h1,
 h2,
 h3 {
-  line-height: 1.25;
+  line-height: 1.15;
   font-weight: 700;
+  text-wrap: balance;
+}
+
+html:lang(hi) :is(h1, h2, h3) {
+  line-height: 1.35;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Hindi emphasis is weight, never italics */
+html:lang(hi) :is(em, i) {
+  font-style: normal;
+  font-weight: 650;
 }
 
 a {
   color: var(--jal-deep);
   text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
+}
+
+html:lang(hi) a {
+  text-underline-offset: 0.3em;
 }
 
 a:hover {
@@ -129,9 +196,8 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid var(--ink);
-  outline-offset: 3px;
-  border-radius: 4px;
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 img,
@@ -140,8 +206,9 @@ svg {
   max-width: 100%;
 }
 
-[lang='en'] {
-  line-height: 1.35;
+code {
+  font-family: var(--font-code);
+  font-size: 0.92em;
 }
 
 .visually-hidden {
@@ -156,28 +223,25 @@ svg {
   border: 0;
 }
 
-/* ------------------------------------------------------------------ bilingual text */
-
-.bi {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 0.05em;
-  min-width: 0;
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
-.bi-en {
-  font-size: 0.78em;
-  font-weight: 450;
-  color: var(--ink-3);
-  letter-spacing: 0.005em;
+/* A proper name's other script, beside it: one step smaller, quieter ink */
+.aside-script {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-inline-start: 0.45em;
+  letter-spacing: 0;
 }
 
-.bi-inline {
-  display: inline;
-}
-
-.bi-inline .bi-en::before {
-  content: ' / ';
+/*
+ * A Devanagari name inside an English line (LangRuns). In English mode it falls back to the
+ * system Devanagari face, which runs larger than Anek Latin; this brings it back to the line.
+ */
+.name-hi {
+  font-size: 0.92em;
 }
 
 /* ------------------------------------------------------------------ buttons */
@@ -185,13 +249,15 @@ svg {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--s3);
-  min-height: 52px;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 48px;
   padding: var(--s2) var(--s5) var(--s2) var(--s4);
   border: 2px solid transparent;
-  border-radius: var(--radius-s);
+  border-radius: var(--r-btn);
   background: none;
   font-weight: 650;
+  line-height: 1.2;
   text-align: left;
   cursor: pointer;
   text-decoration: none;
@@ -199,13 +265,8 @@ svg {
 
 .btn svg {
   flex: none;
-  width: 24px;
-  height: 24px;
-}
-
-.btn .bi-en {
-  color: inherit;
-  opacity: 0.85;
+  width: 22px;
+  height: 22px;
 }
 
 .btn:disabled {
@@ -238,18 +299,89 @@ svg {
 }
 
 .btn-stamp:hover:not(:disabled) {
-  background: #4a3183;
+  background: var(--stamp-deep);
 }
 
 .btn-quiet {
-  border-color: var(--rule-strong);
-  color: var(--ink-2);
   min-height: 44px;
-  font-weight: 550;
+  border-color: var(--rule-strong);
+  border-width: 1.5px;
+  background: var(--sheet);
+  color: var(--ink-2);
+  font-weight: 600;
 }
 
 .btn-quiet:hover:not(:disabled) {
   background: var(--wall-2);
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ segmented controls */
+
+.lang-switch,
+.seg {
+  display: inline-flex;
+  flex: none;
+  gap: 0;
+  padding: 0;
+  border-radius: var(--r-btn);
+}
+
+.lang-opt,
+.seg-opt {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1.5px solid var(--rule-strong);
+  background: var(--sheet);
+  color: var(--ink-2);
+  font-weight: 650;
+  font-size: var(--t-small);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lang-opt + .lang-opt,
+.seg-opt + .seg-opt {
+  margin-inline-start: -1.5px;
+}
+
+.lang-opt:first-child,
+.seg-opt:first-child {
+  border-radius: var(--r-btn) 0 0 var(--r-btn);
+}
+
+.lang-opt:last-of-type,
+.seg-opt:last-of-type {
+  border-radius: 0 var(--r-btn) var(--r-btn) 0;
+}
+
+.lang-opt[lang='hi'] {
+  font-size: var(--t-body);
+  font-weight: 600;
+}
+
+.lang-opt:hover:not([aria-pressed='true']),
+.seg-opt:hover:not([aria-pressed='true']) {
+  background: var(--wall-2);
+  color: var(--ink);
+}
+
+.lang-opt[aria-pressed='true'],
+.seg-opt[aria-pressed='true'] {
+  position: relative;
+  z-index: 1;
+  border-color: var(--jal);
+  background: var(--jal);
+  color: #fff;
+}
+
+.lang-opt:focus-visible,
+.seg-opt:focus-visible {
+  position: relative;
+  z-index: 2;
 }
 
 /* ------------------------------------------------------------------ page scaffolding */
@@ -261,31 +393,63 @@ svg {
   padding: var(--s6) var(--gutter) var(--s8);
 }
 
-.painted {
+/* The one bold thing: the question, set like painted wall lettering. */
+.wall-lettering {
+  font-size: var(--t-wall);
   font-weight: 800;
-  font-size: var(--t-hero);
-  line-height: 1.15;
+  font-stretch: 125%;
+  line-height: 1;
   letter-spacing: -0.01em;
-  color: var(--jal);
+  color: var(--jal-deep);
+}
+
+html:lang(hi) .wall-lettering {
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+@media (max-width: 479px) {
+  .wall-lettering {
+    font-stretch: 112.5%;
+  }
+}
+
+.page-title {
+  font-size: var(--t-h1);
+  font-weight: 750;
+  line-height: 1.1;
+  color: var(--ink);
 }
 
 .section-title {
-  font-size: var(--t-xl);
+  font-size: var(--t-h2);
   font-weight: 700;
+  color: var(--ink);
 }
 
-.section-title .bi-en {
-  font-size: 0.6em;
-  font-weight: 500;
+.lede {
+  max-width: 62ch;
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+html:lang(hi) .lede {
+  line-height: 1.65;
 }
 
 .backlink {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--s1);
   min-height: 44px;
+  padding-inline-end: var(--s2);
   font-weight: 600;
   text-decoration: none;
+}
+
+.backlink:hover {
+  text-decoration: underline;
 }
 
 .backlink svg {
@@ -293,12 +457,113 @@ svg {
   height: 20px;
 }
 
-.muted {
-  color: var(--ink-3);
+.meta {
+  font-size: var(--t-meta);
+  color: var(--ink-2);
 }
 
-.num {
-  font-variant-numeric: tabular-nums lining-nums;
+/* ------------------------------------------------------------------ objects: board, slip, paint, dry */
+
+/* A wall board: a sheet pinned to the limewash */
+.board {
+  padding: var(--s4);
+  border-radius: var(--r-board);
+  background: var(--sheet);
+  box-shadow: var(--shadow-board);
+}
+
+@media (min-width: 480px) {
+  .board {
+    padding: var(--s5);
+  }
+}
+
+@media (min-width: 720px) {
+  .board {
+    padding: var(--s6);
+  }
+}
+
+/* A register slip: printed record paper, red double margin, crisp corners */
+.slip {
+  position: relative;
+  padding: var(--s3) var(--s4) var(--s3) 30px;
+  border-radius: var(--r-slip);
+  background-color: var(--register);
+  background-image: var(--margin-lines);
+  box-shadow: var(--shadow-slip);
+  color: var(--ink);
+}
+
+/* Slips taller than three lines are ruled; text sits on a 28px rhythm */
+.slip-ruled {
+  background-image: var(--margin-lines), var(--ruled-lines);
+  background-position:
+    0 0,
+    0 var(--s3);
+  line-height: 28px;
+}
+
+.slip-value {
+  font-family: var(--font-record);
+  font-weight: 400;
+}
+
+/* Painted status surfaces (CSS only; patterns sit on the icon band, never behind words) */
+.paint {
+  background-color: var(--st-wash);
+  color: var(--st);
+  border-radius: 7px 10px 8px 11px / 10px 7px 11px 8px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--st) 55%, transparent),
+    inset 0 0 8px -3px color-mix(in srgb, var(--st) 45%, transparent);
+}
+
+.paint:nth-child(3n + 2) {
+  border-radius: 10px 7px 11px 8px / 8px 11px 7px 10px;
+}
+
+.paint:nth-child(3n) {
+  border-radius: 9px 11px 7px 9px / 11px 8px 10px 7px;
+}
+
+/* Patterns sit on the top 55% (the icon band), never behind the words */
+.st-UNVERIFIED.paint {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--st) 22%, transparent) 5px 6px
+  );
+  background-size: 100% 55%;
+  background-repeat: no-repeat;
+}
+
+.st-DIRTY.paint {
+  background-image:
+    linear-gradient(transparent 55%, var(--st-wash) 55%),
+    radial-gradient(color-mix(in srgb, var(--st) 30%, transparent) 1px, transparent 1.6px);
+  background-size:
+    100% 100%,
+    6px 6px;
+}
+
+/* Chips are one line of icon + word side by side: no pattern behind the word */
+.paint.paint-flat {
+  background-image: none;
+}
+
+.paint:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--wall),
+    inset 0 0 0 1px color-mix(in srgb, var(--st) 55%, transparent),
+    inset 0 0 8px -3px color-mix(in srgb, var(--st) 45%, transparent);
+}
+
+/* Empty: a dry brush, not a wash */
+.dry {
+  background-image: var(--dry-brush);
+  background-repeat: no-repeat;
+  border-radius: 10px 12px 9px 11px;
 }
 
 /* ------------------------------------------------------------------ status palette hooks */
@@ -328,6 +593,49 @@ svg {
   --st-wash: var(--st-unverified-wash);
 }
 
+/* ------------------------------------------------------------------ tables */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.data-table caption {
+  padding-bottom: var(--s2);
+  text-align: left;
+  font-size: var(--t-meta);
+  color: var(--ink-2);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--s2) var(--s3) var(--s2) 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table tbody th {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.data-table thead th {
+  border-bottom: 2px solid var(--ink-2);
+  font-size: var(--t-meta);
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.data-table td.n,
+.data-table th.n {
+  text-align: right;
+}
+
+/* ------------------------------------------------------------------ motion and media */
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -335,6 +643,31 @@ svg {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* High contrast and forced colours: paint keeps its fill, gains a firm edge; icon + word carry it */
+@media (prefers-contrast: more) {
+  .paint {
+    background-image: none;
+    box-shadow: inset 0 0 0 2px var(--st);
+  }
+}
+
+@media (forced-colors: active) {
+  .paint,
+  .slip,
+  .board {
+    border: 2px solid CanvasText;
+    background-image: none;
+    forced-color-adjust: auto;
   }
 }
 
@@ -345,5 +678,14 @@ svg {
 
   .no-print {
     display: none !important;
+  }
+
+  .paint {
+    box-shadow: none;
+    border: 2px solid var(--st);
+  }
+
+  .slip-ruled {
+    --register-line: #999;
   }
 }

@@ -6,9 +6,13 @@ import { FeaturePhone } from '../components/FeaturePhone';
 import { ErrorNote, Loading } from '../components/PageState';
 import { PolicyDenial } from '../components/PolicyDenial';
 import { useAsync } from '../hooks/useAsync';
+import { simChoicesLine } from '../i18n/messages';
+import { useLocale, useT, type Translate } from '../i18n/locale';
 import { cx } from '../lib/cx';
+import type { Bilingual } from '../lib/format';
 import { PURPOSE, ROLE } from '../lib/labels';
-import { promptCaption } from '../lib/prompts';
+import { villageLabel } from '../lib/places';
+import { promptCaption, type PromptCaption } from '../lib/prompts';
 import type { LogEntry } from '../lib/simSession';
 import { PhoneScreen } from './simulator/PhoneScreen';
 import { useSimCall } from './simulator/useSimCall';
@@ -23,18 +27,38 @@ interface Setup {
   purpose: Exclude<Purpose, 'OPERATOR'>;
 }
 
-function people(detail: VillageDetail | undefined, kind: CallerKind) {
+function people(detail: VillageDetail | undefined, kind: CallerKind): Array<{ id: string; label: Bilingual }> {
   if (!detail) return [];
   if (kind === 'operator') {
-    return detail.operators.map((o) => ({
-      id: o.id,
-      label: `${o.display_name || o.id}, ${ROLE[o.role].hi}`,
-    }));
+    return detail.operators.map((o) => {
+      const name = o.display_name || o.id;
+      return { id: o.id, label: { en: `${name}, ${ROLE[o.role].en}`, hi: `${name}, ${ROLE[o.role].hi}` } };
+    });
   }
-  return detail.households.map((h) => ({
-    id: h.id,
-    label: `${h.display_name || h.id} (${h.phone_masked})${h.consent ? '' : ', सहमति नहीं'}`,
-  }));
+  return detail.households.map((h) => {
+    const name = `${h.display_name || h.id} (${h.phone_masked})`;
+    return {
+      id: h.id,
+      label: h.consent ? { en: name, hi: name } : { en: `${name}, no consent`, hi: `${name}, सहमति नहीं` },
+    };
+  });
+}
+
+/** "Did tap water come today? Press 1 for yes, 2 for no, 3 for a little." */
+function captionLine(caption: PromptCaption, t: Translate): string {
+  const text = t(caption);
+  if (!caption.choices) return text;
+  const choices = caption.choices.map((c) => ({ key: c.key, label: t(c.label) }));
+  return `${text} ${t(simChoicesLine, { choices })}`;
+}
+
+/** "Pressed 2 (No)": the keypad answer in words, from the question it answered. */
+function pressedLine(entry: LogEntry, asked: PromptCaption | null, t: Translate): string {
+  const pressed = /^दबाया: (.*)$/.exec(entry.hi)?.[1];
+  if (pressed === undefined) return t({ en: entry.en ?? entry.hi, hi: entry.hi });
+  const choice = asked?.choices?.find((c) => c.key === pressed);
+  const label = choice ? ` (${t(choice.label)})` : '';
+  return t({ en: `Pressed ${pressed}${label}`, hi: `दबाया: ${pressed}${label}` });
 }
 
 function toRequest(setup: Setup): SimStartRequest {
@@ -44,44 +68,67 @@ function toRequest(setup: Setup): SimStartRequest {
 }
 
 function Transcript({ log }: { log: LogEntry[] }) {
+  const t = useT();
+  const { locale } = useLocale();
   const end = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' });
   }, [log.length]);
   if (log.length === 0) {
     return (
-      <p className={styles.transcriptEmpty}>
+      <p className={cx(styles.transcriptEmpty, 'dry')}>
         <Bi
-          hi="कॉल शुरू होने पर IVR की हर बात और हर दबाया बटन यहाँ लिखा जाएगा।"
           en="Once a call starts, every IVR prompt and every key press is written here."
+          hi="कॉल शुरू होने पर IVR की हर बात और हर दबाया बटन यहाँ लिखा जाएगा।"
         />
       </p>
     );
   }
+  let asked: PromptCaption | null = null;
   return (
-    <ol className={styles.transcript} role="log" aria-label="Call transcript">
+    <ol className={styles.transcript} role="log" aria-label={t({ en: 'Call transcript', hi: 'कॉल का लेखा' })}>
       {log.map((e) => {
-        const caption = e.who === 'ivr' && e.key ? promptCaption(e.key, e.hi) : null;
+        const isLast = e.id === log[log.length - 1]?.id;
+        const who =
+          e.who === 'ivr'
+            ? 'IVR'
+            : e.who === 'caller'
+              ? t({ en: 'You', hi: 'आप' })
+              : t({ en: 'Note', hi: 'सूचना' });
+        if (e.who === 'ivr') {
+          const caption = e.key ? promptCaption(e.key, e.hi) : null;
+          if (caption?.choices) asked = caption;
+          return (
+            <li key={e.id} className={cx(styles.entry, styles.ivr)} ref={isLast ? end : undefined}>
+              <span className={styles.speaker}>{who}</span>
+              <span className={styles.entryBody}>
+                {caption ? (
+                  <span className={styles.entryMain} lang={locale}>
+                    {captionLine(caption, t)}
+                  </span>
+                ) : (
+                  <span className={styles.entryMain} lang="hi-Latn">
+                    {e.hi}
+                  </span>
+                )}
+                {/* In Hindi the caption already is what villagers hear; the romanised line would repeat it */}
+                {caption && locale === 'en' && (
+                  <span className={styles.entryHeard}>
+                    {t({ en: 'Villagers hear, in Hindi: ', hi: 'गाँव वाले सुनते हैं: ' })}
+                    <span lang="hi-Latn">“{e.hi}”</span>
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        }
+        const text = e.who === 'caller' ? pressedLine(e, asked, t) : t({ en: e.en ?? e.hi, hi: e.hi });
         return (
-          <li
-            key={e.id}
-            className={cx(styles.entry, styles[e.who])}
-            ref={e.id === log[log.length - 1]?.id ? end : undefined}
-          >
-            <span lang="hi" className={styles.entryHi}>
-              {caption ? caption.hi : e.hi}
+          <li key={e.id} className={cx(styles.entry, styles[e.who])} ref={isLast ? end : undefined}>
+            <span className={styles.speaker}>{who}</span>
+            <span className={styles.entryBody}>
+              <span className={styles.entryMain}>{text}</span>
             </span>
-            {(caption?.en ?? e.en) && (
-              <span lang="en" className={styles.entryEn}>
-                {caption?.en ?? e.en}
-              </span>
-            )}
-            {caption && (
-              <span className={styles.entryKey}>
-                <span lang="hi">आवाज़ में</span> <span lang="en">(spoken)</span>:{' '}
-                <span lang="hi-Latn">{e.hi}</span>
-              </span>
-            )}
           </li>
         );
       })}
@@ -92,7 +139,9 @@ function Transcript({ log }: { log: LogEntry[] }) {
 /** The web-phone simulator: the same IVR engine as the phone line, driven from a keypad. */
 export function SimulatorPage() {
   const api = useApi();
+  const t = useT();
   const call = useSimCall();
+  const { locale } = useLocale();
   const villages = useAsync(() => api.listVillages(), 'villages');
   const [choice, setChoice] = useState<Partial<Setup>>({ kind: 'household', purpose: 'DAILY' });
   const villageId = choice.villageId ?? villages.data?.[0]?.village.id ?? '';
@@ -127,23 +176,26 @@ export function SimulatorPage() {
     <div className="page">
       <header className={styles.header}>
         <div className={styles.titleRow}>
-          <Bi as="h1" hi="फ़ोन सिम्युलेटर" en="Phone simulator" className={styles.title} />
-          <span className={styles.simTag}>
-            <span lang="hi">सिम्युलेटर</span> <span lang="en">Simulator</span>
-          </span>
+          <Bi as="h1" en="Phone simulator" hi="फ़ोन सिम्युलेटर" className="page-title" />
+          <span className={styles.simTag}>{t({ en: 'Simulator', hi: 'सिम्युलेटर' })}</span>
         </div>
         <Bi
-          hi="यह वही IVR चलाता है जो असली फ़ोन लाइन पर चलता है, पर कोई फ़ोन कॉल नहीं जाता। जवाब असली जवाबों की तरह दर्ज होते हैं और 'सिम्युलेटर' लिखे जाते हैं।"
-          en="Runs the same IVR as the real phone line, but no phone call is placed. Answers are recorded like real ones and marked as simulator."
+          as="p"
+          en="The same Hindi phone menu villagers hear, driven from a keypad. No phone call is placed; answers are recorded like real ones and marked as simulator."
+          hi="वही हिन्दी फ़ोन मेनू जो गाँव वाले सुनते हैं, कीपैड से चलाया गया। कोई फ़ोन कॉल नहीं जाता; जवाब असली जवाबों की तरह दर्ज होते हैं और 'सिम्युलेटर' लिखे जाते हैं।"
           className={styles.lede}
         />
       </header>
 
       <div className={styles.layout}>
-        <form className={styles.setup} onSubmit={(e) => e.preventDefault()} aria-label="Call setup">
+        <form
+          className={styles.setup}
+          onSubmit={(e) => e.preventDefault()}
+          aria-label={t({ en: 'Call setup', hi: 'कॉल की तैयारी' })}
+        >
           {villages.error ? <ErrorNote error={villages.error} onRetry={villages.reload} /> : null}
           <div className={styles.field}>
-            <Bi as="label" htmlFor="sim-village" hi="गाँव" en="Village" />
+            <Bi as="label" htmlFor="sim-village" en="Village" hi="गाँव" />
             <select
               id="sim-village"
               value={villageId}
@@ -152,13 +204,13 @@ export function SimulatorPage() {
             >
               {villages.data?.map((v) => (
                 <option key={v.village.id} value={v.village.id}>
-                  {v.village.name}
+                  {villageLabel(v.village, locale)}
                 </option>
               ))}
             </select>
           </div>
           <fieldset className={styles.field} disabled={inCall}>
-            <Bi as="legend" hi="फ़ोन कौन उठा रहा है" en="Who answers the phone" />
+            <Bi as="legend" en="Who answers the phone" hi="फ़ोन कौन उठा रहा है" />
             <div className={styles.segmented}>
               {(['household', 'operator'] as const).map((k) => (
                 <label key={k} className={cx(styles.segment, kind === k && styles.segmentOn)}>
@@ -169,13 +221,16 @@ export function SimulatorPage() {
                     checked={kind === k}
                     onChange={() => setChoice({ ...choice, kind: k, personId: undefined })}
                   />
-                  <Bi hi={k === 'household' ? 'घर' : 'नल जल मित्र'} en={k === 'household' ? 'Household' : 'Operator'} />
+                  <Bi
+                    en={k === 'household' ? 'Household' : 'Pump operator'}
+                    hi={k === 'household' ? 'घर' : 'नल जल मित्र'}
+                  />
                 </label>
               ))}
             </div>
           </fieldset>
           <div className={styles.field}>
-            <Bi as="label" htmlFor="sim-person" hi="किसका फ़ोन" en="Whose phone" />
+            <Bi as="label" htmlFor="sim-person" en="Whose phone" hi="किसका फ़ोन" />
             {detail.loading && !detail.data ? (
               <Loading />
             ) : (
@@ -187,7 +242,7 @@ export function SimulatorPage() {
               >
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.label}
+                    {t(o.label)}
                   </option>
                 ))}
               </select>
@@ -195,7 +250,7 @@ export function SimulatorPage() {
           </div>
           {kind === 'household' && (
             <fieldset className={styles.field} disabled={inCall}>
-              <Bi as="legend" hi="कॉल किस लिए" en="Call purpose" />
+              <Bi as="legend" en="Call purpose" hi="कॉल किस लिए" />
               <div className={styles.segmented}>
                 {(['DAILY', 'VERIFY'] as const).map((p) => (
                   <label key={p} className={cx(styles.segment, choice.purpose === p && styles.segmentOn)}>
@@ -213,12 +268,12 @@ export function SimulatorPage() {
             </fieldset>
           )}
           <button type="button" className="btn btn-primary" onClick={startCall} disabled={!setup || inCall}>
-            <Bi hi="कॉल शुरू करें" en="Start call" />
+            <Bi en="Start call" hi="कॉल शुरू करें" />
           </button>
           <p className={styles.keysHint}>
             <Bi
-              hi="कंप्यूटर के कीबोर्ड से भी 0-9, * और # दबा सकते हैं।"
               en="You can also type 0-9, * and # on a keyboard."
+              hi="कंप्यूटर के कीबोर्ड से भी 0-9, * और # दबा सकते हैं।"
             />
           </p>
         </form>
@@ -238,7 +293,7 @@ export function SimulatorPage() {
         </div>
 
         <section className={styles.transcriptCol} aria-labelledby="transcript-title">
-          <Bi as="h2" id="transcript-title" hi="कॉल का लेखा" en="Call transcript" className={styles.transcriptTitle} />
+          <Bi as="h2" id="transcript-title" en="Call transcript" hi="कॉल का लेखा" className={styles.transcriptTitle} />
           {state.denied && <PolicyDenial denied={state.denied} onDismiss={call.reset} />}
           <Transcript log={state.log} />
         </section>

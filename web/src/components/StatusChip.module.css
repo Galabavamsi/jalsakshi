@@ -2,36 +2,20 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  padding: 6px var(--s3) 6px var(--s2);
-  border: 1.5px solid var(--st);
-  border-radius: var(--radius-s);
-  background: var(--st-wash);
-  color: var(--st);
+  padding: 6px var(--s3) 6px 10px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.chip :global(.bi-en) {
-  color: var(--st);
-  font-weight: 550;
-}
-
-.chip:global(.st-UNVERIFIED) {
-  border-style: dashed;
-  background: repeating-linear-gradient(
-    135deg,
-    var(--st-wash) 0 7px,
-    #f6f8fa 7px 11px
-  );
+  white-space: nowrap;
 }
 
 .s {
-  font-size: var(--t-s);
+  gap: 6px;
   padding: 3px var(--s2) 3px 6px;
+  font-size: var(--t-small);
 }
 
 .l {
-  font-size: var(--t-l);
+  gap: var(--s2);
   padding: var(--s2) var(--s4) var(--s2) var(--s3);
-  gap: var(--s3);
+  font-size: var(--t-lead);
 }

@@ -3,30 +3,33 @@ import type { VillageContext } from '../../api/types';
 import { Bi } from '../../components/Bi';
 import { IconFlag, IconGround, IconRain } from '../../components/Icons';
 import { SourceBadge } from '../../components/SourceBadge';
+import { useT } from '../../i18n/locale';
+import { cx } from '../../lib/cx';
 import type { Bilingual } from '../../lib/format';
 import { num } from '../../lib/format';
 import styles from './VillageDetail.module.css';
 
-const GW_CATEGORY: Record<string, string> = {
-  safe: 'सुरक्षित',
-  'semi-critical': 'अर्ध-गंभीर',
-  critical: 'गंभीर',
-  'over-exploited': 'अति-दोहित',
-  saline: 'खारा',
+const GW_CATEGORY: Record<string, Bilingual> = {
+  safe: { en: 'Safe', hi: 'सुरक्षित' },
+  'semi-critical': { en: 'Semi-critical', hi: 'अर्ध-गंभीर' },
+  critical: { en: 'Critical', hi: 'गंभीर' },
+  'over-exploited': { en: 'Over-exploited', hi: 'अति-दोहित' },
+  saline: { en: 'Saline', hi: 'खारा' },
 };
 
-function categoryHi(category: string): string {
-  return GW_CATEGORY[category.trim().toLowerCase()] ?? category;
+function category(raw: string): Bilingual {
+  return GW_CATEGORY[raw.trim().toLowerCase()] ?? { en: raw, hi: raw };
 }
 
+/** Context is printed record: each item a register slip with its source and freshness. */
 function Item({ icon, title, children }: { icon: ReactNode; title: Bilingual; children: ReactNode }) {
   return (
-    <li className={styles.contextItem}>
+    <li className={cx('slip', styles.contextItem)}>
       <span className={styles.contextIcon} aria-hidden="true">
         {icon}
       </span>
       <div className={styles.contextBody}>
-        <Bi t={title} className={styles.contextTitle} />
+        <Bi t={title} as="h3" className={styles.contextTitle} />
         {children}
       </div>
     </li>
@@ -34,27 +37,21 @@ function Item({ icon, title, children }: { icon: ReactNode; title: Bilingual; ch
 }
 
 function Missing() {
-  return <Bi hi="उपलब्ध नहीं" en="Not available" className={styles.contextMissing} />;
+  return <Bi as="p" en="Not available" hi="उपलब्ध नहीं" className={styles.contextMissing} />;
 }
 
 /** Background the Gram Sabha may ask about: groundwater, rain and the state's own numbers. */
 export function ContextPanel({ context }: { context: VillageContext }) {
+  const t = useT();
   const { groundwater, rain_7d_mm: rain, state_hgj: hgj } = context;
   return (
     <ul className={styles.context}>
-      <Item icon={<IconGround />} title={{ hi: 'भूजल स्तर, विकासखंड', en: 'Groundwater stage, block' }}>
+      <Item icon={<IconGround />} title={{ en: 'Groundwater stage, block', hi: 'भूजल स्तर, विकासखंड' }}>
         {groundwater ? (
           <>
-            <p className={styles.contextValue}>
-              {groundwater.stage_pct !== null && (
-                <>
-                  <span className="num">{groundwater.stage_pct}%</span>{' '}
-                </>
-              )}
-              <span lang="hi">{categoryHi(groundwater.category)}</span>{' '}
-              <span lang="en" className={styles.contextEn}>
-                ({groundwater.category})
-              </span>
+            <p className={cx('slip-value', styles.contextValue)}>
+              {groundwater.stage_pct !== null && <span className="num">{groundwater.stage_pct}% </span>}
+              {t(category(groundwater.category))}
             </p>
             <SourceBadge source={groundwater.source} />
           </>
@@ -62,14 +59,11 @@ export function ContextPanel({ context }: { context: VillageContext }) {
           <Missing />
         )}
       </Item>
-      <Item icon={<IconRain />} title={{ hi: 'पिछले 7 दिन की बारिश', en: 'Rain, last 7 days' }}>
+      <Item icon={<IconRain />} title={{ en: 'Rain, last 7 days', hi: 'पिछले 7 दिन की बारिश' }}>
         {rain ? (
           <>
-            <p className={styles.contextValue}>
-              <span className="num">{rain.value}</span> <span lang="hi">मिमी</span>{' '}
-              <span lang="en" className={styles.contextEn}>
-                (mm)
-              </span>
+            <p className={cx('slip-value', styles.contextValue)}>
+              <span className="num">{rain.value}</span> {t({ en: 'mm', hi: 'मिमी' })}
             </p>
             <SourceBadge source={rain.source} />
           </>
@@ -77,16 +71,14 @@ export function ContextPanel({ context }: { context: VillageContext }) {
           <Missing />
         )}
       </Item>
-      <Item icon={<IconFlag />} title={{ hi: 'राज्य में हर घर जल', en: 'Har Ghar Jal in the state' }}>
+      <Item icon={<IconFlag />} title={{ en: 'Har Ghar Jal in the state', hi: 'राज्य में हर घर जल' }}>
         {hgj ? (
           <>
-            <p className={styles.contextValue}>
-              <span className="num">{num(hgj.reported)}</span> <span lang="hi">गाँव घोषित,</span>{' '}
-              <span className="num">{num(hgj.certified)}</span> <span lang="hi">प्रमाणित</span>
-            </p>
-            <p className={styles.contextEn} lang="en">
-              {num(hgj.reported)} villages declared, {num(hgj.certified)} certified, of{' '}
-              {num(hgj.villages)}
+            <p className={cx('slip-value', styles.contextValue)}>
+              {t({
+                en: `${num(hgj.reported)} villages declared, ${num(hgj.certified)} certified, of ${num(hgj.villages)}`,
+                hi: `${num(hgj.villages)} में से ${num(hgj.reported)} गाँव घोषित, ${num(hgj.certified)} प्रमाणित`,
+              })}
             </p>
             <SourceBadge source={hgj.source} />
           </>

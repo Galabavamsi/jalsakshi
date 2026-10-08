@@ -4,21 +4,32 @@ import { useAuth } from '../auth/AuthContext';
 import type { CognitoAuth } from '../auth/cognito';
 import { Bi } from '../components/Bi';
 import { IconTap } from '../components/Icons';
-import { ErrorNote, Loading } from '../components/PageState';
+import { Wordmark } from '../components/Layout';
+import { Empty, ErrorNote, Loading } from '../components/PageState';
+import { Wash } from '../components/Wash';
+import { LanguageSwitcher } from '../i18n/locale';
+import { cx } from '../lib/cx';
 import styles from './AuthScreens.module.css';
 
+/** A solid sheet centred on the wall, over a large neel wash; the switcher stays top right. */
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className={styles.frame}>
-      <div className={styles.card}>
-        <span className={styles.mark} aria-hidden="true">
-          <IconTap size={34} />
-        </span>
-        <p className={styles.word} lang="hi">
-          जल साक्षी
-        </p>
-        {children}
+      <div className={styles.topbar}>
+        <LanguageSwitcher />
       </div>
+      <main className={cx(styles.stage, 'has-wash')}>
+        <Wash seed="jalsakshi:sign-in" tone="jal" strength="decor" fit="slice" className={styles.backdrop} />
+        <div className={styles.card}>
+          <div className={styles.brand}>
+            <span className={styles.mark} aria-hidden="true">
+              <IconTap size={30} />
+            </span>
+            <Wordmark />
+          </div>
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
@@ -30,17 +41,18 @@ export function SignInScreen() {
     <Frame>
       <Bi
         as="h1"
-        hi="गाँव के नल का हिसाब, घरों की ज़ुबानी"
         en="The village tap, in its households' own words"
+        hi="गाँव के नल का हिसाब, घरों की ज़ुबानी"
         className={styles.tagline}
       />
       <Bi
-        hi="पंचायत सचिव, सरपंच और नल जल मित्र के लिए।"
+        as="p"
         en="For Panchayat Secretaries, sarpanches and pump operators."
+        hi="पंचायत सचिव, सरपंच और नल जल मित्र के लिए।"
         className={styles.who}
       />
       <button type="button" className="btn btn-primary" onClick={signIn}>
-        <Bi hi="साइन इन करें" en="Sign in" />
+        <Bi en="Sign in" hi="साइन इन करें" />
       </button>
     </Frame>
   );
@@ -50,7 +62,7 @@ export function SignInScreen() {
 export function Splash() {
   return (
     <Frame>
-      <Loading label={{ hi: 'सत्र जाँच रहे हैं', en: 'Checking your session' }} />
+      <Loading label={{ en: 'Checking your session', hi: 'सत्र जाँच रहे हैं' }} />
     </Frame>
   );
 }
@@ -76,11 +88,11 @@ export function AuthCallback({ auth }: { auth: CognitoAuth | null }) {
         <>
           <ErrorNote error={error} />
           <a className="btn btn-secondary" href="/">
-            <Bi hi="फिर से साइन इन करें" en="Sign in again" />
+            <Bi en="Sign in again" hi="फिर से साइन इन करें" />
           </a>
         </>
       ) : (
-        <Loading label={{ hi: 'साइन इन पूरा हो रहा है', en: 'Finishing sign-in' }} />
+        <Loading label={{ en: 'Finishing sign-in', hi: 'साइन इन पूरा हो रहा है' }} />
       )}
     </Frame>
   );
@@ -92,11 +104,11 @@ export function ConfigError({ missing }: { missing: string[] }) {
     <Frame>
       <Bi
         as="h1"
-        hi="कंसोल की सेटिंग अधूरी है"
         en="This console build is missing settings"
+        hi="कंसोल की सेटिंग अधूरी है"
         className={styles.tagline}
       />
-      <p className={styles.who}>
+      <p className={styles.who} lang="en">
         Set these in <code>web/.env.local</code> and rebuild, or run <code>pnpm dev:mock</code> for
         demo data:
       </p>
@@ -114,12 +126,18 @@ export function ConfigError({ missing }: { missing: string[] }) {
 export function NotFound() {
   return (
     <div className="page">
-      <Bi as="h1" hi="यह पन्ना नहीं मिला" en="Page not found" className={styles.notFound} />
-      <p>
-        <Link to="/">
-          <Bi inline hi="सभी गाँव देखें" en="See all villages" />
+      <Bi as="h1" en="Page not found" hi="यह पन्ना नहीं मिला" className="page-title" />
+      <Empty
+        className={styles.notFound}
+        text={{
+          en: 'This address does not match a village, ticket or page in the console.',
+          hi: 'यह पता कंसोल के किसी गाँव, शिकायत या पन्ने से मेल नहीं खाता।',
+        }}
+      >
+        <Link to="/" className="btn btn-secondary">
+          <Bi en="See all villages" hi="सभी गाँव देखें" />
         </Link>
-      </p>
+      </Empty>
     </div>
   );
 }

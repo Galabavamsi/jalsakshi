@@ -1,32 +1,33 @@
+/* ---------------------------------------------------------------- printed state badge */
+
 .badge {
   display: inline-flex;
-  padding: var(--s1) var(--s3);
-  border: 1.5px solid var(--jal);
-  border-radius: var(--radius-s);
-  background: var(--jal-wash);
-  color: var(--jal-deep);
+  align-items: center;
+  min-height: 32px;
+  padding: 3px var(--s3);
+  border: 1.5px solid var(--tone);
+  border-radius: var(--r-slip);
+  background: var(--sheet);
+  color: var(--tone);
   font-weight: 700;
-  font-size: var(--t-s);
-  line-height: 1.25;
-}
-
-.badge :global(.bi-en) {
-  color: inherit;
-}
-
-.toneVerified {
-  border-color: var(--stamp);
-  background: var(--stamp-wash);
-  color: var(--stamp);
+  font-size: var(--t-small);
+  line-height: 1.2;
 }
 
 .toneBad {
-  border-color: var(--st-no);
-  background: var(--st-no-wash);
-  color: var(--st-no);
+  --tone: var(--st-no);
 }
 
-/* ---------------------------------------------------------------- progress */
+.toneProgress {
+  --tone: var(--jal-deep);
+}
+
+.toneVerified {
+  --tone: var(--stamp);
+  background: var(--stamp-wash);
+}
+
+/* ---------------------------------------------------------------- painted progress path */
 
 .progressWrap {
   display: grid;
@@ -45,18 +46,21 @@
   position: relative;
   display: grid;
   justify-items: center;
-  gap: var(--s1);
+  align-content: start;
+  gap: 6px;
   text-align: center;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
+/* The stroke from the previous step to this one */
 .step::before {
   content: '';
   position: absolute;
-  top: 9px;
+  top: 11px;
   left: -50%;
   width: 100%;
   height: 3px;
+  border-radius: 2px;
   background: var(--rule);
 }
 
@@ -66,116 +70,145 @@
 
 .dot {
   z-index: 1;
-  width: 20px;
-  height: 20px;
-  border: 3px solid var(--rule-strong);
-  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--rule-strong);
+  border-radius: 12px 14px 11px 13px / 14px 11px 13px 12px;
   background: var(--sheet);
+  color: #fff;
 }
 
 .stepLabel {
-  font-size: var(--t-s);
-  font-weight: 650;
+  font-size: var(--t-small);
+  font-weight: 600;
   line-height: 1.2;
 }
 
-.stepLabel :global(.bi-en) {
-  font-size: 0.8em;
+@media (max-width: 479px) {
+  .stepLabel {
+    font-size: var(--t-meta);
+    font-stretch: 87.5%;
+  }
 }
 
+/* Done: painted verdigris, a brush stroke joining the dots */
 .done {
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 .done::before,
 .current::before {
-  background: var(--jal);
+  height: 6px;
+  top: 10px;
+  border-radius: 3px 5px 2px 4px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--st-supplied) 70%, transparent),
+    color-mix(in srgb, var(--st-supplied) 88%, transparent) 60%,
+    color-mix(in srgb, var(--st-supplied) 62%, transparent)
+  );
 }
 
 .done .dot {
-  border-color: var(--jal);
-  background: var(--jal);
+  border-color: var(--st-supplied);
+  background: var(--st-supplied);
+  box-shadow: inset 0 0 6px -2px rgb(0 0 0 / 0.35);
 }
 
+/* Current: half painted */
 .current {
-  color: var(--jal-deep);
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .current .dot {
-  border-color: var(--jal);
-  box-shadow: 0 0 0 4px var(--jal-wash);
+  border-color: var(--st-supplied);
+  background: linear-gradient(90deg, var(--st-supplied) 50%, var(--sheet) 50%);
+  box-shadow: 0 0 0 4px var(--st-supplied-wash);
 }
 
-.current:last-child {
-  color: var(--stamp);
-}
-
-.current:last-child .dot {
-  border-color: var(--stamp);
-  background: var(--stamp);
-  box-shadow: 0 0 0 4px var(--stamp-wash);
+.current .stepLabel {
+  font-weight: 750;
 }
 
 .currentBad .dot {
   border-color: var(--st-no);
+  background: linear-gradient(90deg, var(--st-no) 50%, var(--sheet) 50%);
   box-shadow: 0 0 0 4px var(--st-no-wash);
 }
 
 .offPath {
   color: var(--st-no);
   font-weight: 700;
-  font-size: var(--t-s);
+  font-size: var(--t-small);
 }
 
-/* ---------------------------------------------------------------- stamp */
+/* ---------------------------------------------------------------- verified stamp */
+
+.stampWrap {
+  display: grid;
+  place-items: center;
+  width: 220px;
+  height: 170px;
+}
+
+.halo {
+  inset: -10px -24px;
+  width: calc(100% + 48px);
+  height: calc(100% + 20px);
+}
 
 .stamp {
-  display: inline-grid;
+  display: grid;
+  place-content: center;
   justify-items: center;
-  gap: 2px;
-  padding: var(--s3) var(--s5);
-  border: 4px double var(--stamp);
-  border-radius: 14px;
+  gap: 4px;
+  width: 168px;
+  height: 118px;
+  padding: var(--s3);
+  border: 7px double var(--stamp);
+  border-radius: 50%;
+  background: var(--sheet);
   color: var(--stamp);
-  transform: rotate(-6deg);
-  mix-blend-mode: multiply;
-  animation: stamp-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  font-family: var(--font-record);
   text-align: center;
+  rotate: -4deg;
+  box-shadow: 0 0 0 3px var(--sheet);
+  animation: stamp-land 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-.stampHi {
-  font-size: var(--t-2xl);
-  font-weight: 800;
+.stampWords {
+  max-width: 11ch;
+  font-size: 1.125rem;
   line-height: 1.1;
 }
 
-.stampSub {
-  font-size: var(--t-s);
-  font-weight: 700;
-}
-
-.stampEn {
-  font-size: var(--t-xs);
-  font-weight: 600;
-}
-
 .stampDate {
-  margin-top: 2px;
-  padding-top: 2px;
+  padding-top: 3px;
   border-top: 1.5px solid currentColor;
-  font-size: var(--t-xs);
-  font-weight: 700;
+  font-size: var(--t-meta);
+  font-variant-numeric: lining-nums;
 }
 
-@keyframes stamp-in {
+@keyframes stamp-land {
   from {
     opacity: 0;
-    transform: rotate(-14deg) scale(1.35);
+    scale: 1.18;
+    rotate: -9deg;
   }
 
   to {
     opacity: 1;
-    transform: rotate(-6deg) scale(1);
+    scale: 1;
+    rotate: -4deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp {
+    animation: none;
   }
 }
 
@@ -199,15 +232,23 @@
 .slots li {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 }
 
+/* A confirmation is a stamp: violet, a little crooked */
 .slotYes {
   background: var(--stamp);
   color: #fff;
-  box-shadow: 0 0 0 3px var(--stamp-wash);
+  box-shadow:
+    0 0 0 2px var(--sheet),
+    0 0 0 4px var(--stamp);
+  rotate: -6deg;
+}
+
+.slotYes:nth-child(2n) {
+  rotate: 5deg;
 }
 
 .slotWait {
@@ -217,12 +258,8 @@
 
 .confirmText {
   flex: 1 1 16rem;
-  color: var(--stamp);
+  color: var(--stamp-deep);
   font-weight: 700;
+  font-size: var(--t-lead);
   line-height: 1.35;
-}
-
-.confirmText :global(.bi-en) {
-  color: var(--ink-2);
-  font-weight: 500;
 }

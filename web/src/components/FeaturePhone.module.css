@@ -1,8 +1,8 @@
 .phone {
-  --body: #253047;
-  --body-edge: #1a2235;
-  --lcd: #b9d7c4;
-  --lcd-ink: #10261f;
+  --body: var(--ink);
+  --body-edge: color-mix(in srgb, var(--ink) 80%, black);
+  --lcd: var(--st-supplied-wash);
+  --lcd-ink: var(--ink);
 
   display: grid;
   gap: var(--s4);
@@ -10,11 +10,11 @@
   max-width: 352px;
   padding: var(--s4) var(--s4) var(--s5);
   border-radius: 34px 34px 44px 44px;
-  background: linear-gradient(180deg, #2c3852, var(--body) 30%, var(--body-edge));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 86%, white), var(--body) 30%, var(--body-edge));
   box-shadow:
     inset 0 2px 0 rgb(255 255 255 / 0.12),
     inset 0 -3px 0 rgb(0 0 0 / 0.25),
-    0 24px 40px -24px rgb(24 35 63 / 0.7);
+    0 24px 40px -24px rgb(21 32 58 / 0.7);
 }
 
 .top {
@@ -27,24 +27,24 @@
   width: 64px;
   height: 6px;
   border-radius: 3px;
-  background: #0e1422;
+  background: var(--body-edge);
 }
 
 .brand {
-  font-size: var(--t-xs);
-  font-weight: 650;
-  color: #c9c2e6;
-  letter-spacing: 0.04em;
+  font-size: var(--t-meta);
+  font-weight: 600;
+  color: var(--stamp-wash);
+  letter-spacing: 0.02em;
 }
 
 .screen {
   min-height: 256px;
   padding: var(--s3);
-  border: 3px solid #0e1422;
+  border: 3px solid var(--body-edge);
   border-radius: 10px;
   background: var(--lcd);
   color: var(--lcd-ink);
-  box-shadow: inset 0 2px 8px rgb(16 38 31 / 0.25);
+  box-shadow: inset 0 2px 8px rgb(21 32 58 / 0.22);
   overflow: hidden;
 }
 
@@ -93,23 +93,23 @@
   min-height: 50px;
   border: 0;
   border-radius: 12px 12px 18px 18px;
-  background: linear-gradient(180deg, #f4f6f9, #d9dfe7);
+  background: linear-gradient(180deg, var(--sheet), var(--wall-2));
   color: var(--ink);
   cursor: pointer;
-  box-shadow: inset 0 -3px 0 #aab4c2;
+  box-shadow: inset 0 -3px 0 var(--rule);
   line-height: 1;
 }
 
 .key:active:not(:disabled),
 .pressed {
   transform: translateY(2px);
-  box-shadow: inset 0 -1px 0 #aab4c2;
-  background: linear-gradient(180deg, #dce7f5, #c4d3e6);
+  box-shadow: inset 0 -1px 0 var(--rule);
+  background: linear-gradient(180deg, var(--jal-wash), color-mix(in srgb, var(--jal-wash) 80%, var(--jal)));
 }
 
 .key:disabled {
   cursor: not-allowed;
-  color: #7a8597;
+  color: var(--ink-3);
 }
 
 .digit {
@@ -119,13 +119,13 @@
 
 .dev {
   margin-top: 2px;
-  font-size: var(--t-xs);
+  font-size: var(--t-meta);
   font-weight: 600;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .round:focus-visible,
 .key:focus-visible {
-  outline: 3px solid #f6d365;
+  outline: 3px solid var(--jal-wash);
   outline-offset: 2px;
 }

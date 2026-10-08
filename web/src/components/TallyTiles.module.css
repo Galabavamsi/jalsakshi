@@ -1,57 +1,73 @@
 .wrap {
+  display: grid;
+  gap: var(--s2);
   min-width: 0;
 }
 
+/* One row of seven, always: each cell at least ~40 x 52 at 375px */
 .tiles {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  max-width: 26rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.tile {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1.5px solid var(--st);
-  border-radius: 6px;
-  background: var(--st-wash);
-  color: var(--st);
+@media (min-width: 400px) {
+  .tiles {
+    gap: 5px;
+  }
 }
 
-.tile:global(.st-UNVERIFIED) {
-  border-style: dashed;
+.tile {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-height: 54px;
+  padding: 6px 0 5px;
+}
+
+.word {
+  font-size: var(--t-meta);
+  font-weight: 650;
+  font-stretch: 87.5%;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .none {
-  border: 1.5px dotted var(--rule-strong);
-  background: transparent;
+  min-height: 54px;
+  background-color: transparent;
+}
+
+.dash {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-2);
 }
 
 .counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--s4);
-  margin: var(--s2) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--t-s);
-  line-height: 1.35;
+  font-size: var(--t-small);
+  line-height: 1.45;
+  color: var(--ink-2);
 }
 
-.counts li {
-  color: var(--st, var(--ink-2));
-  font-weight: 650;
+.count {
+  white-space: nowrap;
 }
 
-.counts [lang='en'] {
-  font-size: var(--t-xs);
-  font-weight: 500;
-  color: var(--ink-3);
+.count strong {
+  color: var(--ink);
+  font-weight: 750;
 }
 
-.noData {
-  color: var(--ink-3);
+.countIcon {
+  display: inline-block;
+  vertical-align: -3px;
+  margin-inline-end: 3px;
+  color: var(--st);
 }

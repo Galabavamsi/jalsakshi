@@ -1,38 +1,49 @@
 .header {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--s5);
-  margin: var(--s3) 0 var(--s6);
+  gap: var(--s4) var(--s5);
+  margin: var(--s2) 0 var(--s6);
 }
 
+/* Washed by state: vermilion while broken, ochre while being checked, verdigris once confirmed */
 .titleBlock {
   display: grid;
   gap: var(--s3);
-  flex: 1 1 22rem;
+  /* As wide as the title and its meta line, not the page: the wash then sits behind the words
+     instead of trailing off into the empty right half of the header */
+  flex: 0 1 46rem;
+  padding: var(--s5) var(--s2) var(--s5) 0;
+}
+
+/* The words start at the box's left edge, where a blot thins out: lean the paint left */
+.titleBlock > :global(.wash-bleed) {
+  left: -18%;
 }
 
 .kicker {
-  font-size: var(--t-s);
-  color: var(--ink-3);
+  font-size: var(--t-small);
   font-weight: 600;
+  color: var(--ink-2);
+}
+
+.kicker span {
+  font-variant-numeric: tabular-nums;
 }
 
 .title {
-  display: grid;
-  gap: var(--s1);
-  font-size: var(--t-2xl);
+  font-size: var(--t-h1);
   font-weight: 800;
-  line-height: 1.2;
+  font-stretch: 112.5%;
+  line-height: 1.1;
   color: var(--ink);
 }
 
-.titleEn {
-  font-size: var(--t-m);
-  font-weight: 500;
-  color: var(--ink-3);
+@media (min-width: 720px) {
+  .title {
+    font-size: 2.625rem;
+  }
 }
 
 .meta {
@@ -40,13 +51,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2) var(--s4);
-  font-size: var(--t-s);
+  font-size: var(--t-small);
   color: var(--ink-2);
-}
-
-.stampWrap {
-  flex: none;
-  padding: var(--s2) var(--s4);
 }
 
 .section {
@@ -57,11 +63,7 @@
 
 .actions {
   display: grid;
-  gap: var(--s3);
-  padding: var(--s5);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  box-shadow: var(--shadow-board);
+  gap: var(--s4);
 }
 
 .buttons {
@@ -71,7 +73,7 @@
 }
 
 .rule {
-  font-size: var(--t-s);
+  font-size: var(--t-small);
   color: var(--ink-2);
 }
 
@@ -79,12 +81,16 @@
   display: grid;
   gap: var(--s3);
   padding-bottom: var(--s4);
-  margin-bottom: var(--s1);
   border-bottom: 1px solid var(--rule);
 }
 
 .cardTitle {
-  font-size: var(--t-m);
+  font-size: var(--t-body);
   font-weight: 700;
   color: var(--ink-2);
+}
+
+.historyHead {
+  display: grid;
+  gap: var(--s1);
 }

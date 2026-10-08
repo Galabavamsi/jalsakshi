@@ -5,140 +5,121 @@ import { isMock } from '../appConfig';
 import { Bi } from '../components/Bi';
 import { IconForward, IconTicket } from '../components/Icons';
 import { Empty, ErrorNote, Loading } from '../components/PageState';
+import { RegisterSlip } from '../components/RegisterSlip';
 import { SourceBadge } from '../components/SourceBadge';
 import { StatusChip } from '../components/StatusChip';
 import { TallyTiles } from '../components/TallyTiles';
 import { TicketStateBadge } from '../components/TicketParts';
+import { Verdict } from '../components/Verdict';
+import { VillageName } from '../components/VillageName';
+import { Wash, toneFor } from '../components/Wash';
 import { useAsync } from '../hooks/useAsync';
+import { openTicketLine, villagesLede } from '../i18n/messages';
+import { useLocale, useT } from '../i18n/locale';
 import { cx } from '../lib/cx';
-import { relative, type Bilingual } from '../lib/format';
+import { relative } from '../lib/format';
 import { REASON } from '../lib/labels';
+import { placeLine } from '../lib/places';
 import { WINDOW_DAYS } from '../lib/reliability';
 import { checkinSource } from '../lib/sources';
+import { dominantStatus, sortByVerdict, verdictOf } from '../lib/verdict';
 import styles from './VillagesPage.module.css';
 
-function yesNo(value: boolean | null | undefined): Bilingual {
-  if (value === true) return { hi: 'हाँ', en: 'Yes' };
-  if (value === false) return { hi: 'नहीं', en: 'No' };
-  return { hi: 'पता नहीं', en: 'Unknown' };
-}
+/** Washes per page are capped at 8: the hero plus up to seven boards. */
+const MAX_BOARD_WASHES = 7;
 
-function Claim({ summary }: { summary: VillageSummary }) {
-  const { village } = summary;
-  const declared = yesNo(village.claimed_hgj);
-  const certified = yesNo(village.hgj_certified);
-  return (
-    <section className={styles.claim} aria-label="What the state record says">
-      <Bi as="h3" hi="सरकारी रिकॉर्ड में" en="In the state record" className={styles.sideTitle} />
-      <p className={styles.claimBig}>
-        <span lang="hi">
-          हर घर जल: <strong>{declared.hi}</strong>
-        </span>
-        <span lang="en" className={styles.bigEn}>
-          Declared Har Ghar Jal (tap water in every home): {declared.en}
-        </span>
-      </p>
-      <p className={styles.certified}>
-        <span lang="hi">
-          ग्राम सभा का प्रमाणपत्र: <strong>{certified.hi}</strong>
-        </span>{' '}
-        <span lang="en">(Certified by the Gram Sabha: {certified.en})</span>
-      </p>
-      {village.claimed_source && <SourceBadge source={village.claimed_source} />}
-    </section>
-  );
-}
-
-function Witness({ summary }: { summary: VillageSummary }) {
+function HouseholdsSaid({ summary, painted }: { summary: VillageSummary; painted: boolean }) {
+  const { locale } = useLocale();
+  const t = useT();
   const o = summary.observed_7d;
+  const tone = toneFor(dominantStatus(o));
+  const n = <strong className={cx(styles.numeral, 'num')}>{o.supplied}</strong>;
   return (
-    <section className={styles.witness} aria-label="What households said">
-      <Bi
-        as="h3"
-        hi="घरों ने फ़ोन पर बताया, पिछले 7 दिन"
-        en="What households said by phone, last 7 days"
-        className={styles.sideTitle}
-      />
+    <div className={cx(styles.witness, 'has-wash')}>
+      {painted && <Wash seed={summary.village.id} tone={tone} bleed className={styles.panelWash} />}
+      <h3 className={styles.sideTitle}>
+        {t({ en: 'Households said, last 7 days', hi: 'घरों ने बताया, पिछले 7 दिन' })}
+      </h3>
       <p className={styles.big}>
-        <span lang="hi">
-          {WINDOW_DAYS} में से <strong className="num">{o.supplied}</strong> दिन पूरा पानी
-        </span>
-        <span lang="en" className={styles.bigEn}>
-          Full supply on {o.supplied} of {WINDOW_DAYS} days
-        </span>
+        {locale === 'hi' ? (
+          <>
+            {WINDOW_DAYS} में से {n} दिन पानी आया
+          </>
+        ) : (
+          <>
+            Water came on {n} of {WINDOW_DAYS} days
+          </>
+        )}
       </p>
       <TallyTiles observed={o} />
       <SourceBadge source={o.source ?? checkinSource(summary.today?.computed_at, isMock)} />
-    </section>
+    </div>
   );
 }
 
 function OpenTicket({ summary }: { summary: VillageSummary }) {
-  const t = summary.open_ticket;
-  if (!t) {
-    return (
-      <p className={styles.noTicket}>
-        <Bi inline hi="कोई खुली शिकायत नहीं" en="No open ticket" />
-      </p>
-    );
+  const t = useT();
+  const ticket = summary.open_ticket;
+  if (!ticket) {
+    return <Bi as="p" en="No repair ticket open." hi="कोई मरम्मत की शिकायत खुली नहीं।" className={styles.noTicket} />;
   }
-  const since = relative(t.opened_at);
   return (
-    <Link to={`/tickets/${encodeURIComponent(t.id)}`} className={styles.ticket}>
-      <IconTicket size={26} />
+    <Link to={`/tickets/${encodeURIComponent(ticket.id)}`} className={styles.ticket}>
+      <IconTicket size={24} className={styles.ticketIcon} />
       <span className={styles.ticketText}>
-        <Bi hi={`खुली शिकायत: ${REASON[t.reason].hi}`} en={`Open ticket: ${REASON[t.reason].en}`} />
-        <span className={styles.ticketWhen}>
-          <span lang="hi">{since.hi} खुली</span> <span lang="en">(opened {since.en})</span>
-        </span>
+        {t(openTicketLine, { reason: t(REASON[ticket.reason]), since: t(relative(ticket.opened_at)) })}
       </span>
-      <TicketStateBadge state={t.state} />
-      <IconForward size={22} className={styles.chev} />
+      <TicketStateBadge state={ticket.state} />
+      <IconForward size={20} className={styles.chev} />
     </Link>
   );
 }
 
-function VillageBoard({ summary }: { summary: VillageSummary }) {
+function VillageBoard({ summary, painted }: { summary: VillageSummary; painted: boolean }) {
+  const { locale } = useLocale();
+  const t = useT();
   const { village, today } = summary;
   const href = `/villages/${encodeURIComponent(village.id)}`;
+  const verdict = verdictOf(village, summary.observed_7d);
   return (
-    <li className={cx(styles.board, today ? `st-${today.status}` : styles.noToday)}>
+    <li className={cx('board', styles.board)}>
       <div className={styles.head}>
         <div className={styles.name}>
           <h2>
-            <Link to={href}>{village.name}</Link>
+            <Link to={href}>
+              <VillageName village={village} />
+            </Link>
           </h2>
-          <Bi
-            hi={`${village.block} विकासखंड, ${village.district} ज़िला`}
-            en={`${village.block} block, ${village.district} district`}
-            className={styles.place}
-          />
+          <p className={styles.place}>{placeLine(village, locale)}</p>
         </div>
         <div className={styles.today}>
-          <Bi hi="आज" en="Today" className={styles.todayLabel} />
+          <span className={styles.todayLabel}>{t({ en: 'Today', hi: 'आज' })}</span>
           {today ? (
-            <StatusChip status={today.status} size="l" />
+            <StatusChip status={today.status} />
           ) : (
-            <Bi
-              hi={`आज के कॉल ${village.checkin_local_time} बजे होंगे`}
-              en={`Today's calls at ${village.checkin_local_time} IST`}
-              className={styles.pending}
-            />
+            <span className={styles.pending}>
+              {t({
+                en: `Calls at ${village.checkin_local_time} IST`,
+                hi: `कॉल ${village.checkin_local_time} बजे`,
+              })}
+            </span>
           )}
         </div>
       </div>
-      <div className={styles.compare}>
-        <Claim summary={summary} />
-        <span className={styles.versus} aria-hidden="true">
-          <span lang="hi">बनाम</span>
-          <span lang="en">vs</span>
-        </span>
-        <Witness summary={summary} />
+
+      <div className={styles.verdict}>
+        <Verdict verdict={verdict} checkinTime={village.checkin_local_time} />
       </div>
+
+      <div className={styles.compare}>
+        <RegisterSlip village={village} />
+        <HouseholdsSaid summary={summary} painted={painted} />
+      </div>
+
       <div className={styles.foot}>
         <OpenTicket summary={summary} />
         <Link to={href} className="btn btn-secondary">
-          <Bi hi="गाँव का पूरा हिसाब" en="Open village record" />
+          <Bi en="Open village record" hi="गाँव का पूरा हिसाब" />
           <IconForward />
         </Link>
       </div>
@@ -146,38 +127,43 @@ function VillageBoard({ summary }: { summary: VillageSummary }) {
   );
 }
 
-/** Home: every village's household answers next to what the state reports. */
+/** Home: every village's household answers next to what the state record claims. */
 export function VillagesPage() {
   const api = useApi();
+  const t = useT();
   const { data, error, loading, reload } = useAsync(() => api.listVillages(), 'villages');
+  const boards = data ? sortByVerdict(data) : [];
+  const claimed = boards.filter((s) => s.village.claimed_hgj === true).length;
+  const gap = boards.filter((s) => verdictOf(s.village, s.observed_7d).kind === 'gap').length;
   return (
     <div className="page">
       <header className={styles.hero}>
-        <h1 className="painted" lang="hi">
-          आज नल में पानी आया?
-        </h1>
-        <p className={styles.lede} lang="hi">
-          गाँव के घर रोज़ फ़ोन पर यही बताते हैं। यहाँ उनकी गवाही है, राज्य के दावे के साथ।
-        </p>
-        <p className={styles.ledeEn} lang="en">
-          Did tap water come today? Households answer this by phone every day. Here is what they
-          said, next to what the state reports.
-        </p>
+        <div className={cx(styles.band, 'has-wash')}>
+          <Wash seed="villages:hero" tone="jal" bleed className={styles.heroWash} />
+          <h1 className="wall-lettering">{t({ en: 'Did tap water come today?', hi: 'आज नल में पानी आया?' })}</h1>
+        </div>
+        {data && claimed > 0 && <p className={cx('lede', styles.lede)}>{t(villagesLede, { gap, claimed })}</p>}
+        <Bi
+          as="p"
+          className={styles.how}
+          en="Each morning, households answer one phone call. What they said sits beside the state record, so the two can be compared."
+          hi="हर सुबह घर एक फ़ोन कॉल का जवाब देते हैं। उन्होंने जो बताया, वह सरकारी रिकॉर्ड के साथ रखा है, ताकि दोनों की तुलना हो सके।"
+        />
       </header>
       {loading && !data && <Loading />}
       {error ? <ErrorNote error={error} onRetry={reload} /> : null}
       {data && data.length === 0 && (
         <Empty
           text={{
-            hi: 'अभी कोई गाँव नहीं जुड़ा है।',
-            en: 'No villages yet. Villages appear here once they are registered.',
+            en: 'No villages yet. A village appears here once it is registered and its households have given consent.',
+            hi: 'अभी कोई गाँव नहीं जुड़ा है। गाँव पंजीकृत होने और घरों की सहमति के बाद यहाँ दिखेगा।',
           }}
         />
       )}
-      {data && data.length > 0 && (
+      {boards.length > 0 && (
         <ul className={styles.boards}>
-          {data.map((s) => (
-            <VillageBoard key={s.village.id} summary={s} />
+          {boards.map((s, i) => (
+            <VillageBoard key={s.village.id} summary={s} painted={i < MAX_BOARD_WASHES} />
           ))}
         </ul>
       )}

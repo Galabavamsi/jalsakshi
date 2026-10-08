@@ -1,39 +1,57 @@
 import type { SourceTag } from '../api/types';
+import { useLocale, type Locale } from '../i18n/locale';
 import { cx } from '../lib/cx';
-import { dateTime, relative, shortDate } from '../lib/format';
+import { dateTime, relative, shortDate, type Bilingual } from '../lib/format';
 import { FRESHNESS_LABEL } from '../lib/labels';
+import { sourceName } from '../lib/sources';
 import { istDate } from '../lib/time';
 import styles from './SourceBadge.module.css';
 
 /**
- * Where a number came from and how fresh it is. Shown next to every number in the console.
- * Simulated and replayed data get a dashed, hatched badge so they never pass for live data.
+ * Where a number came from and how fresh it is: a printed tag on register paper, next to every
+ * number in the console. Simulated and replayed data get a dashed, hatched edge so they never
+ * pass for live data.
  */
-export function SourceBadge({ source }: { source: SourceTag }) {
-  const fresh = FRESHNESS_LABEL[source.freshness];
-  const asOf = source.observed_at ? shortDate(istDate(new Date(source.observed_at))) : null;
-  const fetched = relative(source.fetched_at);
+export function SourceBadge({
+  source,
+  className,
+  locale: forced,
+}: {
+  source: SourceTag;
+  className?: string;
+  /** Pin the language, e.g. Hindi on the printed Gram Sabha sheet. */
+  locale?: Locale;
+}) {
+  const { locale: chosen } = useLocale();
+  const locale = forced ?? chosen;
+  const t = (m: Bilingual) => m[locale];
+  const fresh = t(FRESHNESS_LABEL[source.freshness]);
+  const name = t(sourceName(source.source));
+  const asOf = source.observed_at ? t(shortDate(istDate(new Date(source.observed_at)))) : null;
+  const fetched = t(relative(source.fetched_at));
   const when = asOf
-    ? { hi: `${asOf.hi} की स्थिति`, en: `as on ${asOf.en}` }
-    : { hi: `${fetched.hi} लिया`, en: `fetched ${fetched.en}` };
-  const title = `${source.source}. Freshness: ${fresh.en}. Fetched ${dateTime(source.fetched_at).en}.`;
+    ? t({ en: `as on ${asOf}`, hi: `${asOf} की स्थिति` })
+    : t({ en: `fetched ${fetched}`, hi: `${fetched} लिया` });
+  const title = t({
+    en: `${name}. Freshness: ${fresh}. Fetched ${dateTime(source.fetched_at).en}.`,
+    hi: `${name}। ताज़गी: ${fresh}। ${dateTime(source.fetched_at).hi} को लिया।`,
+  });
   return (
-    <span className={cx(styles.badge, styles[source.freshness])} title={title}>
+    <span className={cx(styles.badge, styles[source.freshness], className)} title={title} lang={locale}>
       <span className={styles.mark} aria-hidden="true" />
       <span className={styles.text}>
         <span className={styles.source}>
-          <span className="visually-hidden">Source: </span>
+          <span className="visually-hidden">{t({ en: 'Source: ', hi: 'स्रोत: ' })}</span>
           {source.url ? (
             <a href={source.url} target="_blank" rel="noreferrer noopener">
-              {source.source}
+              {name}
             </a>
           ) : (
-            source.source
+            name
           )}
         </span>
         <span className={styles.meta}>
-          <span lang="hi">{fresh.hi}</span> <span lang="en">({fresh.en})</span>,{' '}
-          <span lang="hi">{when.hi}</span> <span lang="en">({when.en})</span>
+          {fresh}, {when}
         </span>
       </span>
     </span>

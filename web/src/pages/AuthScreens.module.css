@@ -1,42 +1,66 @@
 .frame {
   display: grid;
-  place-items: center;
+  grid-template-rows: auto 1fr;
   min-height: 100vh;
-  padding: var(--s6) var(--gutter);
+  overflow-x: clip;
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--s3) var(--gutter);
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  padding: var(--s5) var(--gutter) var(--s8);
+}
+
+/* A large neel wash behind the card; nothing sits on it but the solid card */
+.backdrop {
+  inset: 2% -10% 6%;
+  width: 120%;
+  height: 92%;
 }
 
 .card {
   display: grid;
   gap: var(--s4);
   justify-items: start;
-  width: min(100%, 34rem);
+  width: min(100%, 32rem);
+  padding: var(--s6) var(--s5);
+  border-radius: var(--r-board);
+  background: var(--sheet);
+  box-shadow: var(--shadow-board);
+}
+
+@media (min-width: 560px) {
+  .card {
+    padding: var(--s7) var(--s7) var(--s6);
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
 }
 
 .mark {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 13px 15px 12px 14px;
   background: var(--jal);
   color: #fff;
 }
 
-.word {
-  font-size: var(--t-hero);
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--jal);
-}
-
 .tagline {
-  font-size: var(--t-xl);
-  font-weight: 700;
-}
-
-.tagline :global(.bi-en) {
-  font-size: 0.62em;
-  font-weight: 500;
+  font-size: var(--t-h1);
+  font-weight: 750;
+  line-height: 1.15;
 }
 
 .who {
@@ -45,7 +69,6 @@
 
 .who code,
 .missing code {
-  font-family: inherit;
   font-weight: 700;
 }
 
@@ -55,6 +78,5 @@
 }
 
 .notFound {
-  font-size: var(--t-2xl);
-  margin-bottom: var(--s4);
+  margin-top: var(--s4);
 }

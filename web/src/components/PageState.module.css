@@ -29,6 +29,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .drip {
+    animation: none;
+  }
+}
+
 .error {
   display: flex;
   flex-wrap: wrap;
@@ -38,11 +44,13 @@
   margin: var(--s4) 0;
   padding: var(--s4) var(--s5);
   border-left: 6px solid var(--st-no);
-  border-radius: var(--radius-s);
-  background: var(--st-no-wash);
+  border-radius: var(--r-slip);
+  background: var(--sheet);
+  box-shadow: var(--shadow-slip);
 }
 
 .errorText {
+  max-width: 60ch;
   color: var(--st-no);
   font-weight: 650;
 }
@@ -50,8 +58,7 @@
 .empty {
   display: grid;
   gap: var(--s3);
+  justify-items: start;
   padding: var(--s5);
-  border: 1.5px dashed var(--rule-strong);
-  border-radius: var(--radius);
   color: var(--ink-2);
 }

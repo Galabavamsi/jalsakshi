@@ -1,17 +1,12 @@
 .header {
   display: grid;
   gap: var(--s3);
-  margin-bottom: var(--s6);
+  margin: var(--s2) 0 var(--s6);
 }
 
-.title {
-  font-size: var(--t-2xl);
-  font-weight: 800;
-}
-
-.title :global(.bi-en) {
-  font-size: 0.5em;
-  font-weight: 500;
+.lede {
+  max-width: 62ch;
+  color: var(--ink-2);
 }
 
 .liveRow {
@@ -25,24 +20,21 @@
   display: flex;
   align-items: center;
   gap: var(--s2);
-  font-weight: 650;
+  font-size: var(--t-meta);
+  font-weight: 600;
   color: var(--st-supplied);
 }
 
-.live :global(.bi-en) {
-  color: inherit;
-}
-
 .dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 0 4px var(--st-supplied-wash);
 }
 
 .paused {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .paused .dot {
@@ -52,13 +44,13 @@
 .day {
   max-width: 56rem;
   display: grid;
-  gap: var(--s3);
+  gap: var(--s2);
   margin-bottom: var(--s6);
 }
 
 .dayTitle {
-  font-size: var(--t-l);
-  font-weight: 750;
+  font-size: var(--t-lead);
+  font-weight: 700;
   color: var(--ink-2);
 }
 
@@ -67,86 +59,87 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--rule-strong);
 }
 
 .item {
   display: grid;
-  grid-template-columns: 3.4rem 36px minmax(0, 1fr);
+  grid-template-columns: 3.25rem 34px minmax(0, 1fr);
   gap: var(--s3);
   align-items: start;
-  padding: var(--s3) var(--s2);
+  padding: var(--s3) var(--s2) var(--s3) 0;
   border-bottom: 1px solid var(--rule);
-  --tone: var(--jal-deep);
-  --tone-wash: var(--jal-wash);
-}
-
-/* A rule holding something back is a notice, not an alarm (same ink as the policy panel). */
-.policy {
-  --tone: var(--ink);
-  --tone-wash: var(--wall-2);
-}
-
-.ticket {
-  --tone: var(--stamp);
-  --tone-wash: var(--stamp-wash);
-}
-
-.fresh {
-  animation: arrive 2.4s ease-out;
-}
-
-@keyframes arrive {
-  from {
-    background: var(--tone-wash);
-  }
-
-  to {
-    background: transparent;
-  }
 }
 
 .time {
   padding-top: 6px;
-  font-size: var(--t-s);
+  font-size: var(--t-small);
   font-weight: 700;
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+  text-align: right;
 }
 
-.icon {
+.marker {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--tone-wash);
-  color: var(--tone);
+  width: 34px;
+  height: 34px;
+}
+
+/* Households: painted (round-ish, washed) */
+.markerPaint {
+  border-radius: 15px 18px 14px 17px / 17px 14px 18px 15px;
+}
+
+/* System: printed square */
+.markerPrint {
+  border: 1.5px solid var(--ink-2);
+  border-radius: 3px;
+  background: var(--sheet);
+  color: var(--ink-2);
+}
+
+/* Cedar: printed square in the refusal red */
+.markerRule {
+  border: 2px solid var(--st-no);
+  background: var(--register);
+  color: var(--st-no);
 }
 
 .body {
   display: grid;
   gap: 2px;
   min-width: 0;
+  padding-top: 4px;
 }
 
-.textHi {
-  font-weight: 600;
-  line-height: 1.45;
+.text {
+  font-weight: 550;
+  line-height: 1.4;
 }
 
-.textEn {
-  font-size: var(--t-s);
-  color: var(--ink-3);
+.policy .text {
+  color: var(--ink);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s3);
+  font-size: var(--t-meta);
 }
 
 .village {
-  justify-self: start;
-  font-size: var(--t-s);
   font-weight: 650;
 }
 
-.lede {
-  max-width: 60ch;
+.policyId {
   color: var(--ink-2);
+}
+
+.policyId code {
+  color: var(--st-no);
+  font-weight: 600;
 }

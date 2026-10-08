@@ -1,6 +1,8 @@
+import '@fontsource-variable/anek-latin/wdth.css';
 import '@fontsource-variable/anek-devanagari/wght.css';
 import '@fontsource/tiro-devanagari-hindi/400.css';
 import './styles/global.css';
+import './styles/watercolour.css';
 
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -11,6 +13,7 @@ import { ApiProvider } from './api/context';
 import { appConfig } from './appConfig';
 import { AuthProvider, UNAUTHORIZED_EVENT } from './auth/AuthContext';
 import { createCognitoAuth, type CognitoAuth } from './auth/cognito';
+import { LocaleProvider, applyDocumentLocale, resolveInitialLocale } from './i18n/locale';
 import { ConfigError } from './pages/AuthScreens';
 
 async function createApi(auth: CognitoAuth | null): Promise<JalApi> {
@@ -25,22 +28,32 @@ async function createApi(auth: CognitoAuth | null): Promise<JalApi> {
   });
 }
 
+// English unless ?lang=hi or a saved choice says otherwise; set before the first paint.
+const initialLocale = resolveInitialLocale();
+applyDocumentLocale(initialLocale);
+
 async function boot(root: Root): Promise<void> {
   if (appConfig.missing.length > 0) {
-    root.render(<ConfigError missing={appConfig.missing} />);
+    root.render(
+      <LocaleProvider initial={initialLocale}>
+        <ConfigError missing={appConfig.missing} />
+      </LocaleProvider>,
+    );
     return;
   }
   const auth = appConfig.cognito ? createCognitoAuth(appConfig.cognito) : null;
   const api = await createApi(auth);
   root.render(
     <StrictMode>
-      <BrowserRouter>
-        <AuthProvider auth={auth}>
-          <ApiProvider api={api}>
-            <App auth={auth} />
-          </ApiProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <LocaleProvider initial={initialLocale}>
+        <BrowserRouter>
+          <AuthProvider auth={auth}>
+            <ApiProvider api={api}>
+              <App auth={auth} />
+            </ApiProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </LocaleProvider>
     </StrictMode>,
   );
 }

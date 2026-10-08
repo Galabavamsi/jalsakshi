@@ -1,6 +1,6 @@
 /** Merging polled activity into the feed without duplicates. */
 
-import type { ActivityItem } from '../api/types';
+import type { ActivityItem, DayStatusValue } from '../api/types';
 
 export const FEED_LIMIT = 200;
 
@@ -36,4 +36,42 @@ export function newestAt(items: ReadonlyArray<Pick<ActivityItem, 'at'>>): string
     }
   }
   return best;
+}
+
+/** Cedar policy ids the console knows, to pick out of a policy-decision row's text. */
+const POLICY_ID =
+  /\b(verify-needs-quorum|stale-data|calling-hours|consent-required|one-call-per-day|no-household-view-for-dept|policy-evaluation-error)\b/;
+
+export function isPolicyItem(item: Pick<ActivityItem, 'kind'>): boolean {
+  const k = item.kind.toLowerCase();
+  return k.includes('policy') || k.includes('denied');
+}
+
+/** The Cedar policy id a decision row names, or null. */
+export function activityPolicyId(item: Pick<ActivityItem, 'kind' | 'text_en'>): string | null {
+  if (!isPolicyItem(item)) return null;
+  return POLICY_ID.exec(item.text_en)?.[1] ?? null;
+}
+
+/**
+ * The day status a households' row reports, read from its English text; null for rows that are
+ * not households' answers (runs, tickets, rule decisions). Used only for the row's marker colour:
+ * the row's own words always say the same thing.
+ */
+export function activityStatus(item: Pick<ActivityItem, 'kind' | 'text_en'>): DayStatusValue | null {
+  const k = item.kind.toLowerCase();
+  const text = item.text_en.toLowerCase();
+  if (k === 'day_status' || k.includes('status')) {
+    if (text.includes('no supply') || text.includes('no water')) return 'NO_SUPPLY';
+    if (text.includes('dirty')) return 'DIRTY';
+    if (text.includes('partial')) return 'PARTIAL';
+    if (text.includes('unverified') || text.includes('too few')) return 'UNVERIFIED';
+    if (text.includes('supplied') || text.includes('water came')) return 'SUPPLIED';
+    return null;
+  }
+  if (k === 'call' || k.includes('checkin_answer') || k.includes('verify')) {
+    if (text.includes('confirmed water') || text.includes('said yes')) return 'SUPPLIED';
+    if (text.includes('no water') || text.includes('said no')) return 'NO_SUPPLY';
+  }
+  return null;
 }

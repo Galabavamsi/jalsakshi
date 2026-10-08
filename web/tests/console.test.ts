@@ -71,7 +71,7 @@ describe('verification progress', () => {
 describe('ticket event details', () => {
   it('shows a water answer in words, not the enum', () => {
     const rows = detailEntries(ev('2026-10-08T10:00:00Z', 'verify_answer', { water: 'YES' }), {});
-    expect(rows[0]?.value).toBe('हाँ, आया (Yes)');
+    expect(rows[0]?.value).toEqual({ hi: 'हाँ, आया', en: 'Yes' });
   });
 });
 

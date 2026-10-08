@@ -1,0 +1,31 @@
+.verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  max-width: 62ch;
+  font-size: var(--t-lead);
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.gap {
+  color: var(--st-no);
+}
+
+.agree {
+  color: var(--st-supplied);
+}
+
+.silent {
+  color: var(--st-unverified);
+}
+
+.plain .icon {
+  color: var(--ink-2);
+}

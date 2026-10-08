@@ -13,27 +13,40 @@ import {
   TicketStateBadge,
   VerifiedStamp,
 } from '../components/TicketParts';
+import { VillageName } from '../components/VillageName';
+import { Wash, type WashTone } from '../components/Wash';
 import { useAsync } from '../hooks/useAsync';
+import { ticketMeta, ticketTitle } from '../i18n/messages';
+import { useLocale, useT } from '../i18n/locale';
+import { cx } from '../lib/cx';
 import type { People } from '../lib/events';
 import { dateTime, relative } from '../lib/format';
 import { REASON, ROLE } from '../lib/labels';
+import { villageLabel } from '../lib/places';
 import { istDate } from '../lib/time';
 import { verifyDates, verifyStartedAt, verifyTally } from '../lib/verify';
 import styles from './TicketPage.module.css';
 
 const FIXABLE: TicketState[] = ['OPEN', 'ASSIGNED', 'REOPENED', 'ESCALATED'];
 
+/** Names stay as written (usually Devanagari), beside the masked phone or the role. */
 function peopleOf(detail: VillageDetail | undefined): People {
   const people: People = {};
   for (const h of detail?.households ?? []) {
     const name = h.display_name || h.id;
-    people[h.id] = { hi: `घर: ${name}`, en: `household ${h.phone_masked}` };
+    people[h.id] = { en: `${name} (${h.phone_masked})`, hi: `${name} (${h.phone_masked})` };
   }
   for (const o of detail?.operators ?? []) {
     const name = o.display_name || o.id;
-    people[o.id] = { hi: `${name}, ${ROLE[o.role].hi}`, en: ROLE[o.role].en };
+    people[o.id] = { en: `${name}, ${ROLE[o.role].en}`, hi: `${name}, ${ROLE[o.role].hi}` };
   }
   return people;
+}
+
+function washFor(state: TicketState): WashTone {
+  if (state === 'CLOSED_VERIFIED') return 'supplied';
+  if (state === 'OPERATOR_REPORTED_FIXED' || state === 'VERIFYING') return 'partial';
+  return 'no';
 }
 
 type Busy = 'fixed' | 'close' | null;
@@ -72,6 +85,7 @@ function Actions({ ticket, detail, progress, onTicket, onDenied }: {
   onDenied: (d: PolicyDenied) => void;
 }) {
   const api = useApi();
+  const t = useT();
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<unknown>(null);
   const operator = detail?.operators.find((o) => o.role === 'NAL_JAL_MITRA');
@@ -105,15 +119,12 @@ function Actions({ ticket, detail, progress, onTicket, onDenied }: {
     });
 
   return (
-    <div className={styles.actions}>
+    <div className={cx('board', styles.actions)}>
       {progress && (
         <div className={styles.verify}>
-          <Bi
-            as="h2"
-            hi="घरों की पुष्टि"
-            en="Households confirming the repair"
-            className={styles.cardTitle}
-          />
+          <h2 className={styles.cardTitle}>
+            {t({ en: 'Households confirming the repair', hi: 'मरम्मत की पुष्टि करते घर' })}
+          </h2>
           <Confirmations yes={progress.yes} needed={progress.needed} />
         </div>
       )}
@@ -127,22 +138,23 @@ function Actions({ ticket, detail, progress, onTicket, onDenied }: {
           >
             <IconWrench />
             <Bi
-              hi={busy === 'fixed' ? 'दर्ज हो रहा है' : 'नल जल मित्र ने ठीक बताया'}
               en={busy === 'fixed' ? 'Saving' : 'Operator reports fixed'}
+              hi={busy === 'fixed' ? 'दर्ज हो रहा है' : 'नल जल मित्र ने ठीक बताया'}
             />
           </button>
         )}
         <button type="button" className="btn btn-stamp" onClick={close} disabled={busy !== null}>
           <IconCheck />
           <Bi
-            hi={busy === 'close' ? 'जाँच हो रही है' : 'शिकायत बंद करें'}
             en={busy === 'close' ? 'Checking' : 'Close ticket'}
+            hi={busy === 'close' ? 'जाँच हो रही है' : 'शिकायत बंद करें'}
           />
         </button>
       </div>
       <Bi
-        hi="शिकायत तभी बंद होगी जब घर फ़ोन पर पानी आने की पुष्टि करें।"
+        as="p"
         en="A ticket closes only after households confirm by phone that water is back."
+        hi="शिकायत तभी बंद होगी जब घर फ़ोन पर पानी आने की पुष्टि करें।"
         className={styles.rule}
       />
       {error ? <ErrorNote error={error} /> : null}
@@ -154,15 +166,17 @@ function Actions({ ticket, detail, progress, onTicket, onDenied }: {
 export function TicketPage() {
   const { tid = '' } = useParams();
   const api = useApi();
+  const { locale } = useLocale();
+  const t = useT();
   const ticket = useAsync(() => api.getTicket(tid), `ticket:${tid}`);
   const vid = ticket.data?.village_id ?? '';
-  const village = useAsync(
+  const villageQ = useAsync(
     () => (vid ? api.getVillage(vid) : Promise.resolve(undefined)),
     `village:${vid}`,
   );
   const [denied, setDenied] = useState<PolicyDenied | null>(null);
-  const people = useMemo(() => peopleOf(village.data), [village.data]);
-  const progress = useVerifyProgress(ticket.data, village.data?.village.quorum);
+  const people = useMemo(() => peopleOf(villageQ.data), [villageQ.data]);
+  const progress = useVerifyProgress(ticket.data, villageQ.data?.village.quorum);
 
   if (!ticket.data) {
     return (
@@ -172,11 +186,10 @@ export function TicketPage() {
     );
   }
 
-  const t = ticket.data;
-  const name = village.data?.village.name ?? t.village_id;
-  const opened = dateTime(t.opened_at);
-  const updated = relative(t.updated_at);
-  const closedAt = [...t.events].reverse().find((e) => e.to_state === 'CLOSED_VERIFIED')?.at;
+  const tk = ticket.data;
+  const village = villageQ.data?.village;
+  const name = village ? villageLabel(village, locale) : tk.village_id;
+  const closedAt = [...tk.events].reverse().find((e) => e.to_state === 'CLOSED_VERIFIED')?.at;
   const updateTicket = (next: Ticket) => {
     ticket.setData(next);
     if (next.state === 'CLOSED_VERIFIED') setDenied(null);
@@ -184,47 +197,36 @@ export function TicketPage() {
 
   return (
     <div className="page">
-      <Link to={`/villages/${encodeURIComponent(t.village_id)}`} className="backlink">
+      <Link to={`/villages/${encodeURIComponent(tk.village_id)}`} className="backlink">
         <IconBack />
-        <Bi inline hi={name} en="Village record" />
+        {village ? <VillageName village={village} /> : <Bi en="Village record" hi="गाँव का हिसाब" />}
       </Link>
       <header className={styles.header}>
-        <div className={styles.titleBlock}>
+        <div className={cx(styles.titleBlock, 'has-wash')}>
+          <Wash seed={`${tk.id}:head`} tone={washFor(tk.state)} bleed />
           <p className={styles.kicker}>
-            <span lang="hi">शिकायत</span> <span lang="en">(ticket)</span> {t.id}
+            {t({ en: 'Repair ticket', hi: 'मरम्मत की शिकायत' })} <span translate="no">{tk.id}</span>
           </p>
-          <h1 className={styles.title}>
-            <span lang="hi">
-              {name}: {REASON[t.reason].hi}
-            </span>
-            <span lang="en" className={styles.titleEn}>
-              {REASON[t.reason].en} in {name}
-            </span>
-          </h1>
+          <h1 className={styles.title}>{t(ticketTitle, { reason: t(REASON[tk.reason]), village: name })}</h1>
           <div className={styles.meta}>
-            <TicketStateBadge state={t.state} />
+            <TicketStateBadge state={tk.state} />
             <span>
-              <span lang="hi">{opened.hi} को खुली, {updated.hi} बदली</span>{' '}
-              <span lang="en">(opened {opened.en}, updated {updated.en})</span>
+              {t(ticketMeta, { opened: t(dateTime(tk.opened_at)), updated: t(relative(tk.updated_at)) })}
             </span>
           </div>
         </div>
-        {closedAt && (
-          <div className={styles.stampWrap}>
-            <VerifiedStamp at={closedAt} />
-          </div>
-        )}
+        {closedAt && <VerifiedStamp at={closedAt} seed={tk.id} />}
       </header>
 
-      <section className={styles.section} aria-label="Repair progress">
-        <TicketProgress state={t.state} />
+      <section className={styles.section} aria-label={t({ en: 'Repair progress', hi: 'मरम्मत कहाँ तक पहुँची' })}>
+        <TicketProgress state={tk.state} />
       </section>
 
-      {t.state !== 'CLOSED_VERIFIED' && (
-        <section className={styles.section} aria-label="Actions">
+      {tk.state !== 'CLOSED_VERIFIED' && (
+        <section className={styles.section} aria-label={t({ en: 'Actions', hi: 'कार्रवाई' })}>
           <Actions
-            ticket={t}
-            detail={village.data}
+            ticket={tk}
+            detail={villageQ.data}
             progress={progress}
             onTicket={updateTicket}
             onDenied={setDenied}
@@ -240,14 +242,16 @@ export function TicketPage() {
       )}
 
       <section className={styles.section} aria-labelledby="history-title">
-        <Bi
-          as="h2"
-          id="history-title"
-          hi="क्या हुआ, कब और किसने"
-          en="What happened, when (IST), and who did it"
-          className="section-title"
-        />
-        <Timeline events={t.events} people={people} />
+        <div className={styles.historyHead}>
+          <Bi as="h2" id="history-title" en="What happened" hi="क्या हुआ, कब और किसने" className="section-title" />
+          <Bi
+            as="p"
+            className="meta"
+            en="Oldest first, times in IST. Household answers have round markers; system and rule decisions have square ones."
+            hi="पुराने पहले, समय IST में। घरों के जवाब गोल निशान से; प्रणाली और नियम के फ़ैसले चौकोर निशान से।"
+          />
+        </div>
+        <Timeline events={tk.events} people={people} />
       </section>
     </div>
   );
