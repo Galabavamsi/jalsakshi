@@ -16,8 +16,8 @@ verify:
   bye: "Dhanyavaad. Aapki pushti ke bina shikayat band nahi hogi."
 operator:
   greet: "Namaste. JalSakshi se Nal Jal Mitra ke liye soochna hai."
-  summary_no_supply: "Aaj gaon ke {households} gharon ne bataya ki nal mein paani nahi aaya."
-  summary_dirty: "Aaj gaon ke {households} gharon ne bataya ki paani gandla tha."
+  summary_no_supply: "Aaj gaon mein nal mein paani na aane ki shikayat hai. Shikayat karne wale gharon ki sankhya: {households}."
+  summary_dirty: "Aaj gaon mein gandle paani ki shikayat hai. Shikayat karne wale gharon ki sankhya: {households}."
   q_fixed: "Agar samasya theek ho gayi hai to ek dabaiye. Abhi nahi to do dabaiye."
   ack_fixed: "Dhanyavaad. Hum gharon se pushti karenge, phir shikayat band hogi."
   ack_pending: "Theek hai. Hum kal phir sampark karenge."

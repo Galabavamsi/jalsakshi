@@ -112,7 +112,7 @@ def test_plan_covers_every_clip(cat: PromptCatalog, tmp_path: Path) -> None:
     assert all(job.stale for job in jobs)
     variant = next(job for job in jobs if job.key == "operator.summary_no_supply.n3")
     assert variant.path == tmp_path / "operator.summary_no_supply.n3.mp3"
-    assert "teen gharon" in variant.text
+    assert "sankhya: teen" in variant.text
 
 
 def test_plan_only_and_unknown(cat: PromptCatalog, tmp_path: Path) -> None:

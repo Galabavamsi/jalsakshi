@@ -34,11 +34,14 @@ def test_plain_prompt_text(cat: PromptCatalog) -> None:
 
 def test_variable_prompt_uses_hindi_number_words(cat: PromptCatalog) -> None:
     text = cat.text("operator.summary_no_supply", households=3)
-    assert text == "Aaj gaon ke teen gharon ne bataya ki nal mein paani nahi aaya."
+    assert text == (
+        "Aaj gaon mein nal mein paani na aane ki shikayat hai. "
+        "Shikayat karne wale gharon ki sankhya: teen."
+    )
 
 
 def test_large_counts_stay_digits(cat: PromptCatalog) -> None:
-    assert "12 gharon" in cat.text("operator.summary_dirty", households=12)
+    assert "sankhya: 12" in cat.text("operator.summary_dirty", households=12)
 
 
 def test_variant_key_text_matches_formatted_template(cat: PromptCatalog) -> None:
@@ -83,7 +86,7 @@ def test_has_audio(cat: PromptCatalog) -> None:
 
 def test_render_items_are_formatted(cat: PromptCatalog) -> None:
     items = dict(cat.render_items())
-    assert items["operator.summary_dirty.n9"].startswith("Aaj gaon ke nau gharon")
+    assert items["operator.summary_dirty.n9"].endswith("sankhya: nau.")
     assert all("{" not in text for text in items.values())
 
 

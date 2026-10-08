@@ -290,7 +290,7 @@ def test_operator_start_plays_summary_variant() -> None:
     ]
     summary = actions[1]
     assert isinstance(summary, Play)
-    assert "teen gharon" in summary.text_hi
+    assert "sankhya: teen" in summary.text_hi
 
 
 def test_operator_dirty_summary() -> None:
