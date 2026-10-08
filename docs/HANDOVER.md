@@ -28,16 +28,10 @@ Update the **Status** table whenever you start or finish something. This is how 
 ## Status
 | Area | Owner | State | Notes |
 |---|---|---|---|
-| Repo, docs, conventions | Claude | done | this commit |
-| core: models, reconciler, tickets + tests | Varun | todo | spec §3–5 |
-| policy: Cedar + wrapper + tests | Varun | todo | spec §7 |
-| store: DynamoDB repo | Varun | todo | spec §8 |
-| infra: CDK stacks, Step Functions | Varun | todo | spec §6 |
-| voice: flow engine, Vobiz adapter, simulator | Vamsi | todo | spec §9 |
-| prompts: hi.yaml + Sarvam render | Vamsi | todo | spec §9 |
-| agent: notes + Gram Sabha brief | Vamsi | todo | spec §10 |
-| data: IMIS, CGWB, Open-Meteo | Vamsi | todo | spec §11 |
-| web: operator console | Varun | todo | villages, tickets, brief, phone simulator |
+| Repo, docs, conventions, `core/models.py` contract, API contract (§13) | Claude | done | |
+| core, policy, store, voice, agent, data, web: first implementation | Claude build run (Vamsi's session) | **in progress, Thu night** | don't start these in parallel; review or extend after it lands |
+| handlers + infra (CDK) + scripts | Claude build run | queued after modules | |
+| Integration review | Claude build run | queued | |
 | Vobiz KYC + DID | Vamsi | todo | blocks real PSTN calls |
 | Demo script, filming, edit | both | todo | `docs/DEMO_SCRIPT.md` |
 | Builder Center blog | Vamsi | todo | separate prize (top 5 blogs) |

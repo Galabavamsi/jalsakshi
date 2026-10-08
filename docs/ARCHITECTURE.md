@@ -163,7 +163,29 @@ BYE     "Dhanyavaad. Aapka jawab gaon ki Gram Sabha tak pahunchega."
 
 Powertools logger, metrics and tracer. Metrics: `CallsPlaced`, `CallsAnswered`, `CallsUnreachable`, `DayStatus{status}`, `TicketsOpened`, `TicketsClosedVerified`, `PolicyDenied{id}`, `AgentFallbackUsed`. Dashboard `JalSakshi-{stage}`. Alarms: any DLQ > 0, `Errors` > 0 on the ivr Lambda.
 
-## 13. Honest limits (also in the README and the video)
+## 13. HTTP API contract (`/api/*` needs a Cognito JWT; JSON bodies are the `core/models.py` types serialised)
+
+| Method | Path | Body / query | Returns |
+|---|---|---|---|
+| GET | `/api/villages` | – | `[{village: Village, today: DayStatus?, open_ticket: Ticket?, observed_7d: {days, supplied, no_supply, partial, dirty, unverified}}]` |
+| GET | `/api/villages/{vid}` | – | `{village, households: [HouseholdMasked], operators: [Operator], context: {groundwater: {stage_pct, category, source: SourceTag}?, rain_7d_mm: {value, source}?, state_hgj: {villages, reported, certified, source}?}}` |
+| GET | `/api/villages/{vid}/days` | `?from=YYYY-MM-DD&to=YYYY-MM-DD` | `[DayStatus]` |
+| GET | `/api/villages/{vid}/checkins` | `?date=YYYY-MM-DD&purpose=DAILY` | `[CheckInMasked]` (household id + answers; phone masked `+91XXXXXX1234`) |
+| POST | `/api/villages/{vid}/checkin/run` | `{purpose: "DAILY"}` | `{execution_arn}`: starts CheckInRun now (demo trigger, still policy-checked) |
+| GET | `/api/tickets` | `?state=OPEN&village_id=` | `[Ticket]` |
+| GET | `/api/tickets/{tid}` | – | `Ticket` (with events) |
+| POST | `/api/tickets/{tid}/operator-fixed` | `{operator_id}` | `Ticket` (moves to OPERATOR_REPORTED_FIXED → VERIFYING) |
+| POST | `/api/tickets/{tid}/close` | `{}` | `Ticket`, or `403 {denied: true, policy_id, reason_hi, reason_en}` |
+| GET | `/api/villages/{vid}/brief` | `?from&to` | `{markdown_hi, numbers: {...}, generated_by: "agent"|"template", sources: [SourceTag], generated_at}` |
+| GET | `/api/activity` | `?since=iso` | `[{at, kind, village_id, text_en, text_hi}]`: live feed for the console |
+| POST | `/sim/calls` | `{household_id or operator_id, purpose}` | `{call_id, actions: [Action]}`: web-phone simulator starts a call through the same engine |
+| POST | `/sim/calls/{call_id}/input` | `{digits?: "2", timeout?: true}` | `{actions: [Action], done: bool}` |
+| POST | `/ivr/vobiz/{token}/answer` · `/digits` · `/status` · `/recording` | provider form fields | Vobiz XML |
+
+`Action` = `{type: "play", prompt_key, text_hi, audio_url?} | {type: "get_digits", num_digits, timeout_s, prompts: [...]} | {type: "record", max_s} | {type: "hangup"}`.
+`HouseholdMasked` = Household without `phone_e164`, plus `phone_masked`. Errors: `{error: {code, message}}`.
+
+## 14. Honest limits (also in the README and the video)
 
 - PHED escalation and the operator's real-world repair are **simulated**. There is no public API into IMIS, Meri Panchayat or PHED.
 - Demo villagers and the operator are **team members playing roles**, and this is labelled on screen.
