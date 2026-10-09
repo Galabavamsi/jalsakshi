@@ -146,6 +146,8 @@ def test_build_context_matches_the_api_contract() -> None:
         "groundwater": None,
         "rain_7d_mm": None,
         "state_hgj": None,
+        "nearest_well": None,
+        "district_rain": None,
     }
 
 

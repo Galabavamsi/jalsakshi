@@ -21,19 +21,24 @@ from botocore.exceptions import ClientError
 from pydantic import BaseModel
 
 from jalsakshi.core.models import (
+    Broadcast,
     CheckIn,
+    ConsentEvent,
     DayStatus,
     Household,
     Operator,
     Purpose,
+    QualityTest,
     Ticket,
     TicketEvent,
+    TicketReason,
     TicketState,
     Village,
+    WaterPoint,
 )
 from jalsakshi.store import table as t
 from jalsakshi.store.errors import ConflictError, NotFoundError, StoreError
-from jalsakshi.store.records import ActivityEntry, CallSession
+from jalsakshi.store.records import ActivityEntry, CallSession, PhoneRoles
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,7 @@ TABLE_ENV: Final = "JALSAKSHI_TABLE"
 CALL_TTL_DAYS: Final = 2
 ACTIVITY_TTL_DAYS: Final = 30
 ACTIVITY_LOOKBACK_DAYS: Final = 7
+MISSED_TTL_DAYS: Final = 30
 MAX_TRANSACT_ITEMS: Final = 100
 
 _BATCH_SIZE: Final = 25
@@ -149,14 +155,43 @@ class Repository:
     # --- households -------------------------------------------------------------------------------
 
     def put_household(self, household: Household) -> None:
-        """Create or replace a household under its village."""
+        """Create or replace a household under its village, and its phone lookup entry."""
+        previous = self.get_household(household.village_id, household.id)
         keys = {t.PK: t.village_pk(household.village_id), t.SK: t.hh_sk(household.id)}
-        self._put_item(t.model_to_item(household, keys, "Household"))
+        requests: list[dict[str, Any]] = [self._put_request(household, keys, "Household")]
+        link = {
+            t.PK: t.phone_pk(household.phone_e164),
+            t.SK: t.hh_sk(household.id),
+            "village_id": household.village_id,
+            "household_id": household.id,
+            t.ENTITY_ATTR: "PhoneLink",
+        }
+        requests.append({"PutRequest": {"Item": t.marshal(link)}})
+        if previous is not None and previous.phone_e164 != household.phone_e164:
+            stale = {t.PK: t.phone_pk(previous.phone_e164), t.SK: t.hh_sk(household.id)}
+            requests.append({"DeleteRequest": {"Key": t.marshal(stale)}})
+        self._batch_write(requests)
 
     def get_household(self, village_id: str, household_id: str) -> Household | None:
         """One household, or None."""
         item = self._get_item(t.village_pk(village_id), t.hh_sk(household_id))
         return None if item is None else t.item_to_model(item, Household)
+
+    def delete_household(self, village_id: str, household_id: str) -> bool:
+        """Erase a household and its phone lookup (consent withdrawn). False if it was absent.
+
+        Check-ins keep only the household id, so the village's history stays countable without
+        the person's number.
+        """
+        household = self.get_household(village_id, household_id)
+        if household is None:
+            return False
+        keys = [
+            {t.PK: t.village_pk(village_id), t.SK: t.hh_sk(household_id)},
+            {t.PK: t.phone_pk(household.phone_e164), t.SK: t.hh_sk(household_id)},
+        ]
+        self._batch_write([{"DeleteRequest": {"Key": t.marshal(key)}} for key in keys])
+        return True
 
     def list_households(self, village_id: str, *, active_only: bool = False) -> list[Household]:
         """Households of a village, ordered by id."""
@@ -180,6 +215,16 @@ class Repository:
         for vid in dropped:
             key = {t.PK: t.village_pk(vid), t.SK: t.op_link_sk(operator.id)}
             requests.append({"DeleteRequest": {"Key": t.marshal(key)}})
+        link = {
+            t.PK: t.phone_pk(operator.phone_e164),
+            t.SK: t.op_link_sk(operator.id),
+            "operator_id": operator.id,
+            t.ENTITY_ATTR: "PhoneLink",
+        }
+        requests.append({"PutRequest": {"Item": t.marshal(link)}})
+        if previous is not None and previous.phone_e164 != operator.phone_e164:
+            stale = {t.PK: t.phone_pk(previous.phone_e164), t.SK: t.op_link_sk(operator.id)}
+            requests.append({"DeleteRequest": {"Key": t.marshal(stale)}})
         self._batch_write(requests)
 
     def get_operator(self, operator_id: str) -> Operator | None:
@@ -191,6 +236,133 @@ class Repository:
         """Operators serving a village, ordered by id."""
         items = self._query(t.village_pk(village_id), sk_prefix=t.OP_PREFIX)
         return [t.item_to_model(item, Operator) for item in items]
+
+    # --- water points -----------------------------------------------------------------------------
+
+    def put_water_point(self, point: WaterPoint) -> None:
+        """Create or replace a water point under its village."""
+        keys = {t.PK: t.village_pk(point.village_id), t.SK: t.wp_sk(point.id)}
+        self._put_item(t.model_to_item(point, keys, "WaterPoint"))
+
+    def get_water_point(self, village_id: str, water_point_id: str) -> WaterPoint | None:
+        """One water point, or None."""
+        item = self._get_item(t.village_pk(village_id), t.wp_sk(water_point_id))
+        return None if item is None else t.item_to_model(item, WaterPoint)
+
+    def list_water_points(self, village_id: str, *, active_only: bool = False) -> list[WaterPoint]:
+        """Water points of a village, ordered by id."""
+        items = self._query(t.village_pk(village_id), sk_prefix=t.WP_PREFIX)
+        points = [t.item_to_model(item, WaterPoint) for item in items]
+        return [p for p in points if p.active] if active_only else points
+
+    # --- console accounts -------------------------------------------------------------------------
+
+    def bind_user_village(self, sub: str, village_id: str) -> None:
+        """Let this console account look after the village (idempotent)."""
+        item = {
+            t.PK: t.user_pk(sub),
+            t.SK: f"VILLAGE{t.SEP}{village_id}",
+            "village_id": village_id,
+            t.ENTITY_ATTR: "UserVillage",
+        }
+        self._put_item(item)
+
+    def user_villages(self, sub: str) -> list[str]:
+        """Villages this console account looks after, ordered by id."""
+        items = self._query(t.user_pk(sub), sk_prefix=f"VILLAGE{t.SEP}")
+        return [str(item["village_id"]) for item in items]
+
+    # --- phone lookup (inbound calls) -------------------------------------------------------------
+
+    def lookup_phone(self, phone_e164: str) -> PhoneRoles:
+        """Households and operators registered with this number (for missed calls)."""
+        households: list[tuple[str, str]] = []
+        operators: list[str] = []
+        for item in self._query(t.phone_pk(phone_e164)):
+            if item.get("household_id"):
+                households.append((str(item["village_id"]), str(item["household_id"])))
+            elif item.get("operator_id"):
+                operators.append(str(item["operator_id"]))
+        return PhoneRoles(households=households, operators=operators)
+
+    def find_households_by_phone(self, phone_e164: str) -> list[Household]:
+        """The households (any village) registered with this number."""
+        roles = self.lookup_phone(phone_e164)
+        found = (self.get_household(vid, hid) for vid, hid in roles.households)
+        return [h for h in found if h is not None and h.phone_e164 == phone_e164]
+
+    def record_missed_call(self, phone_e164: str, at: datetime, data: Mapping[str, Any]) -> None:
+        """Log one missed call from this number (kept 30 days)."""
+        item = {
+            t.PK: t.missed_pk(phone_e164),
+            t.SK: t.iso_ts(at),
+            "data": dict(data),
+            t.TTL_ATTR: _expiry(at, MISSED_TTL_DAYS),
+            t.ENTITY_ATTR: "MissedCall",
+        }
+        self._put_item(item)
+
+    def list_missed_calls(self, phone_e164: str, since: datetime) -> list[dict[str, Any]]:
+        """Missed calls from this number at or after `since`, oldest first."""
+        items = self._query(t.missed_pk(phone_e164), sk_between=(t.iso_ts(since), "~"))
+        return [{"at": item[t.SK], **(item.get("data") or {})} for item in items]
+
+    # --- consent ledger ---------------------------------------------------------------------------
+
+    def append_consent_event(self, event: ConsentEvent) -> bool:
+        """Append one ledger entry (never overwritten). False if that exact entry exists."""
+        sk = t.consent_sk(event.at, event.household_id)
+        keys = {t.PK: t.village_pk(event.village_id), t.SK: sk}
+        return self._put_if_absent(t.model_to_item(event, keys, "ConsentEvent"))
+
+    def list_consent_events(self, village_id: str) -> list[ConsentEvent]:
+        """The village's consent ledger, oldest first."""
+        items = self._query(t.village_pk(village_id), sk_prefix=t.CONSENT_PREFIX)
+        return [t.item_to_model(item, ConsentEvent) for item in items]
+
+    # --- announcements and water quality ----------------------------------------------------------
+
+    def put_broadcast(self, broadcast: Broadcast) -> None:
+        """Create or replace an announcement."""
+        keys = {t.PK: t.village_pk(broadcast.village_id), t.SK: t.bcast_sk(broadcast.id)}
+        self._put_item(t.model_to_item(broadcast, keys, "Broadcast"))
+
+    def get_broadcast(self, village_id: str, broadcast_id: str) -> Broadcast | None:
+        """One announcement, or None."""
+        item = self._get_item(t.village_pk(village_id), t.bcast_sk(broadcast_id))
+        return None if item is None else t.item_to_model(item, Broadcast)
+
+    def list_broadcasts(self, village_id: str) -> list[Broadcast]:
+        """The village's announcements, newest first."""
+        items = self._query(t.village_pk(village_id), sk_prefix=t.BCAST_PREFIX)
+        found = [t.item_to_model(item, Broadcast) for item in items]
+        return sorted(found, key=lambda b: t.iso_ts(b.created_at), reverse=True)
+
+    def add_broadcast_delivery(
+        self, village_id: str, broadcast_id: str, *, delivered: int, heard: int
+    ) -> None:
+        """Atomically add to an announcement's delivered/heard counters (concurrent calls)."""
+        try:
+            self._client.update_item(
+                TableName=self.table_name,
+                Key=t.marshal({t.PK: t.village_pk(village_id), t.SK: t.bcast_sk(broadcast_id)}),
+                UpdateExpression="ADD delivered :d, heard :h",
+                ConditionExpression="attribute_exists(PK)",
+                ExpressionAttributeValues=t.marshal({":d": delivered, ":h": heard}),
+            )
+        except ClientError as err:
+            if _error_code(err) != "ConditionalCheckFailedException":
+                raise
+
+    def put_quality_test(self, test: QualityTest) -> None:
+        """Store one water-quality test."""
+        keys = {t.PK: t.village_pk(test.village_id), t.SK: t.qt_sk(test.tested_at, test.id)}
+        self._put_item(t.model_to_item(test, keys, "QualityTest"))
+
+    def list_quality_tests(self, village_id: str) -> list[QualityTest]:
+        """The village's water-quality tests, oldest first."""
+        items = self._query(t.village_pk(village_id), sk_prefix=t.QT_PREFIX)
+        return [t.item_to_model(item, QualityTest) for item in items]
 
     # --- check-ins and day status -----------------------------------------------------------------
 
@@ -205,6 +377,20 @@ class Repository:
     ) -> list[CheckIn]:
         """Every attempt for a village and day; `purpose=None` returns all purposes."""
         items = self._query(t.village_pk(village_id), sk_prefix=t.chk_prefix(day, purpose))
+        return [t.item_to_model(item, CheckIn) for item in items]
+
+    def replace_checkin(self, checkin: CheckIn) -> None:
+        """Overwrite an existing check-in (only to attach a transcribed voice note later)."""
+        sk = t.chk_sk(checkin.date, checkin.purpose, checkin.household_id, checkin.attempt)
+        keys = {t.PK: t.village_pk(checkin.village_id), t.SK: sk}
+        self._put_item(t.model_to_item(checkin, keys, "CheckIn"))
+
+    def list_checkins_between(self, village_id: str, start: date, end: date) -> list[CheckIn]:
+        """Every check-in from `start` to `end` inclusive (all purposes), oldest day first."""
+        if end < start:
+            return []
+        bounds = (t.chk_prefix(start), t.chk_prefix(end) + "~")
+        items = self._query(t.village_pk(village_id), sk_between=bounds)
         return [t.item_to_model(item, CheckIn) for item in items]
 
     def put_day_status(self, status: DayStatus) -> None:
@@ -228,17 +414,21 @@ class Repository:
     # --- tickets ----------------------------------------------------------------------------------
 
     def open_ticket_if_none(self, ticket: Ticket) -> Ticket | None:
-        """Atomically open `ticket` unless its village already has an open ticket.
+        """Atomically open `ticket` unless its water point already has one open for its reason.
 
-        Returns the stored ticket, or None when another ticket is open. Replaying the same
-        ticket id (a retried Lambda) returns the stored ticket, so retries are safe.
+        Returns the stored ticket, or None when another ticket holds the guard
+        `OPENTKT#{wpid|village}#{reason}`. Replaying the same ticket id (a retried Lambda)
+        returns the stored ticket, so retries are safe.
         """
         if ticket.state is TicketState.CLOSED_VERIFIED:
             raise ValueError("cannot open a ticket that is already CLOSED_VERIFIED")
         vpk = t.village_pk(ticket.village_id)
+        guard_sk = t.open_ticket_sk(ticket.water_point_id, ticket.reason)
         guard = {
             t.PK: vpk,
-            t.SK: t.OPEN_TICKET_SK,
+            t.SK: guard_sk,
+            "water_point_id": ticket.water_point_id,
+            "reason": ticket.reason.value,
             "ticket_id": ticket.id,
             "opened_at": t.iso_ts(ticket.opened_at),
             t.ENTITY_ATTR: "OpenTicketGuard",
@@ -260,11 +450,11 @@ class Repository:
             try:
                 self._transact(ops)
             except _Cancelled as exc:
-                holder = self._get_item(vpk, t.OPEN_TICKET_SK)
+                holder = self._get_item(vpk, guard_sk)
                 if holder is not None:
                     if holder.get("ticket_id") == ticket.id:
                         return self.get_ticket(ticket.village_id, ticket.id)
-                    logger.info("village %s already has open ticket", ticket.village_id)
+                    logger.info("open ticket already holds %s %s", ticket.village_id, guard_sk)
                     return None
                 if _TX_CONFLICT not in exc.codes:
                     raise StoreError(f"ticket id {ticket.id!r} already exists") from exc
@@ -272,10 +462,46 @@ class Repository:
             return ticket
         raise ConflictError(f"could not open a ticket for village {ticket.village_id!r}")
 
-    def get_open_ticket(self, village_id: str) -> Ticket | None:
-        """The village's open (not yet CLOSED_VERIFIED) ticket, or None."""
-        holder = self._get_item(t.village_pk(village_id), t.OPEN_TICKET_SK)
-        return None if holder is None else self.get_ticket(village_id, str(holder["ticket_id"]))
+    def get_open_ticket(
+        self,
+        village_id: str,
+        water_point_id: str | None = None,
+        reason: TicketReason | None = None,
+    ) -> Ticket | None:
+        """The open ticket for this water point and reason.
+
+        Without a reason: the oldest open ticket of that point, or of the whole village when
+        `water_point_id` is also None.
+        """
+        if reason is not None:
+            sk = t.open_ticket_sk(water_point_id, reason)
+            holder = self._get_item(t.village_pk(village_id), sk)
+            if holder is None:
+                return None
+            return self.get_ticket(village_id, str(holder["ticket_id"]))
+        open_now = self.list_open_tickets(village_id)
+        if water_point_id is not None:
+            open_now = [tk for tk in open_now if tk.water_point_id == water_point_id]
+        return open_now[0] if open_now else None
+
+    def list_open_tickets(self, village_id: str) -> list[Ticket]:
+        """Every open ticket of the village (one per water point and reason), oldest first."""
+        holders = self._query(t.village_pk(village_id), sk_prefix=t.OPEN_TICKET_PREFIX)
+        found = (self.get_ticket(village_id, str(h["ticket_id"])) for h in holders)
+        tickets = [tk for tk in found if tk is not None]
+        return sorted(tickets, key=lambda tk: t.iso_ts(tk.opened_at))
+
+    def next_ticket_number(self, village_id: str) -> int:
+        """Atomically allocate the village's next complaint number (1, 2, 3, ...)."""
+        response = self._client.update_item(
+            TableName=self.table_name,
+            Key=t.marshal({t.PK: t.village_pk(village_id), t.SK: t.TICKET_SEQ_SK}),
+            UpdateExpression="ADD #n :one SET #e = :e",
+            ExpressionAttributeNames={"#n": "value", "#e": t.ENTITY_ATTR},
+            ExpressionAttributeValues=t.marshal({":one": 1, ":e": "Sequence"}),
+            ReturnValues="UPDATED_NEW",
+        )
+        return int(t.unmarshal(response["Attributes"])["value"])
 
     def get_ticket(self, village_id: str, ticket_id: str) -> Ticket | None:
         """One ticket with its events, or None."""
@@ -341,17 +567,19 @@ class Repository:
         return ticket
 
     def _releases_guard(self, current: Ticket, ticket: Ticket) -> bool:
-        """True when this save closes the ticket and the village guard still points at it."""
+        """True when this save closes the ticket and its guard still points at it."""
         closing = TicketState.CLOSED_VERIFIED
         if ticket.state is not closing or current.state is closing:
             return False
-        holder = self._get_item(t.village_pk(ticket.village_id), t.OPEN_TICKET_SK)
+        guard_sk = t.open_ticket_sk(ticket.water_point_id, ticket.reason)
+        holder = self._get_item(t.village_pk(ticket.village_id), guard_sk)
         return holder is not None and holder.get("ticket_id") == ticket.id
 
     def _guard_release_op(self, ticket: Ticket) -> dict[str, Any]:
+        guard_sk = t.open_ticket_sk(ticket.water_point_id, ticket.reason)
         delete = {
             "TableName": self.table_name,
-            "Key": t.marshal({t.PK: t.village_pk(ticket.village_id), t.SK: t.OPEN_TICKET_SK}),
+            "Key": t.marshal({t.PK: t.village_pk(ticket.village_id), t.SK: guard_sk}),
             "ConditionExpression": "ticket_id = :tid",
             "ExpressionAttributeValues": t.marshal({":tid": ticket.id}),
         }

@@ -32,6 +32,10 @@ class DataStack(cdk.Stack):
         self.table = self._table(cfg)
         self.prompts_bucket = self._bucket("PromptsBucket", cfg)
         self.evidence_bucket = self._bucket("EvidenceBucket", cfg)
+        # Residents' voice notes: kept one year (DPDP Rule 8 retention), then deleted.
+        self.evidence_bucket.add_lifecycle_rule(
+            id="voice-notes-365d", prefix="audio/", expiration=cdk.Duration.days(365)
+        )
         self.prompts_cdn = cloudfront.Distribution(
             self,
             "PromptsCdn",

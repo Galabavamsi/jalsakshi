@@ -34,6 +34,7 @@ class NoteIssueKind(StrEnum):
     LOW_PRESSURE = "LOW_PRESSURE"
     DIRTY = "DIRTY"
     LEAK = "LEAK"
+    BROKEN = "BROKEN"
     OTHER = "OTHER"
 
 
@@ -48,8 +49,11 @@ class NoteIssue(BaseModel):
 class NoteExtraction(BaseModel):
     """Classification of a household's voice note about its tap water."""
 
-    relevant: bool = Field(description="True only if the note reports a tap-water problem.")
+    relevant: bool = Field(description="True only if the note reports a drinking-water problem.")
     issue: NoteIssueKind = Field(description="Kind of problem described.")
+    summary_en: str = Field(
+        default="", description="One short English sentence: what the household reported."
+    )
     days_affected: int | None = Field(
         default=None, ge=0, description="Days the problem lasted, only if stated; else null."
     )
@@ -83,6 +87,34 @@ def extract_note_issue(
         return None
     logger.info("note extracted", extra={"model_id": model_id, "found": issue is not None})
     return issue
+
+
+def extract_note_details(
+    transcript_hi: str,
+    *,
+    model_factory: agent_models.ModelFactory | None = None,
+) -> tuple[NoteExtraction, str] | None:
+    """The raw extraction (with confidence and English summary) and the model id that made it.
+
+    ``None`` when the transcript is empty or every model failed; the caller decides what a
+    low-confidence or irrelevant result means (v2 opens an OTHER ticket for a human to read).
+    """
+    transcript = _clean_transcript(transcript_hi)
+    if not transcript:
+        return None
+    factory = model_factory or partial(
+        agent_models.make_model, max_tokens=NOTE_MAX_TOKENS, read_timeout_s=NOTE_READ_TIMEOUT_S
+    )
+    try:
+        extraction, model_id = agent_models.run_with_fallback(
+            _build_note_agent,
+            partial(_extract, transcript=transcript),
+            model_factory=factory,
+        )
+    except Exception as exc:  # no label; the recording and transcript still stand
+        logger.warning("note extraction failed", extra={"error_type": type(exc).__name__})
+        return None
+    return extraction, model_id
 
 
 def to_note_issue(extraction: NoteExtraction) -> NoteIssue | None:

@@ -43,7 +43,7 @@ STATE_HI: Final = {
     TicketState.VERIFYING: "घरों से पुष्टि हो रही है",
     TicketState.CLOSED_VERIFIED: "घरों की पुष्टि से बंद",
     TicketState.REOPENED: "दोबारा खुली",
-    TicketState.ESCALATED: "PHED को भेजी गई (सिम्युलेटेड)",
+    TicketState.ESCALATED: "सरपंच को भेजी गई",
 }
 
 FRESHNESS_HI: Final = {

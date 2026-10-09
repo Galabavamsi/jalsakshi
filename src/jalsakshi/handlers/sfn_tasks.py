@@ -18,26 +18,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from jalsakshi.core import verify as core_verify
 from jalsakshi.core.clock import today_ist
-from jalsakshi.core.ids import new_id
 from jalsakshi.core.models import (
     CallOutcome,
     CapturedVia,
     CheckIn,
     DayStatusValue,
-    OperatorRole,
     Purpose,
     Ticket,
     TicketReason,
     TicketState,
     Village,
 )
-from jalsakshi.core.reconcile import is_answered, should_open_ticket
-from jalsakshi.core.tickets import Denied, TicketEventKind, new_ticket
+from jalsakshi.core.reconcile import is_answered
+from jalsakshi.core.tickets import Denied, TicketEventKind, closing_quorum, new_ticket
 from jalsakshi.core.verify import VerifyOutcome
-from jalsakshi.handlers import config, sfn, tickets
+from jalsakshi.handlers import config, residents, sfn, tickets
 from jalsakshi.handlers.calls import (
+    ESCALATION_NO_FIX,
     CallRecord,
     clear_pending,
+    escalate_to_panchayat,
     household_call_id,
     household_decision,
     load_call,
@@ -117,7 +117,7 @@ def load_roster(event: Any, context: Any) -> dict[str, Any]:
 
 @entrypoint
 def policy_check_call(event: Any, context: Any) -> dict[str, Any]:
-    """Cedar ``PlaceCall`` check for one Map item (consent, calling hours, one call a day)."""
+    """Cedar ``PlaceCall`` check for one Map item (consent, withdrawal)."""
     payload, _ = _unwrap(event)
     item = CallItem.model_validate(payload)
     repo = config.repository()
@@ -221,8 +221,7 @@ def reconcile_day(event: Any, context: Any) -> dict[str, Any]:
     status = refresh_day(repo, village.id, day)
     if status is None:
         raise TaskError(f"village {village.id} vanished")
-    open_ticket = repo.get_open_ticket(village.id)
-    reason = should_open_ticket(status.status, open_ticket is not None)
+    already_open = repo.list_open_tickets(village.id)
     count("DayStatus", status=status.status.value)
     activity(
         "day_status",
@@ -230,15 +229,25 @@ def reconcile_day(event: Any, context: Any) -> dict[str, Any]:
         f"{village.name} {day}: {status.status} ({status.counts.answered} households answered)",
         f"{village.name} {day}: {status.status} ({status.counts.answered} घरों ने जवाब दिया)",
     )
-    if open_ticket is not None and status.status in TICKET_SOURCES:
-        _note_still_bad(repo, open_ticket, day, status.status)
+    for point in status.points:
+        if point.status not in TICKET_SOURCES:
+            continue
+        for ticket in already_open:
+            if ticket.water_point_id == point.water_point_id:
+                _note_still_bad(repo, ticket, day, point.status)
+    checkins = repo.list_checkins(village.id, day)
+    opened = residents.open_reconciled_tickets(repo, village, status, checkins)
+    first, rest = (opened[0], opened[1:]) if opened else (None, [])
+    for ticket in rest:
+        residents.start_ticket_flow(ticket)
     return {
         "village_id": village.id,
         "date": day.isoformat(),
         "status": status.status.value,
         "counts": status.counts.model_dump(),
-        "ticket_reason": reason.value if reason else None,
-        "ticket_id": new_id("tkt", at=config.now()) if reason else None,
+        "ticket_reason": first.reason.value if first else None,
+        "ticket_id": first.id if first else None,
+        "tickets_opened": [t.id for t in opened],
     }
 
 
@@ -252,10 +261,22 @@ def open_ticket(event: Any, context: Any) -> dict[str, Any]:
     repo = config.repository()
     village = _village(repo, str(payload.get("village_id", "")))
     reason = TicketReason(str(payload["reason"]))
-    ticket = new_ticket(village.id, reason, config.now(), ticket_id=payload.get("ticket_id"))
+    existing = (
+        repo.get_ticket_by_id(str(payload["ticket_id"])) if payload.get("ticket_id") else None
+    )
+    if existing is not None:
+        opened = existing.state is not TicketState.CLOSED_VERIFIED
+        return {"opened": opened, "ticket_id": existing.id}
+    ticket = new_ticket(
+        village.id,
+        reason,
+        config.now(),
+        ticket_id=payload.get("ticket_id"),
+        number=repo.next_ticket_number(village.id),
+    )
     stored = repo.open_ticket_if_none(ticket)
     if stored is None:
-        current = repo.get_open_ticket(village.id)
+        current = repo.get_open_ticket(village.id, None, reason)
         return {"opened": False, "ticket_id": current.id if current else None}
     if stored.opened_at == ticket.opened_at:
         count("TicketsOpened")
@@ -334,11 +355,12 @@ def evaluate_verification(event: Any, context: Any) -> dict[str, Any]:
     village = _village(repo, ticket.village_id)
     since = tickets.verify_started_at(ticket)
     checkins = tickets.verify_checkins(repo, ticket, _today())
-    result = core_verify.evaluate_verification(checkins, village.quorum, since=since)
+    quorum = _ticket_quorum(repo, village, ticket)
+    result = core_verify.evaluate_verification(checkins, quorum, since=since)
     outcome = result.outcome
     detail = {"yes": result.yes, "no": result.no, "unreachable": result.unreachable}
     if outcome is VerifyOutcome.CLOSED_VERIFIED:
-        outcome = _close(repo, ticket, village, result.yes, detail)
+        outcome = _close(repo, ticket, quorum, result.yes, detail)
     elif outcome is VerifyOutcome.REOPENED:
         failed = tickets.apply_event(
             repo, ticket.id, TicketEventKind.VERIFY_FAILED, "system:verify", detail
@@ -350,7 +372,8 @@ def evaluate_verification(event: Any, context: Any) -> dict[str, Any]:
 
 @entrypoint
 def escalate(event: Any, context: Any) -> dict[str, Any]:
-    """Escalate to PHED (simulated) and wait for a fix; skip when a fix already arrived."""
+    """No fix for 48 hours: send the complaint to the Sarpanch (a real call) and wait for a fix;
+    skip when a fix already arrived. A complaint already escalated is not sent again."""
     payload, token = _unwrap(event)
     if not token:
         raise TaskError("escalate must be invoked with a task token")
@@ -362,17 +385,9 @@ def escalate(event: Any, context: Any) -> dict[str, Any]:
         sfn.send_task_success(token, {"fixed": True, "state": ticket.state.value})
         return {"ticket_id": ticket.id, "status": "already_fixed"}
     if ticket.state is not TicketState.ESCALATED:
-        cause = payload.get("escalation_cause")
-        detail = {
-            "to": OperatorRole.PHED_AE_SIM.value,
-            "simulated": True,
-            "cause": cause.get("Error") if isinstance(cause, Mapping) else None,
-        }
-        result = tickets.apply_event(
-            repo, ticket.id, TicketEventKind.ESCALATED, "system:escalation", detail
+        escalate_to_panchayat(
+            repo, ticket.id, "system:escalation", None, delay_s=0, reason=ESCALATION_NO_FIX
         )
-        if isinstance(result, Denied):
-            raise TaskError(result.reason)
     return {"ticket_id": ticket.id, "status": "waiting"}
 
 
@@ -420,12 +435,14 @@ def _next_attempts(
 
 
 def _new_household_call(repo: Repository, call_id: str, item: CallItem) -> CallRecord:
+    household = repo.get_household(item.village_id, item.household_id)
     flow = FlowSession(
         call_id=call_id,
         purpose=item.purpose,
         village_id=item.village_id,
         household_id=item.household_id,
         ticket_id=item.ticket_id,
+        access=household.access if household else None,
     )
     record = CallRecord(
         flow=flow,
@@ -461,19 +478,47 @@ def _note_still_bad(repo: Repository, ticket: Ticket, day: date, status: DayStat
         logger.exception("could not note the still-bad day", extra={"ticket_id": ticket.id})
 
 
-def _call_operator(repo: Repository, ticket: Ticket) -> None:
-    """Call the village's Nal Jal Mitra with the summary (best effort: the wait continues)."""
-    operators = repo.list_operators_for_village(ticket.village_id)
-    operator = next((o for o in operators if o.role is OperatorRole.NAL_JAL_MITRA), None)
+def _ticket_quorum(repo: Repository, village: Village, ticket: Ticket) -> int:
+    """Households that must confirm before this ticket closes (§15.5)."""
+    return closing_quorum(ticket, residents.point_quorum(repo, village, ticket.water_point_id))
+
+
+def _not_mine(ticket: Ticket) -> list[str]:
+    """Operators who said this complaint is not theirs (operator call key 5)."""
+    return [
+        str(e.detail.get("not_mine"))
+        for e in ticket.events
+        if e.kind == TicketEventKind.NOTE and e.detail.get("not_mine")
+    ]
+
+
+OPERATOR_CALL_STATES: Final = frozenset(
+    {TicketState.ASSIGNED, TicketState.REOPENED, TicketState.ESCALATED}
+)
+
+
+def call_operator(repo: Repository, ticket: Ticket, requested_at: str = "") -> None:
+    """Call the operator for a complaint that still waits for a fix (deferred night calls, or the
+    secretary's "call again": ``requested_at`` makes that request its own call)."""
+    if ticket.state in OPERATOR_CALL_STATES:
+        _call_operator(repo, ticket, requested_at)
+
+
+def _call_operator(repo: Repository, ticket: Ticket, requested_at: str = "") -> None:
+    """Call whoever the complaint is routed to, with the summary (best effort: the wait goes on)."""
+    operator = residents.route_operator(
+        repo, ticket.village_id, ticket.water_point_id, skip=_not_mine(ticket)
+    )
     if operator is None:
-        logger.warning("no Nal Jal Mitra for village", extra={"village_id": ticket.village_id})
+        logger.warning("nobody to route the complaint to", extra={"ticket_id": ticket.id})
         return
     decision = operator_decision(operator, ticket.village_id)
     if not decision.allowed:
         record_denial(decision, ticket.village_id, f"operator call for {ticket.id}")
         return
     notice = sum(1 for e in ticket.events if e.kind == TicketEventKind.NOTIFIED)
-    call_id = operator_call_id(ticket.id, notice)
+    stamp = "".join(ch for ch in requested_at[:19] if ch.isdigit())
+    call_id = f"operator-{ticket.id}-c{stamp}" if stamp else operator_call_id(ticket.id, notice)
     existing = load_call(repo, call_id)
     record = existing.record if existing else _new_operator_call(repo, call_id, ticket, operator.id)
     if record.provider is VoiceProvider.SIMULATOR:
@@ -499,6 +544,7 @@ def _new_operator_call(
     repo: Repository, call_id: str, ticket: Ticket, operator_id: str
 ) -> CallRecord:
     status = repo.get_day_status(ticket.village_id, tickets.ticket_day(ticket))
+    households = reported_households(status, ticket.reason, ticket.water_point_id)
     flow = FlowSession(
         call_id=call_id,
         purpose=Purpose.OPERATOR,
@@ -506,7 +552,9 @@ def _new_operator_call(
         operator_id=operator_id,
         ticket_id=ticket.id,
         ticket_reason=ticket.reason,
-        reported_households=reported_households(status, ticket.reason),
+        reported_households=max(households, len(ticket.reporters)),
+        ticket_number=ticket.number,
+        water_point_name=residents.point_name(repo, ticket.village_id, ticket.water_point_id),
     )
     record = CallRecord(
         flow=flow, provider=config.settings().voice_provider, day=_today(), origin="workflow"
@@ -519,9 +567,10 @@ def _verify_items(
     repo: Repository, ticket: Ticket, since: datetime, *, retry: bool
 ) -> list[CallItem]:
     village = _village(repo, ticket.village_id)
-    households = repo.list_households(village.id, active_only=True)
-    daily = repo.list_checkins(village.id, tickets.ticket_day(ticket), Purpose.DAILY)
-    targets = tickets.verify_targets(village, ticket, households, daily)
+    households = [h for h in repo.list_households(village.id, active_only=True) if h.consent_given]
+    day = repo.list_checkins(village.id, tickets.ticket_day(ticket))
+    quorum = _ticket_quorum(repo, village, ticket)
+    targets = tickets.verify_targets(village, ticket, households, day, quorum)
     if retry:
         done = {
             c.household_id
@@ -546,10 +595,10 @@ def _verify_items(
 
 
 def _close(
-    repo: Repository, ticket: Ticket, village: Village, yes: int, detail: dict[str, int]
+    repo: Repository, ticket: Ticket, quorum: int, yes: int, detail: dict[str, int]
 ) -> VerifyOutcome:
     """Close as verified when Cedar agrees; otherwise the round stays pending."""
-    decision = can_close_verified(ticket, village.quorum, yes)
+    decision = can_close_verified(ticket, quorum, yes)
     if not decision.allowed:
         record_denial(decision, ticket.village_id, f"closing ticket {ticket.id}")
         return VerifyOutcome.PENDING

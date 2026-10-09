@@ -44,7 +44,7 @@ forbid (principal, action == Action::"PlaceCall", resource)
 unless { context.hour_ist >= 9 && context.hour_ist < 21 };
 ```
 
-Other policies cover consent, one daily call per household, quorum before a verified close, privacy for the simulated department, and stale evidence. Every deny comes back as a plain reason in Hindi and English, for example "Only 1 of 2 households confirmed water".
+Other policies cover consent, no calls after a family says no, a limit on call-backs, quorum before a verified close, privacy for the simulated department, and stale evidence. Every deny comes back as a plain reason in Hindi and English, for example "Only 1 of 2 households confirmed water".
 
 **The model only handles language.** It does two jobs. It turns an optional spoken note into a structured issue, and it writes the Hindi Gram Sabha sheet. We use [Strands Agents](https://strandsagents.com/) on Amazon Bedrock with Claude Haiku 4.5 through the **India** cross-region inference profile (`in.`), so inference stays in Mumbai and Hyderabad. If that fails, we fall back to Nova 2 Lite and then to a template. A validator re-reads every number in the generated text. If any number differs from the tool values, we use the template instead.
 
@@ -57,7 +57,7 @@ EventBridge Scheduler (per village, Asia/Kolkata)
    │
    ▼
 Step Functions: CheckInRun ── Map over households ─────────────────────────────┐
-   │  Cedar: consent? 09:00–21:00 IST? already called today?                    │
+   │  Cedar: consent? said no? too many call-backs?                             │
    │  Lambda: place call ──▶ Vobiz (+91 number) ──▶ household's keypad phone    │
    │  .waitForTaskToken (10 min)                         │ webhooks             │
    │        ▲                                            ▼                      │

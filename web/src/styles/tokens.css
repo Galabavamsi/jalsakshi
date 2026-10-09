@@ -1,0 +1,40 @@
+/*
+ * JalSakshi design tokens (DESIGN.md §6). The only file with raw colour values.
+ * Warm sand page, warm-white cards (never pure white as a surface), one water-teal accent.
+ */
+:root {
+  color-scheme: light;                      /* light only this round; tokens allow dark later */
+  --bg: #F6F1E8; --surface: #FFFBF5; --surface-2: #EFE7DA;
+  --border: #E5DCCD;                        /* decorative dividers only */
+  --border-strong: #8C8071;                 /* inputs, checkboxes, control outlines */
+  --text: #1F1A14; --text-2: #574D42; --text-3: #6B5F51;
+  --accent: #0E6B73; --accent-hover: #0A545B; --accent-subtle: #E3F1F1; --accent-text: #0A545B; --on-accent: #FFFFFF;
+  --focus-ring: 0 0 0 2px #FFFBF5, 0 0 0 4px #0E6B73;
+  /* status: fg = text and icon, tint = pill background, solid = dots, day cells, bars */
+  --ok: #067647;      --ok-tint: #E9F5EC;      --ok-solid: #079455;
+  --warn: #A3470B;    --warn-tint: #FCF1DD;    --warn-solid: #D06A0F;
+  --bad: #B42318;     --bad-tint: #FBEAE6;     --bad-solid: #D92D20;
+  --dirty: #7A4A1E;   --dirty-tint: #F3E8DA;   --dirty-solid: #A15C1C;
+  --unknown: #574D42; --unknown-tint: #EFE7DA; --unknown-solid: #7A6E60;
+  --info: #0A545B;    --info-tint: #E3F1F1;
+  --demo: #5925DC;    --demo-tint: #F1EDFB;    /* Test data, Replay, Demo, Simulated */
+  --policy: #93370D;  --policy-tint: #FCF1DD;  --policy-edge: #D06A0F;
+  --danger: #B42318;                         /* destructive buttons, white text */
+  --gov-surface: var(--surface-2);
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto,
+               'Noto Sans Devanagari', 'Nirmala UI', 'Kohinoor Devanagari', 'Mangal', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+  --fs-xs: .75rem; --fs-sm: .875rem; --fs-base: 1rem; --fs-md: 1.125rem; --fs-lg: 1.25rem;
+  --fs-xl: 1.5rem; --fs-2xl: 1.875rem; --fs-stat: 1.75rem;
+  --lh-body: 1.5; --lh-head: 1.25;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px; --s9: 48px; --s10: 64px;
+  --gutter: 16px;                           /* 24px from 640px, 32px from 1024px */
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-pill: 999px;
+  --shadow-card: 0 1px 2px rgb(60 40 20 / .05);
+  --shadow-pop: 0 8px 24px -6px rgb(60 40 20 / .16), 0 2px 6px rgb(60 40 20 / .06);
+  --shadow-sheet: 0 24px 48px -12px rgb(60 40 20 / .25);
+  --backdrop: rgb(31 26 20 / .45);
+  --dur: 150ms; --ease: cubic-bezier(.2, .8, .2, 1);
+  --sidebar-w: 248px; --topbar-h: 56px; --tabbar-h: 64px; --content-max: 1200px; --form-max: 640px;
+  --z-bar: 20; --z-sheet: 50; --z-toast: 60;
+}

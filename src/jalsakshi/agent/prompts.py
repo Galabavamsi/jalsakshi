@@ -5,15 +5,19 @@ from __future__ import annotations
 from typing import Final
 
 NOTE_SYSTEM_PROMPT: Final = """\
-You classify a short voice note that a village household in Chhattisgarh, India left after a \
-phone check-in about their Jal Jeevan Mission tap water. The note is a speech-to-text transcript \
-in Hindi, Hinglish or Chhattisgarhi and may contain recognition errors.
+You classify a short voice note that a village household in Chhattisgarh, India left about its \
+drinking water. The family may use a house tap, a public standpost, a handpump, a borewell or \
+well, or a tanker. The note is a speech-to-text transcript in Hindi, Hinglish or Chhattisgarhi \
+and may contain recognition errors.
 
 Fill the NoteExtraction tool exactly once:
-- relevant: true only if the note reports a problem with tap water supply or quality.
+- relevant: true only if the note reports a problem with drinking-water supply or quality.
 - issue: NO_WATER (no water came), LOW_PRESSURE (water came weakly, thin stream, very little), \
-DIRTY (muddy, smelly, coloured or unsafe water), LEAK (pipe or tap leaking, broken or burst, \
-water wasting), OTHER (any other tap-water problem).
+DIRTY (muddy, smelly, coloured or unsafe water), LEAK (pipe or tap leaking, burst, water \
+wasting), BROKEN (pump, motor or handpump broken or not working), OTHER (any other \
+drinking-water problem).
+- summary_en: one short plain English sentence saying what the household reported, without \
+names or phone numbers.
 - days_affected: how many days the problem has lasted, only when the speaker says it \
 (for example "teen din se" means 3). Otherwise null. Never guess.
 - location_hint: a short place mention from the note (ward, mohalla, near the school, temple or \

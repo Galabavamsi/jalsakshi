@@ -97,7 +97,7 @@ def test_voice_payload_matches_sarvam_contract() -> None:
         "text": "Namaste",
         "language_code": "hi-IN",
         "model": "bulbul:v3",
-        "speaker": "priya",
+        "speaker": "ritu",
         "pace": 0.9,
         "speech_sample_rate": 8000,
         "output_audio_codec": "mp3",
@@ -108,7 +108,9 @@ def test_voice_payload_matches_sarvam_contract() -> None:
 def test_plan_covers_every_clip(cat: PromptCatalog, tmp_path: Path) -> None:
     jobs = render.plan(cat, tmp_path, render.Voice(), {})
     assert [job.key for job in jobs] == cat.audio_keys()
-    assert len(jobs) == 14 + 18
+    plain = [k for k in cat.template_keys() if not cat.placeholders(k)]
+    numbered = [k for k in cat.template_keys() if len(cat.placeholders(k)) == 1]
+    assert len(jobs) == len(plain) + 9 * len(numbered)
     assert all(job.stale for job in jobs)
     variant = next(job for job in jobs if job.key == "operator.summary_no_supply.n3")
     assert variant.path == tmp_path / "operator.summary_no_supply.n3.mp3"
@@ -259,7 +261,15 @@ def test_main_dry_run_calls_nothing(
     out = capsys.readouterr().out
     assert code == 0
     assert "[render] operator.summary_dirty.n9" in out
-    assert "32 clips, 32 to render" in out
+    total = len(
+        render.plan(
+            render.PromptCatalog.from_file(render.prompts_path()),
+            Path("unused"),
+            render.Voice(),
+            {},
+        )
+    )
+    assert f"{total} clips, {total} to render" in out
     assert "s3://b/prompts/hi/" in out
     assert not list(tmp_path.iterdir())
 

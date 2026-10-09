@@ -1,0 +1,188 @@
+{
+ "help": "https://nwdp.nwic.gov.in/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "fields": [
+   {
+    "id": "_id",
+    "type": "int"
+   },
+   {
+    "id": "Station",
+    "type": "text"
+   },
+   {
+    "id": "Latitude",
+    "type": "text"
+   },
+   {
+    "id": "Longitude",
+    "type": "text"
+   },
+   {
+    "id": "Data Acquisition Time",
+    "type": "text"
+   },
+   {
+    "id": "Groundwater Level Telemetry 6 Hourly (meter)",
+    "type": "text"
+   }
+  ],
+  "filters": {
+   "District LGD Code": "378",
+   "Data Acquisition Time": [
+    "09-10-2026 12:00",
+    "09-10-2026 06:00",
+    "09-10-2026 00:00",
+    "08-10-2026 18:00",
+    "08-10-2026 12:00",
+    "08-10-2026 06:00",
+    "08-10-2026 00:00",
+    "07-10-2026 18:00",
+    "07-10-2026 12:00",
+    "07-10-2026 06:00",
+    "07-10-2026 00:00",
+    "06-10-2026 18:00",
+    "06-10-2026 12:00",
+    "06-10-2026 06:00",
+    "06-10-2026 00:00",
+    "05-10-2026 18:00",
+    "05-10-2026 12:00",
+    "05-10-2026 06:00",
+    "05-10-2026 00:00",
+    "04-10-2026 18:00",
+    "04-10-2026 12:00",
+    "04-10-2026 06:00",
+    "04-10-2026 00:00",
+    "03-10-2026 18:00",
+    "03-10-2026 12:00",
+    "03-10-2026 06:00",
+    "03-10-2026 00:00",
+    "02-10-2026 18:00",
+    "02-10-2026 12:00"
+   ]
+  },
+  "include_total": true,
+  "limit": 1000,
+  "records_format": "objects",
+  "resource_id": "40c11a45-e4ca-46a6-9af7-497844bf5267",
+  "sort": "_id desc",
+  "total_estimation_threshold": null,
+  "records": [
+   {
+    "_id": 140251,
+    "Station": "Selud_1",
+    "Latitude": "21.10000000",
+    "Longitude": "81.41940000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-2.234"
+   },
+   {
+    "_id": 140250,
+    "Station": "Selud_1",
+    "Latitude": "21.10000000",
+    "Longitude": "81.41940000",
+    "Data Acquisition Time": "06-10-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-1.592"
+   },
+   {
+    "_id": 124202,
+    "Station": "Potiya_1",
+    "Latitude": "21.25060000",
+    "Longitude": "81.20830000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-13.679"
+   },
+   {
+    "_id": 124201,
+    "Station": "Potiya_1",
+    "Latitude": "21.25060000",
+    "Longitude": "81.20830000",
+    "Data Acquisition Time": "06-10-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-13.592"
+   },
+   {
+    "_id": 93759,
+    "Station": "Litiya_1",
+    "Latitude": "21.35280000",
+    "Longitude": "81.21670000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-5.714"
+   },
+   {
+    "_id": 88421,
+    "Station": "Kumhari_1",
+    "Latitude": "21.23330000",
+    "Longitude": "81.53330000",
+    "Data Acquisition Time": "06-10-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-1.54"
+   },
+   {
+    "_id": 88420,
+    "Station": "Kumhari_1",
+    "Latitude": "21.23330000",
+    "Longitude": "81.53330000",
+    "Data Acquisition Time": "05-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-1.56"
+   },
+   {
+    "_id": 43635,
+    "Station": "Charoda(Dad",
+    "Latitude": "21.24640000",
+    "Longitude": "81.46920000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-48.328"
+   },
+   {
+    "_id": 43634,
+    "Station": "Charoda(Dad",
+    "Latitude": "21.24640000",
+    "Longitude": "81.46920000",
+    "Data Acquisition Time": "06-10-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-48.33"
+   },
+   {
+    "_id": 34565,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.301"
+   },
+   {
+    "_id": 34564,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.148"
+   },
+   {
+    "_id": 34563,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-7.991"
+   },
+   {
+    "_id": 23760,
+    "Station": "Bemetera-d_1",
+    "Latitude": "21.71670000",
+    "Longitude": "81.53330000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-1.022"
+   },
+   {
+    "_id": 23759,
+    "Station": "Bemetera-d_1",
+    "Latitude": "21.71670000",
+    "Longitude": "81.53330000",
+    "Data Acquisition Time": "06-10-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-1"
+   }
+  ],
+  "total": 14,
+  "total_was_estimated": false
+ }
+}

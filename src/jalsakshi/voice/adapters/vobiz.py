@@ -270,7 +270,6 @@ def _gather(
             "inputType": "dtmf",
             "numDigits": str(action.num_digits),
             "executionTimeout": str(min(max(action.timeout_s, low), high)),
-            "finishOnKey": "",
             "redirect": "true",
         },
     )

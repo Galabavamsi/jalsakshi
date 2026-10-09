@@ -59,6 +59,42 @@ export function dateTime(at: IsoDateTime): Bilingual {
   return { hi: `${fmtHiShort.format(d)}, ${t}`, en: `${fmtEnShort.format(d)}, ${t} IST` };
 }
 
+const stampFmt = new Intl.DateTimeFormat('en-CA', {
+  timeZone: IST,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** "2026-10-08 10:32" in IST: sortable, for exports and dense registers. */
+export function istStamp(at: IsoDateTime): string {
+  const parts = Object.fromEntries(
+    stampFmt.formatToParts(new Date(at)).map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
+/** A duration in hours for people: "under 1 h", "5 h", "2 days 4 h". */
+export function hoursText(hours: number): Bilingual {
+  if (!Number.isFinite(hours) || hours < 1) return { en: 'under 1 h', hi: '1 घंटे से कम' };
+  const whole = Math.round(hours);
+  if (whole < 48) return { en: `${whole} h`, hi: `${whole} घंटे` };
+  const days = Math.floor(whole / 24);
+  const rest = whole % 24;
+  return {
+    en: rest ? `${days} days ${rest} h` : `${days} days`,
+    hi: rest ? `${days} दिन ${rest} घंटे` : `${days} दिन`,
+  };
+}
+
+/** A percentage with at most one decimal: "75%", "66.7%". */
+export function pct(value: number): string {
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+}
+
 /** Indian digit grouping: 7,603 and 1,23,456. */
 export function num(value: number): string {
   return numberFmt.format(value);

@@ -49,7 +49,11 @@ TASKS = (
     "evaluate_verification",
     "escalate",
 )
-DIALLING_TASKS = frozenset({"place_call", "notify_operator"})
+# Tasks that read the stage allowlist from SSM (dialling, and the Cedar check of a call).
+DIALLING_TASKS = frozenset({"place_call", "notify_operator", "policy_check_call"})
+OUTBOUND_SLUG = "outbound"
+NOTES_SLUG = "notes"
+DYN_AUDIO = "prompts/hi/dyn/*"
 TABLE_READ = ["dynamodb:GetItem", "dynamodb:Query"]
 TABLE_WRITE = [
     "dynamodb:PutItem",
@@ -109,6 +113,7 @@ class AppStack(cdk.Stack):
             ),
             cdk.Duration.hours(6),
         )
+        self.callback_group, self.callback_role = self._callback_scheduler()
         self._api_functions(web)
         self.context_refresh = self._context_refresh()
         self.workflow_dlq = self._failed_executions_queue()
@@ -151,6 +156,16 @@ class AppStack(cdk.Stack):
             "JALSAKSHI_PROMPTS_PATH": "/var/task/prompts/hi.yaml",
             "JALSAKSHI_BRIEF_USE_AGENT": "true" if cfg.brief_use_agent else "false",
             "JALSAKSHI_IVR_ALLOWED_CIDRS": cfg.ivr_allowed_cidrs,
+            "JALSAKSHI_PROMPTS_BUCKET": data.prompts_bucket.bucket_name,
+            "JALSAKSHI_MISSED_CALL_NUMBER": cfg.missed_call_number,
+            "JALSAKSHI_OPEN_DIALING": "true" if cfg.open_dialing else "false",
+            "JALSAKSHI_CHECKIN_GROUP": cfg.name("checkins"),
+            "JALSAKSHI_CHECKIN_ROLE_ARN": self._role_arn("checkin-scheduler"),
+            "JALSAKSHI_OUTBOUND_FN": cfg.name(OUTBOUND_SLUG),
+            "JALSAKSHI_OUTBOUND_FN_ARN": self._function_arn(OUTBOUND_SLUG),
+            "JALSAKSHI_NOTES_FN": cfg.name(NOTES_SLUG),
+            "JALSAKSHI_SCHEDULER_GROUP": cfg.name("callbacks"),
+            "JALSAKSHI_SCHEDULER_ROLE_ARN": self._callback_role_arn(),
             "VOICE_PROVIDER": cfg.voice_provider,
             "POWERTOOLS_SERVICE_NAME": "jalsakshi",
             "POWERTOOLS_METRICS_NAMESPACE": "JalSakshi",
@@ -191,20 +206,108 @@ class AppStack(cdk.Stack):
             self._grant_secrets(fn)
         if task in {"place_call", "notify_operator", "escalate"}:
             self._grant_task_response(fn)
+        if task == "reconcile_day":
+            self._grant_start_ticket_flow(fn)
+        if task == "escalate":  # 48 hours without a fix: the Sarpanch gets a call
+            fn.add_to_role_policy(
+                iam.PolicyStatement(
+                    actions=["lambda:InvokeFunction"],
+                    resources=[self._function_arn(OUTBOUND_SLUG)],
+                )
+            )
         return fn
 
     def _api_functions(self, web: WebStack) -> None:
         api_fn = self._function("Api", Fn(f"{HANDLERS}.api.handler", 30, 1024))
         sim_fn = self._function("Sim", Fn(f"{HANDLERS}.sim.handler", 15))
         ivr_fn = self._function("Ivr", Fn(f"{HANDLERS}.ivr_vobiz.handler", 15))
+        public_fn = self._function("Public", Fn(f"{HANDLERS}.public.handler", 10), write=False)
+        outbound_fn = self._function("Outbound", Fn(f"{HANDLERS}.outbound.handler", 300, 512))
+        notes_fn = self._function("Notes", Fn(f"{HANDLERS}.notes.handler", 120, 1024))
         self.data.evidence_bucket.grant_read(api_fn, "context/*")
+        api_fn.add_environment("JALSAKSHI_USER_POOL_ID", web.user_pool.user_pool_id)
+        api_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["cognito-idp:AdminCreateUser", "cognito-idp:AdminAddUserToGroup"],
+                resources=[web.user_pool.user_pool_arn],
+            )
+        )
         api_fn.add_to_role_policy(
             iam.PolicyStatement(actions=["states:StartExecution"], resources=[self.checkin_arn])
         )
         api_fn.add_to_role_policy(self._bedrock_statement())
-        for fn in (api_fn, sim_fn, ivr_fn):
+        notes_fn.add_to_role_policy(self._bedrock_statement())
+        for fn in (api_fn, sim_fn, ivr_fn, outbound_fn):
             self._grant_task_response(fn)
-        self._grant_secrets(ivr_fn)
+        for fn in (api_fn, sim_fn, ivr_fn, outbound_fn, notes_fn):
+            self._grant_start_ticket_flow(fn)
+        for fn in (ivr_fn, api_fn, outbound_fn, notes_fn, sim_fn):
+            self._grant_secrets(fn)
+        for fn in (ivr_fn, api_fn, sim_fn):
+            self._grant_dynamic_audio(fn)
+        for fn in (ivr_fn, api_fn, sim_fn):
+            fn.add_to_role_policy(
+                iam.PolicyStatement(
+                    actions=["lambda:InvokeFunction"],
+                    resources=[self._function_arn(OUTBOUND_SLUG), self._function_arn(NOTES_SLUG)],
+                )
+            )
+        self._grant_scheduling(self.functions["TaskNotifyOperator"])
+        self._grant_scheduling(self.functions["TaskEscalate"])
+        self._grant_scheduling(outbound_fn)
+        api_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["scheduler:CreateSchedule", "scheduler:UpdateSchedule"],
+                resources=[
+                    self.format_arn(
+                        service="scheduler",
+                        resource="schedule",
+                        resource_name=f"{self.cfg.name('checkins')}/*",
+                    )
+                ],
+            )
+        )
+        api_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["iam:PassRole"], resources=[self._role_arn("checkin-scheduler")]
+            )
+        )
+        ivr_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["scheduler:CreateSchedule"],
+                resources=[
+                    self.format_arn(
+                        service="scheduler",
+                        resource="schedule",
+                        resource_name=f"{self.cfg.name('callbacks')}/*",
+                    )
+                ],
+            )
+        )
+        ivr_fn.add_to_role_policy(
+            iam.PolicyStatement(actions=["iam:PassRole"], resources=[self.callback_role.role_arn])
+        )
+        self.data.evidence_bucket.grant_put(notes_fn, "audio/*")
+        outbound_fn.configure_async_invoke(retry_attempts=0)
+        notes_fn.configure_async_invoke(retry_attempts=1)
+        self.callback_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["lambda:InvokeFunction"], resources=[outbound_fn.function_arn]
+            )
+        )
+        events.Rule(
+            self,
+            "WeeklySummary",
+            description="Monday 10:00 IST: weekly summary call to each sarpanch and secretary",
+            schedule=events.Schedule.cron(minute="30", hour="4", week_day="MON"),
+            targets=[
+                targets.LambdaFunction(
+                    outbound_fn,
+                    event=events.RuleTargetInput.from_object({"kind": "weekly_summary"}),
+                    retry_attempts=0,
+                )
+            ],
+        )
         authorizer = authorizers.HttpUserPoolAuthorizer(
             "CognitoAuthorizer",
             web.user_pool,
@@ -216,6 +319,7 @@ class AppStack(cdk.Stack):
             ("/api/{proxy+}", get_post, api_fn, authorizer),
             ("/sim/{proxy+}", [apigw.HttpMethod.POST], sim_fn, authorizer),
             ("/ivr/vobiz/{token}/{action}", [apigw.HttpMethod.POST], ivr_fn, None),
+            ("/public/{proxy+}", [apigw.HttpMethod.GET], public_fn, None),
         ]
         for path, methods, fn, auth in routes:
             self.http_api.add_routes(
@@ -334,6 +438,7 @@ class AppStack(cdk.Stack):
         role = iam.Role(
             self,
             "SchedulerRole",
+            role_name=self.cfg.name("checkin-scheduler"),
             assumed_by=iam.ServicePrincipal(
                 "scheduler.amazonaws.com",
                 conditions={"StringEquals": {"aws:SourceAccount": self.account}},
@@ -346,6 +451,80 @@ class AppStack(cdk.Stack):
         cdk.CfnOutput(self, "SchedulerRoleArn", value=role.role_arn)
         cdk.CfnOutput(self, "SchedulerDlqArn", value=dlq.queue_arn)
         return dlq
+
+    def _callback_scheduler(self) -> tuple[scheduler.CfnScheduleGroup, iam.Role]:
+        """Group + role for one-off call-backs after out-of-hours missed calls (§15.4)."""
+        group = scheduler.CfnScheduleGroup(
+            self, "CallbackScheduleGroup", name=self.cfg.name("callbacks")
+        )
+        role = iam.Role(
+            self,
+            "CallbackSchedulerRole",
+            role_name=self.cfg.name("callback-scheduler"),
+            assumed_by=iam.ServicePrincipal(
+                "scheduler.amazonaws.com",
+                conditions={"StringEquals": {"aws:SourceAccount": self.account}},
+            ),
+            description="EventBridge Scheduler calls back residents who gave a missed call",
+        )
+        return group, role
+
+    def _role_arn(self, slug: str) -> str:
+        return self.format_arn(
+            service="iam", region="", resource="role", resource_name=self.cfg.name(slug)
+        )
+
+    def _callback_role_arn(self) -> str:
+        return self.format_arn(
+            service="iam",
+            region="",
+            resource="role",
+            resource_name=self.cfg.name("callback-scheduler"),
+        )
+
+    def _function_arn(self, slug: str) -> str:
+        return self.format_arn(
+            service="lambda",
+            resource="function",
+            resource_name=self.cfg.name(slug),
+            arn_format=cdk.ArnFormat.COLON_RESOURCE_NAME,
+        )
+
+    def _grant_scheduling(self, fn: lambda_.Function) -> None:
+        """One-off jobs for later (e.g. an operator call queued for 09:05)."""
+        fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["scheduler:CreateSchedule"],
+                resources=[
+                    self.format_arn(
+                        service="scheduler",
+                        resource="schedule",
+                        resource_name=f"{self.cfg.name('callbacks')}/*",
+                    )
+                ],
+            )
+        )
+        fn.add_to_role_policy(
+            iam.PolicyStatement(actions=["iam:PassRole"], resources=[self._callback_role_arn()])
+        )
+
+    def _grant_start_ticket_flow(self, fn: lambda_.Function) -> None:
+        fn.add_to_role_policy(
+            iam.PolicyStatement(actions=["states:StartExecution"], resources=[self.ticket_arn])
+        )
+
+    def _grant_dynamic_audio(self, fn: lambda_.Function) -> None:
+        """Runtime TTS clips: read (cache check) and write under prompts/hi/dyn/."""
+        bucket = self.data.prompts_bucket
+        fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["s3:GetObject", "s3:PutObject"],
+                resources=[bucket.arn_for_objects(DYN_AUDIO)],
+            )
+        )
+        fn.add_to_role_policy(
+            iam.PolicyStatement(actions=["s3:ListBucket"], resources=[bucket.bucket_arn])
+        )
 
     def _context_refresh(self) -> lambda_.Function:
         """Daily public-data refresh (06:00 IST) into the evidence bucket's context/ prefix."""

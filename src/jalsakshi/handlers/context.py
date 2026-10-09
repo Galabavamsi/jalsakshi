@@ -27,6 +27,12 @@ from jalsakshi.data import (
     make_client,
     rain_last_days,
 )
+from jalsakshi.data.nwdp import (
+    GroundwaterReading,
+    RainfallSummary,
+    district_rainfall_or_snapshot,
+    nearest_groundwater_or_snapshot,
+)
 from jalsakshi.handlers import config
 from jalsakshi.handlers.common import dumps, entrypoint, logger
 
@@ -93,8 +99,14 @@ def build_context(
     blocks: Sequence[BlockGroundwater] | None,
     state: StateHGJ | None,
     rain: RainSummary | None,
+    well: GroundwaterReading | None = None,
+    district_rain: RainfallSummary | None = None,
 ) -> dict[str, Any]:
-    """The §13 ``context`` object for one village; a missing source becomes null."""
+    """The §13 ``context`` object for one village; a missing source becomes null.
+
+    v2 adds the nearest live government well (CGWB telemetry via NWDP) and IMD's district
+    rainfall, both labelled as context for the area, never as a measurement of the village.
+    """
     groundwater = None
     if blocks:
         block = find_block(blocks, english(village.block), district=english(village.district))
@@ -116,6 +128,8 @@ def build_context(
             if state
             else None
         ),
+        "nearest_well": well.model_dump(mode="json") if well else None,
+        "district_rain": district_rain.model_dump(mode="json") if district_rain else None,
     }
 
 
@@ -136,7 +150,12 @@ def refresh(event: Any, context: Any) -> dict[str, Any]:
         blocks = _attempt(
             "cgwb", lambda: fetch_block_groundwater_or_snapshot(STATE_CODE, client=http)
         )
-        written = [_write(cfg.evidence_bucket, v, blocks, state, http) for v in villages]
+        district_rain = _attempt(
+            "nwdp-rain", lambda: district_rainfall_or_snapshot("DURG", client=http)
+        )
+        written = [
+            _write(cfg.evidence_bucket, v, blocks, state, http, district_rain) for v in villages
+        ]
     return {"villages": len(written), "state_hgj": state is not None, "groundwater": bool(blocks)}
 
 
@@ -146,12 +165,20 @@ def _write(
     blocks: Sequence[BlockGroundwater] | None,
     state: StateHGJ | None,
     http: httpx.Client,
+    district_rain: RainfallSummary | None = None,
 ) -> str:
     point = rain_point(village)
     rain = None
     if point is not None:
         rain = _attempt("open-meteo", lambda: rain_last_days(*point, RAIN_DAYS, client=http))
-    body = dumps(build_context(village, blocks, state, rain))
+    well = None
+    if village.location is not None:
+        loc = village.location
+        well = _attempt(
+            "nwdp-well",
+            lambda: nearest_groundwater_or_snapshot(loc.lat, loc.lon, client=http),
+        )
+    body = dumps(build_context(village, blocks, state, rain, well, district_rain))
     config.client("s3").put_object(
         Bucket=bucket,
         Key=context_key(village.id),

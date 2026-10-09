@@ -9,20 +9,26 @@
 import { addDays, istDate, istHour, istInstant, istNoon, minutesFrom } from '../lib/time';
 import type {
   ActivityItem,
+  Broadcast,
   CheckInMasked,
   CleanAnswer,
+  ConsentEvent,
   DayCounts,
   DayStatus,
   DayStatusValue,
   HouseholdMasked,
   IsoDate,
+  OfficialRecord,
   Operator,
+  PointStatus,
+  QualityTest,
   SourceTag,
   Ticket,
   TicketEvent,
   Village,
   VillageContext,
   WaterAnswer,
+  WaterPoint,
 } from './types';
 
 export const RULE_VERSION = 'r1';
@@ -38,6 +44,36 @@ export interface MockState {
   tickets: Ticket[];
   activity: ActivityItem[];
   context: Record<string, VillageContext>;
+  // Gram Panchayat release (§15); filled by mockSeedPanchayat.seedPanchayat.
+  waterPoints: WaterPoint[];
+  consents: ConsentEvent[];
+  broadcasts: Broadcast[];
+  quality: QualityTest[];
+  /** Demo stand-in for the JJM IMIS/WQMIS record, by village id. */
+  official: Record<string, OfficialRecord>;
+  /** Last complaint number per village (SEQ#TICKET). */
+  ticketSeq: Record<string, number>;
+}
+
+/**
+ * Per water point statuses for a day (rule r2's step 2): DAILY and REPORT answers grouped by the
+ * household's water point, each group decided with the r1 table. Households with no point form
+ * the `null` group. The demo puts every answering household of a village on one point, so the
+ * village status (r1 over everyone) and the worst point status always agree.
+ */
+export function pointStatuses(checkins: CheckInMasked[], quorum: number): PointStatus[] {
+  const groups = new Map<string | null, CheckInMasked[]>();
+  for (const c of checkins) {
+    if (c.purpose !== 'DAILY' && c.purpose !== 'REPORT') continue;
+    const key = c.water_point_id ?? null;
+    groups.set(key, [...(groups.get(key) ?? []), { ...c, purpose: 'DAILY' }]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
+    .map(([wpid, group]) => {
+      const counts = countsFromCheckins(group);
+      return { water_point_id: wpid, status: reconcileCounts(counts, quorum), counts };
+    });
 }
 
 // ---------------------------------------------------------------- reconcile mirror
@@ -353,6 +389,7 @@ export function dayStatusFrom(
     counts,
     rule_version: RULE_VERSION,
     computed_at: computedAt.toISOString(),
+    points: pointStatuses(checkins, village.quorum),
   };
 }
 
@@ -491,8 +528,8 @@ function seedActivity(today: IsoDate, now: Date): ActivityItem[] {
       at: istInstant(y, '11:00').toISOString(),
       kind: 'policy_denied',
       village_id: 'v-amlidih',
-      text_en: 'Amlidih: call to household 3 skipped, it was already called today (one-call-per-day).',
-      text_hi: 'अमलीडीह: घर 3 को कॉल नहीं किया, आज पहले ही कॉल हो चुका था।',
+      text_en: 'Amlidih: call to household 3 skipped, no consent on file (consent-required).',
+      text_hi: 'अमलीडीह: घर 3 को कॉल नहीं किया, सहमति दर्ज नहीं है।',
     },
     {
       at: istInstant(y, '11:14').toISOString(),
@@ -541,6 +578,12 @@ export function seedMockState(now: Date): MockState {
     tickets: [],
     activity: [],
     context: {},
+    waterPoints: [],
+    consents: [],
+    broadcasts: [],
+    quality: [],
+    official: {},
+    ticketSeq: {},
   };
   for (const seed of VILLAGE_SEEDS) {
     const village: Village = {

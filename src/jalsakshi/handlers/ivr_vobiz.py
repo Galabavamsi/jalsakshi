@@ -1,4 +1,4 @@
-"""Vobiz webhooks: ``POST /ivr/vobiz/{token}/{answer|digits|recording|status}`` (public route).
+"""Vobiz webhooks: ``POST /ivr/vobiz/{token}/{answer|digits|recording|status|inbound}``.
 
 Checks, in order: the secret path token (SSM ``ivr_path_token``), the optional source-IP
 allowlist, and the optional Vobiz signature. Then the IVR engine runs one turn and the reply is
@@ -7,24 +7,38 @@ duplicate or stale webhook replays the current prompt instead of applying an inp
 
 A call ends on the flow's last turn or on the hangup callback, whichever comes first; both
 paths write the CheckIn once and resume the waiting workflow task.
+
+``inbound`` is the answer URL of the number's Vobiz Application: a resident's missed call. It is
+rejected at once (the caller pays nothing) and a call-back is queued (§15.4). A finished voice
+note is handed to the notes Lambda asynchronously, so the caller never waits for transcription.
 """
 
 from __future__ import annotations
 
 import hmac
 import ipaddress
+import json
+import re
+from datetime import timedelta
 from typing import Any, Final
 from urllib.parse import urlencode
 
 from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, Response
 
-from jalsakshi.core.models import CapturedVia
-from jalsakshi.handlers import config
-from jalsakshi.handlers.calls import CallRecord, LoadedCall, finish_call, load_call, save_call
-from jalsakshi.handlers.common import entrypoint, logger
+from jalsakshi.core.models import CapturedVia, Purpose
+from jalsakshi.handlers import config, residents, speech
+from jalsakshi.handlers.calls import (
+    CallRecord,
+    LoadedCall,
+    callback_queued,
+    finish_call,
+    load_call,
+    save_call,
+)
+from jalsakshi.handlers.common import activity, count, entrypoint, logger, mask_phone
 from jalsakshi.store import Repository
 from jalsakshi.voice import flow as ivr
-from jalsakshi.voice.actions import Action
+from jalsakshi.voice.actions import Action, Hangup, Play
 from jalsakshi.voice.adapters.vobiz import (
     CONTENT_TYPE,
     EMPTY_RESPONSE,
@@ -35,9 +49,13 @@ from jalsakshi.voice.adapters.vobiz import (
     render_xml,
     validate_signature,
 )
+from jalsakshi.voice.catalog import audio_base_for, catalog_for
 
 MIN_NOTE_S: Final = 1
 HANGUP_XML: Final = f"{XML_DECLARATION}<Response><Hangup /></Response>"
+REJECT_XML: Final = f'{XML_DECLARATION}<Response><Hangup reason="rejected" /></Response>'
+CALLBACK_COOLDOWN: Final = timedelta(minutes=2)
+_DIGITS_ONLY: Final = re.compile(r"\D")
 
 app = APIGatewayHttpResolver()
 
@@ -55,6 +73,12 @@ def webhook(token: str, action: str) -> Response:
     call_id = current.get_query_string_value("call_id") or ""
     repo = config.repository()
     match action:
+        case "inbound":
+            try:
+                return _xml(_inbound(repo, event))
+            except Exception:  # a missed call is always rejected (never answered and charged)
+                logger.exception("missed call not queued")
+                return _xml(REJECT_XML)
         case "answer":
             return _xml(_answer(repo, call_id, event))
         case "digits":
@@ -88,7 +112,7 @@ def _answer(repo: Repository, call_id: str, event: VobizEvent) -> str:
     record = loaded.record
     if record.provider_call_uuid is None:
         record = record.model_copy(update={"provider_call_uuid": event.call_uuid})
-    flow, actions = ivr.start(record.flow)
+    flow, actions = ivr.start(residents.with_language(repo, record.flow))
     record = record.model_copy(update={"flow": flow})
     save_call(repo, record)
     return _render(actions, record)
@@ -108,19 +132,103 @@ def _digits(repo: Repository, call_id: str, turn: int, event: VobizEvent) -> str
     record = record.model_copy(update={"flow": flow})
     save_call(repo, record)
     if done:
-        finish_call(repo, LoadedCall(record, loaded.task_token), CapturedVia.DTMF)
+        finished = finish_call(repo, LoadedCall(record, loaded.task_token), CapturedVia.DTMF)
+        actions = _announce_number(actions, finished)
     return _render(actions, record)
 
 
+def _announce_number(actions: list[Action], record: CallRecord) -> list[Action]:
+    """Tell a resident the number of the complaint their missed call opened or joined."""
+    if record.ticket_number is None or record.flow.purpose is not Purpose.REPORT:
+        return actions
+    cat = catalog_for(record.flow.language)
+    key = cat.audio_key("report.number", number=record.ticket_number) or "report.number"
+    number = Play(prompt_key=key, text_hi=cat.text("report.number", number=record.ticket_number))
+    if actions and isinstance(actions[-1], Hangup):
+        return [*actions[:-1], number, actions[-1]]
+    return [*actions, number]
+
+
 def _recording(repo: Repository, call_id: str, event: VobizEvent) -> None:
-    """Keep the note's recording URL (very short recordings are a skipped note)."""
+    """Keep the note's recording URL and hand it to the notes Lambda (skipped notes ignored)."""
     if not event.recording_url or (event.recording_duration_s or 0) < MIN_NOTE_S:
         return
     loaded = load_call(repo, call_id) if call_id else None
     if loaded is None:
         return
+    if loaded.record.flow.answers.note_recording_url == event.recording_url:
+        return  # a retried callback
     flow = ivr.with_recording(loaded.record.flow, event.recording_url)
     save_call(repo, loaded.record.model_copy(update={"flow": flow}))
+    _invoke_async(
+        config.settings().notes_fn,
+        {
+            "call_id": call_id,
+            "recording_url": event.recording_url,
+            "recording_id": event.recording_id,
+        },
+    )
+
+
+def _inbound(repo: Repository, event: VobizEvent) -> str:
+    """A missed call: reject it (free for the caller) and queue a call-back."""
+    phone = normalise_phone(event.from_number)
+    if phone is None:
+        logger.info("missed call without caller id")
+        return REJECT_XML
+    now = config.now()
+    # Only call-backs count (1 per 2 min, 5 a day): a caller often rings twice in a row; those
+    # rings are logged (and shown) but must not queue a second call or use up the day's limit.
+    since = now - CALLBACK_COOLDOWN
+    recent = [m for m in repo.list_missed_calls(phone, since) if callback_queued(m)]
+    repo.record_missed_call(phone, now, {"call_uuid": event.call_uuid, "callback": not recent})
+    count("MissedCalls")
+    if recent:
+        logger.info("repeat missed call within cooldown", extra={"phone": mask_phone(phone)})
+        activity(
+            "missed_call",
+            None,
+            f"Missed call from {mask_phone(phone)} again; the call-back is already on its way",
+            f"{mask_phone(phone)} से फिर मिस्ड कॉल; वापस कॉल पहले से जा रही है",
+        )
+        return REJECT_XML
+    job = {"kind": "callback", "phone": phone, "missed_at": now.isoformat()}
+    _invoke_async(config.settings().outbound_fn, {**job, "delay_s": _delay_s()})
+    when = "in a few seconds"
+    activity(
+        "missed_call",
+        None,
+        f"Missed call from {mask_phone(phone)}; calling back {when}",
+        f"{mask_phone(phone)} से मिस्ड कॉल; वापस कॉल होगी",
+    )
+    return REJECT_XML
+
+
+def normalise_phone(raw: str | None) -> str | None:
+    """Indian caller id in E.164 (+91XXXXXXXXXX), or None when withheld or malformed."""
+    digits = _DIGITS_ONLY.sub("", raw or "")
+    if len(digits) == 10:
+        digits = "91" + digits
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = "91" + digits[1:]
+    if len(digits) != 12 or not digits.startswith("91") or digits[2] == "0":
+        return None  # an Indian national number never starts with 0 (e.g. "0000000000")
+    return "+" + digits
+
+
+def _delay_s() -> int:
+    return config.settings().callback_delay_s
+
+
+def _invoke_async(function_name: str | None, payload: dict[str, Any]) -> None:
+    if not function_name:
+        logger.warning("async target not configured", extra={"kind": payload.get("kind")})
+        return
+    config.client("lambda").invoke(
+        FunctionName=function_name,
+        InvocationType="Event",
+        Payload=json.dumps(payload).encode(),
+    )
 
 
 def _status(repo: Repository, call_id: str, event: VobizEvent) -> None:
@@ -134,14 +242,17 @@ def _status(repo: Repository, call_id: str, event: VobizEvent) -> None:
 
 
 def _render(actions: list[Action], record: CallRecord) -> str:
+    language = record.flow.language
+    actions = speech.with_dynamic_audio(actions, language)
     base = _base_url()
     digits = urlencode({"call_id": record.call_id, "turn": record.flow.turn})
     recording = urlencode({"call_id": record.call_id})
     return render_xml(
         actions,
         f"{base}/digits?{digits}",
-        config.settings().audio_base_url,
+        audio_base_for(config.settings().audio_base_url, language),
         recording_url=f"{base}/recording?{recording}",
+        catalog=catalog_for(language),
     )
 
 

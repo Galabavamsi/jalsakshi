@@ -133,7 +133,7 @@ def test_counts_and_metadata() -> None:
         RULE_VERSION,
         T0,
     )
-    assert RULE_VERSION == "r1"
+    assert RULE_VERSION == "r2"
 
 
 def test_unanswered_calls_never_count_even_with_stray_answers() -> None:

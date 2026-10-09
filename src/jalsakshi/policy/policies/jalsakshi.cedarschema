@@ -12,6 +12,7 @@ entity Operator = {
 entity Household = {
   village_id: String,
   consent_given: Bool,
+  consent_status: String,
 };
 
 entity Village;
@@ -28,6 +29,9 @@ action PlaceCall appliesTo {
     hour_ist: Long,
     calls_today: Long,
     purpose: String,
+    caller_initiated: Bool,
+    callbacks_today: Long,
+    test_phone: Bool,
   },
 };
 
@@ -50,5 +54,23 @@ action PublishEvidence appliesTo {
   resource: [Village],
   context: {
     data_age_hours: Long,
+  },
+};
+
+entity Broadcast = {
+  village_id: String,
+  state: String,
+};
+
+action ApproveBroadcast appliesTo {
+  principal: [Operator],
+  resource: [Broadcast],
+};
+
+action SendBroadcast appliesTo {
+  principal: [System, Operator],
+  resource: [Broadcast],
+  context: {
+    sent_last_7_days: Long,
   },
 };

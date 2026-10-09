@@ -73,10 +73,12 @@ def test_full_call_writes_checkin_and_resumes_workflow(
     call_id = place("tok-9")
     hook("answer", {"call_id": call_id})
     _, xml = hook("digits", {"call_id": call_id, "turn": "1"}, {"Digits": "2"})
+    assert gather_turn(xml) == 2  # where did you get water instead?
+    _, xml = hook("digits", {"call_id": call_id, "turn": "2"}, {"Digits": "1"})
     assert "<Record" in xml
     recording = ET.fromstring(xml.split("\n", 1)[1]).find("Record")
     assert recording is not None and "/recording?call_id=" in recording.get("action", "")
-    _, xml = hook("digits", {"call_id": call_id, "turn": "2"})
+    _, xml = hook("digits", {"call_id": call_id, "turn": "3"})
     assert "<Hangup" in xml
     [stored] = seeded.list_checkins(VID, DAY, Purpose.DAILY)
     assert (stored.outcome, stored.water, stored.captured_via) == (

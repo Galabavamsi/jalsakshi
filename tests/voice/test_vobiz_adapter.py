@@ -122,7 +122,6 @@ def test_get_digits_renders_gather_then_redirect() -> None:
         "inputType": "dtmf",
         "numDigits": "1",
         "executionTimeout": "10",
-        "finishOnKey": "",
         "redirect": "true",
     }
     assert [child.tag for child in gather] == ["Play"]

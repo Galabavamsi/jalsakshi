@@ -13,14 +13,21 @@ Cedar (policy/) guards who may apply the sensitive events; this module only know
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
 from jalsakshi.core.ids import new_id
-from jalsakshi.core.models import Ticket, TicketEvent, TicketReason, TicketState
+from jalsakshi.core.models import (
+    BlockerCode,
+    Ticket,
+    TicketEvent,
+    TicketOrigin,
+    TicketReason,
+    TicketState,
+)
 
 ESCALATION_HOURS = 48
 
@@ -68,7 +75,16 @@ _TRANSITIONS: dict[TicketEventKind, dict[TicketState, TicketState]] = {
 
 
 def new_ticket(
-    village_id: str, reason: TicketReason, at: datetime, *, ticket_id: str | None = None
+    village_id: str,
+    reason: TicketReason,
+    at: datetime,
+    *,
+    ticket_id: str | None = None,
+    water_point_id: str | None = None,
+    origin: TicketOrigin = TicketOrigin.RECONCILE,
+    reporters: Sequence[str] = (),
+    quorum: int | None = None,
+    number: int | None = None,
 ) -> Ticket:
     """Create an OPEN ticket opened at `at` (id from `new_id("tkt")` unless given)."""
     _require_aware(at)
@@ -79,7 +95,54 @@ def new_ticket(
         state=TicketState.OPEN,
         opened_at=at,
         updated_at=at,
+        water_point_id=water_point_id,
+        origin=TicketOrigin(origin),
+        reporters=list(dict.fromkeys(reporters)),
+        quorum=quorum,
+        number=number,
     )
+
+
+def report_quorum(point_quorum: int, reporters: int) -> int:
+    """Households needed to close a resident-reported ticket: never more than reported it.
+
+    One family's complaint can be closed by that family's own confirmation; a problem many
+    families reported needs the point's usual quorum (§15.5).
+    """
+    if point_quorum < 1:
+        raise ValueError(f"quorum must be at least 1, got {point_quorum}")
+    return max(1, min(point_quorum, reporters))
+
+
+def with_reporter(ticket: Ticket, household_id: str, point_quorum: int) -> Ticket:
+    """Add a reporting household; for resident-opened tickets the quorum grows with them.
+
+    Pure bookkeeping, no event (the caller adds a NOTE). Returns the ticket unchanged when the
+    household is already a reporter.
+    """
+    if household_id in ticket.reporters:
+        return ticket
+    reporters = [*ticket.reporters, household_id]
+    quorum = ticket.quorum
+    if ticket.origin is not TicketOrigin.RECONCILE:
+        quorum = report_quorum(point_quorum, len(reporters))
+    return ticket.model_copy(update={"reporters": reporters, "quorum": quorum})
+
+
+def closing_quorum(ticket: Ticket, default: int) -> int:
+    """Households that must confirm water before this ticket may close."""
+    return ticket.quorum or default
+
+
+BLOCKER_KEYS: dict[str, BlockerCode] = {
+    "2": BlockerCode.PARTS_NEEDED,
+    "3": BlockerCode.NO_POWER,
+    "4": BlockerCode.PIPE_BROKEN,
+    "5": BlockerCode.NOT_MINE,
+    "6": BlockerCode.OTHER,
+    "7": BlockerCode.NEEDS_PANCHAYAT,
+}
+"""Operator call keys 2-7 (§15.7); 1 means fixed. 6 and 7 are followed by a voice note."""
 
 
 def allowed_events(state: TicketState) -> frozenset[TicketEventKind]:

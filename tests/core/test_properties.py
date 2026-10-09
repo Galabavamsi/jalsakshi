@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -13,7 +15,7 @@ from jalsakshi.core.models import (
     Purpose,
     WaterAnswer,
 )
-from jalsakshi.core.reconcile import is_answered, latest_attempts, reconcile_day
+from jalsakshi.core.reconcile import is_answered, latest_answers, latest_attempts, reconcile_day
 from jalsakshi.core.verify import VerifyOutcome, VerifyResult, evaluate_verification
 
 from .helpers import (
@@ -45,6 +47,12 @@ def verify_of(checkins: list[CheckIn], quorum: int) -> VerifyResult:
 def next_attempt(checkins: list[CheckIn], household_id: str) -> int:
     """An attempt number that supersedes every existing one for this household (same day)."""
     return max((c.attempt for c in checkins if c.household_id == household_id), default=0) + 1
+
+
+def later_than(checkins: list[CheckIn], household_id: str) -> datetime:
+    """A capture time after every existing answer of this household (r2 orders by time)."""
+    times = [c.captured_at for c in checkins if c.household_id == household_id]
+    return max(times, default=T0) + timedelta(minutes=1)
 
 
 # --- unreachable households never create a quorum -----------------------------------------------
@@ -84,9 +92,15 @@ def test_adding_a_no_answer_never_improves_the_day(
     base: list[CheckIn], quorum: int, clean: CleanAnswer | None, data: st.DataObject
 ) -> None:
     daily = [c for c in base if c.purpose == Purpose.DAILY]
-    silent = sorted(c.household_id for c in latest_attempts(daily) if not is_answered(c))
+    silent = sorted(c.household_id for c in latest_answers(daily) if not is_answered(c))
     target = data.draw(st.sampled_from([*silent, "new-household"]), label="household")
-    added = checkin(target, WaterAnswer.NO, clean=clean, attempt=next_attempt(daily, target))
+    added = checkin(
+        target,
+        WaterAnswer.NO,
+        clean=clean,
+        attempt=next_attempt(daily, target),
+        captured_at=later_than(base, target),
+    )
 
     before, after = day_of(base, quorum).status, day_of([*base, added], quorum).status
 

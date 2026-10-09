@@ -13,6 +13,7 @@ from aws_cdk import aws_certificatemanager as acm
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
 from constructs import Construct
@@ -103,17 +104,31 @@ class WebStack(cdk.Stack):
             self,
             "Operators",
             user_pool_name=cfg.name("operators"),
-            self_sign_up_enabled=False,
+            self_sign_up_enabled=False,  # the JalSakshi team creates each Panchayat's login
+            auto_verify=cognito.AutoVerifiedAttrs(email=True),
+            user_verification=cognito.UserVerificationConfig(
+                email_subject="Your JalSakshi code",
+                email_body="Your JalSakshi verification code is {####}",
+                email_style=cognito.VerificationEmailStyle.CODE,
+            ),
             sign_in_aliases=cognito.SignInAliases(username=True, email=True),
             password_policy=cognito.PasswordPolicy(
-                min_length=12,
+                min_length=8,
                 require_digits=True,
-                require_lowercase=True,
-                require_uppercase=True,
+                require_lowercase=False,
+                require_uppercase=False,
                 require_symbols=False,
             ),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             removal_policy=cfg.removal_policy,
+            lambda_triggers=cognito.UserPoolTriggers(pre_sign_up=self._auto_confirm(cfg)),
+        )
+        cognito.CfnUserPoolGroup(
+            self,
+            "GroupAdmin",
+            user_pool_id=pool.user_pool_id,
+            group_name="ADMIN",
+            description="JalSakshi team: sees every village",
         )
         for role in OperatorRole:
             cognito.CfnUserPoolGroup(
@@ -124,6 +139,27 @@ class WebStack(cdk.Stack):
                 description=f"Console users acting as {role.value}",
             )
         return pool
+
+    def _auto_confirm(self, cfg: StageSettings) -> lambda_.Function:
+        """Pre-sign-up hook: a secretary's new account works at once (no email step).
+
+        The hosted sign-up form asks for a username and password only; what an account may
+        do is limited by its village binding, Cedar and the per-village call limits.
+        """
+        return lambda_.Function(
+            self,
+            "AutoConfirm",
+            function_name=cfg.name("auto-confirm"),
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="index.handler",
+            code=lambda_.Code.from_inline(
+                "def handler(event, context):\n"
+                "    event['response']['autoConfirmUser'] = True\n"
+                "    return event\n"
+            ),
+            timeout=cdk.Duration.seconds(5),
+            memory_size=128,
+        )
 
     def _client(self, cfg: StageSettings) -> cognito.UserPoolClient:
         origins_ = list(dict.fromkeys([self.web_url, self.cdn_url, *cfg.local_origins]))
