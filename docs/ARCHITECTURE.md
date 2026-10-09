@@ -97,7 +97,8 @@ Step Functions: CheckInRun
               └▶ catch ⇒ MarkUnreachable · not answered ⇒ one retry after 30 min (DAILY only)
    ─▶ ReconcileDay (mints the ticket id when one should open) ─▶ Choice ─▶ StartTicketFlow(ticket_id)
 Step Functions: TicketFlow
-   OpenTicket ─▶ NotifyOperator (call) [waitForTaskToken: operator "fixed"; heartbeat 48 h ⇒ Escalate]
+   OpenTicket ─▶ SettleBeforeNotify (45 s, so a resident's call-back has ended) ─▶ NotifyOperator (call)
+                [waitForTaskToken: operator "fixed"; heartbeat 48 h ⇒ Escalate]
    ─▶ StartVerification ─▶ Map(verify households) ─▶ EvaluateVerification ─▶ Choice:
         CLOSED_VERIFIED ⇒ done · REOPENED ⇒ NotifyOperator again
         PENDING in round 1 ⇒ wait 30 min, one extra round · PENDING after round 2 ⇒ Escalate
@@ -227,6 +228,210 @@ Powertools logger, metrics and tracer. Metrics: `CallsPlaced`, `CallsAnswered`, 
 `observed_7d.source.freshness` is `simulated` when any answer in the window came from the web simulator, else `live`.
 `TicketEvent.kind` is UPPERCASE: `NOTIFIED`, `OPERATOR_FIXED`, `VERIFY_STARTED`, `VERIFIED_OK`, `VERIFY_FAILED`, `ESCALATED`, `NOTE`. A `NOTE` carries `detail.note` (`day_still_bad`, `close_denied`). Actors are `system:<step>`, `operator:<oid>` (keypad on the operator call) or `console:<user>`.
 Activity `kind` is one of `checkin_run`, `call`, `day_status`, `ticket`, `policy_denied`.
+
+## 15. v2: the Gram Panchayat release (any water source, residents can report)
+
+v2 drops the assumption that every house has a JJM tap. It records **whatever water source each family actually uses**, lets residents **report problems themselves with a missed call**, and gives the Panchayat a **complaint register, announcements, water-quality records and analytics**. Residents get their own view of the same data. Sections 1–13 still apply except where this section changes them.
+
+### 15.1 Water points and how households get water
+
+| Model | Fields |
+|---|---|
+| `WaterPoint` | `id`, `village_id`, `kind` (`PIPED` \| `HANDPUMP` \| `BOREWELL` \| `TANKER` \| `OTHER`), `name`, `name_hi`, `hamlet?`, `location?` (`GeoPoint{lat, lon, source, accuracy_m?}`), `supply_window?` (`"06:30-08:00"`), `operator_ids[]` (first = primary), `quorum?` (default: the village's), `provisional` (true when it was created by a registration and nobody has checked it yet), `active` |
+| `Household` (added) | `access?` (`HOUSE_TAP` \| `STANDPOST` \| `HANDPUMP` \| `BOREWELL` \| `TANKER` \| `OTHER`), `water_point_id?`, `hamlet?`, `registered_via` (`seed` \| `ivr` \| `console`), `consent_status` (`NONE` \| `GRANTED` \| `DECLINED` \| `WITHDRAWN`) |
+| `Village` (added) | `name_hi`, `lgd_code?`, `census_code?`, `gram_panchayat?`, `gp_lgd_code?`, `census_households?`, `census_population?`, `location?`, `inbound` (true for the village unknown missed-call numbers register into); `claimed_hgj` is now optional context only |
+| `OperatorRole` (added) | `HANDPUMP_MECHANIC` |
+
+- **Access vs point.** `access` is how a family draws water. The water point is the thing that breaks and gets repaired. `HOUSE_TAP` and `STANDPOST` both draw from the village's `PIPED` point, and the other access kinds map to the point of the same kind. Registration attaches the household to the village's only active point of that kind. If there is none, it creates a `provisional` point (for example "Kutelabhatha piped supply") for the secretary to name later.
+- **Routing.** A ticket goes to its water point's first operator. If the point has none, it goes to the village's `NAL_JAL_MITRA`, then to its `SARPANCH`.
+- **Questions follow the source.** The daily question names the family's own source ("Did water come in your house tap today?", "Did you get water from the handpump today?", "Did the tanker come today?"). The hours question is asked only for `HOUSE_TAP`/`STANDPOST`. A NO answer gets one extra question: where did the family get drinking water instead (1 another tap or handpump, 2 bought it, 3 got none). This is stored as `CheckIn.fallback`.
+
+### 15.2 Reconciler r2 (per water point)
+
+`CheckIn` gains `water_point_id?`, copied from the household when the call is made, and `fallback?`. `RULE_VERSION = "r2"`:
+
+1. Group the day's DAILY and REPORT check-ins by `water_point_id`. A household with no point joins the village-wide group `None`.
+2. In each group, take each household's latest answer by `captured_at` (then attempt), and apply the r1 table (§4) with the point's quorum. This gives `PointStatus{water_point_id, status, counts}`.
+3. The village status is the worst status among points that have evidence, in the order `NO_SUPPLY` > `DIRTY` > `PARTIAL` > `SUPPLIED`. It is `UNVERIFIED` only when no point has evidence. `DayStatus.points[]` keeps the detail.
+
+A village with one water point gets exactly the r1 result.
+
+### 15.3 Registration and consent (DPDP-standard keypad consent)
+
+- **The REGISTER call.** This is the first call to a family that has not yet consented. It is either seeded or a callback after a missed call from an unknown number.
+  - A Hindi notice (`notice_version = "hi-1"`) says who we are, what data we collect, why, who sees it, and that voice notes are transcribed by Sarvam AI. It explains how to stop: press 9 on any call, or give a missed call and press 9.
+  - `Q_AGE`: 1 = 18 or older, 2 = under 18.
+  - `Q_CONSENT`: 1 agree, 2 hear the notice again (at most twice), 3 decline.
+  - `Q_ACCESS`: 1 house tap, 2 public tap, 3 handpump, 4 borewell or well, 5 tanker.
+  - Then a confirmation.
+  - A timeout or an invalid key never counts as consent.
+- **The ledger.** `ConsentEvent` is append-only (`VILLAGE#{vid}` / `CONSENT#{iso}#{hid}`):
+  - `household_id`, `phone_masked`, `action` (`GRANTED` \| `DECLINED` \| `WITHDRAWN` \| `MINOR`)
+  - `notice_version`, `notice_sha256` (of the notice text), `channel` (`ivr_keypad` \| `in_person` \| `console`)
+  - `call_id`, `digits`, `at`
+  - No audio is recorded for consent.
+  - The console exports the ledger as consent proof. It is labelled "designed to the DPDP Act 2023 / Rules 2025 standard (consent provisions in force May 2027)".
+- **Withdrawal.** 9 on any household call, or in the missed-call menu, then 9 again to confirm, appends `WITHDRAWN` to the ledger and **erases the household and its phone lookup**. Check-ins keep only the household id. The ledger keeps only the masked phone. The number is never called again unless it gives a missed call itself, which starts a fresh registration.
+- **Cedar** (§7, extended):
+  - `Household` gains `consent_status`; `PlaceCall` context gains `caller_initiated: Bool`.
+  - `consent-required` now exempts `purpose == "REGISTER"`.
+  - New `no-calls-after-withdrawal` forbids any call when `consent_status ∈ {DECLINED, WITHDRAWN}`, unless `caller_initiated`.
+  - `one-call-per-day` also covers REGISTER, unless `caller_initiated`.
+  - New `callback-limit` forbids caller-initiated calls when `callbacks_today ≥ 5`.
+
+### 15.4 Missed-call reporting
+
+```
+resident ──missed call──▶ Vobiz DID ──▶ /ivr/vobiz/{token}/inbound
+   reply <Hangup reason="rejected"/>   (the caller is not charged; per Vobiz docs, neither are we)
+   log MISSED#{phone}; ignore withheld numbers; rate limit 1 callback / 10 min, 5 / day
+   ─▶ EventBridge Scheduler one-off at(+1 min), or 09:00 IST if it arrived outside calling hours
+   ─▶ Lambda callback ─▶ Cedar PlaceCall(caller_initiated) ─▶ dial the caller back with:
+        consented household   → REPORT menu
+        operator (no household) → OPERATOR flow for their oldest open ticket
+        anyone else           → REGISTER flow (the household record is created only on consent)
+```
+
+- **REPORT menu**:
+  - 1 = no water today
+  - 2 = dirty water
+  - 3 = other complaint: speak after the beep (voice note, §15.6)
+  - 4 = hear today's village status and open complaints
+  - 9 = stop calls
+- **What 1 and 2 do.** They write a `CheckIn(purpose=REPORT)`, which counts in r2, then open or join a complaint ticket (§15.5). The caller hears the complaint number.
+- **Allowlist.** On demo stages the dialer still calls only allowlisted numbers. A missed call from any other number is logged (masked) and gets no callback.
+
+### 15.5 Complaint register (tickets v2)
+
+- **Ticket fields.**
+  - `Ticket` gains `number`, a per-village sequence (`SEQ#TICKET`, atomic counter). The number is spoken as "shikayat kramank 7".
+  - Also `water_point_id?`, `origin` (`reconcile` \| `report` \| `voice_note` \| `console`) and `reporters[]` (household ids).
+  - Also `quorum` (households needed to close it) and `issue?` (AI-extracted, §15.6).
+  - Also `blocker?` (the operator's latest reason code, §15.7).
+- **Reasons.** `TicketReason` adds `LOW_PRESSURE`, `LEAK`, `BROKEN` (pump or handpump) and `OTHER`.
+- **Guard.** It is now `OPENTKT#{wpid or "village"}#{reason}`, so there is one open ticket per water point and reason. A second report of the same problem joins the open ticket: it adds the reporter and a `NOTE{note: "another_report"}`.
+- **Quorum.**
+  - Reconcile-opened tickets use the point's quorum.
+  - Report-opened tickets use `min(point quorum, number of reporters)`, so one resident's complaint can be fixed and closed by that resident's own confirmation.
+  - Verify targets are the reporters plus the households whose DAILY or REPORT answer showed the problem.
+- The state machine (§5), TicketFlow (§6) and the close rule (§7) are unchanged. A report-opened ticket starts the same TicketFlow with a pre-minted id.
+
+### 15.6 Voice notes → issue
+
+```
+Record (25 s max, # to end) ─▶ /recording callback ─▶ async Lambda notes
+  ─▶ GET recording with Vobiz auth ─▶ s3://evidence/audio/{vid}/{call_id}.{wav|mp3}
+     (SSE, lifecycle 365 days) ─▶ DELETE the Vobiz copy
+  ─▶ Sarvam STT (saaras:v4, hi-IN, keyterms: nal, tanki, pipe, motor, handpump, ...)
+  ─▶ agent/notes.py (Bedrock, temperature 0) ─▶ NoteIssue{issue, summary_hi, summary_en,
+     location_hint?, days_affected?, confidence}
+  ─▶ stored on the CheckIn (note_transcript, note_issue) and on the ticket
+```
+
+- **Which ticket.** In the REPORT menu (option 3), a confident issue opens or joins a ticket with that reason. A low-confidence issue, or an `OTHER` one, opens an `OTHER` ticket for a human to read.
+- **Daily-call notes.** A note on a daily call never opens a ticket on its own. It is attached as a `NOTE` to the open ticket, if there is one.
+- **Labels.** The console labels the result "AI-transcribed from a resident's voice note, not yet confirmed by the operator". The AI never closes or reopens a ticket.
+
+### 15.7 Operator reason codes
+
+The operator call asks, after the summary: 1 fixed · 2 parts needed · 3 no electricity · 4 pipe broken or leaking · 5 not my responsibility.
+
+- 1 applies `OPERATOR_FIXED`, as before.
+- 2–5 add a `NOTE{note: "operator_reason", code}` and set `ticket.blocker`.
+- Code 5 also moves the ticket to the next person in the routing chain (§15.1).
+- Analytics counts blockers per water point. This is the "why does water fail here" evidence.
+
+### 15.8 Approved announcements (broadcasts)
+
+- **The model.** `Broadcast{id, village_id, water_point_id?, kind (SUPPLY_CHANGE | BOIL_WATER | REPAIR_DONE | MEETING | CUSTOM), text_hi, state (DRAFT → APPROVED → SENT | CANCELLED), created_by, approved_by?, sent_at?, recipients, delivered, heard}`.
+- **Who can do what.**
+  - The secretary (or anyone with a console login) drafts an announcement.
+  - Cedar `ApproveBroadcast` allows only `SARPANCH`.
+  - Cedar `SendBroadcast` requires `APPROVED`, at most 2 sent per village per 7 days, and calling hours.
+  - Each recipient call also passes `PlaceCall` (consent).
+- **Delivery.** Each consenting household on the target point, or every household in the village, gets a short call. The announcement is played (Sarvam TTS, cached) and then "press 1 if you heard it, 2 to hear it again". `heard` counts the 1s.
+
+### 15.9 Water quality
+
+- **The model.** `QualityTest{id, village_id, water_point_id, tested_at, method (FTK | LAB), result (SAFE | UNSAFE), parameters{name: value}, entered_by, source: SourceTag}` is recorded from the console.
+- **On DIRTY tickets.** A `DIRTY` ticket with no test after it opened shows "test needed". A test result is added to the ticket as a `NOTE`.
+- **Official results.** Official JJM WQMIS lab results are shown as separate, labelled context when the village has any.
+
+### 15.10 Analytics and the weekly summary
+
+`core/analytics.py` is pure, deterministic and unit-tested. For a village and period it produces:
+
+- Per water point:
+  - days observed, supplied, partial, no supply, dirty and unknown
+  - reliability = supplied ÷ observed (unknown days excluded and shown separately)
+  - complaints by reason
+  - median and worst repair time (`opened_at` → `CLOSED_VERIFIED`)
+  - reopen count
+  - open tickets and their ages
+  - blockers
+- Households:
+  - registered, consented, withdrawn
+  - coverage against the Census households
+  - answer rate (answered ÷ called)
+  - fallback sources used
+- Announcements sent and heard.
+
+Every number carries its `SourceTag`.
+
+- `GET /api/villages/{vid}/analytics?from&to` returns all of it.
+- **Weekly summary.** Every Monday at 10:00 IST, EventBridge triggers the `weekly_summary` Lambda. It fills a fixed Hindi template from the analytics, with no LLM involved, and calls the village's `SARPANCH` and `PANCHAYAT_SECRETARY` (purpose `SUMMARY`; the text is played through TTS). The same text is available at `GET /api/villages/{vid}/summary`.
+
+### 15.11 Residents' view (no login)
+
+- **The page.** `GET /public/villages/{vid}` needs no auth and is cached for 60 s. It shows:
+  - the village and its codes
+  - today's status per water point
+  - the last 30 days' statuses
+  - open complaints (number, reason, water point, age, state; no names or phones)
+  - closed and verified complaints, with the median repair time
+  - sent announcements
+  - sources
+- The same data is spoken in REPORT option 4. The console serves it at `/v/{vid}`; the printable QR poster comes in the UI round.
+
+### 15.12 New keys, purposes and routes
+
+- **Purposes:** `REGISTER`, `REPORT`, `BROADCAST`, `SUMMARY`. Only `REPORT` produces a CheckIn, alongside the existing `DAILY` and `VERIFY`.
+- **DynamoDB:**
+  - `VILLAGE#{vid}`: `WP#{wpid}` · `CONSENT#{iso}#{hid}` · `BCAST#{bid}` · `QT#{iso}#{qid}` · `SEQ#TICKET`
+  - `OPENTKT#{wpid|village}#{reason}`
+  - `PHONE#{e164}`: `HH#{hid}` (`village_id`) and `OP#{oid}`, the reverse lookup for inbound calls
+  - `MISSED#{e164}`: `{iso}`, a missed-call log (TTL 30 days); `data.callback` records whether that ring queued a call-back, so only those count towards the 10-minute cooldown and the 5-a-day limit
+- **Routes:**
+  - `POST /ivr/vobiz/{token}/inbound` (the Vobiz Application's answer URL)
+  - `GET /public/{proxy+}` (no authorizer)
+  - `GET|POST /api/villages/{vid}/water-points`
+  - `GET /api/villages/{vid}/consents`
+  - `GET|POST /api/villages/{vid}/broadcasts`, `POST /api/villages/{vid}/broadcasts/{bid}/approve|send|cancel`
+  - `GET|POST /api/villages/{vid}/quality`
+  - `GET /api/villages/{vid}/analytics`, `GET /api/villages/{vid}/summary`
+- **Runtime TTS** (`voice/tts.py`). A `Play` with no pre-rendered clip (a number, a water point name, an announcement) is rendered once with Sarvam Bulbul at request time. It is cached in the prompt bucket under `prompts/hi/dyn/{sha256[:32]}.mp3` and served through CloudFront (`{audio_base_url}/dyn/...`). Vobiz `Speak` has no Hindi voice, so text is never sent to it.
+
+### 15.13 Pilot honesty rules (real village, real families)
+
+- **Who is seeded.** `scripts/seed_village.py` seeds only verifiable records:
+  - Kutelabhatha's LGD/Census master (`data/villages/durg_block.json`);
+  - the piped scheme JJM IMIS lists (`wp-piped-1`, scheme 40006378);
+  - the pilot coordinator. The coordinator's display name says they stand in for the Panchayat, and complaints are routed to them because the real Nal Jal Mitra is not enrolled.
+- **Families.** They are added with consent `NONE` and have no answers. Their first call is the REGISTER (consent) call.
+- **Team phones.** These live only in the demo villages (`seed_demo.py`, names marked "(डेमो)", `simulated` source tags). A missed call from a team phone resolves to the demo household, so nothing a team member presses is recorded against Kutelabhatha. `seed_village.py` refuses a team number as a family.
+- **Government records.** They are shown next to families' answers and never merged with them: "Government record (JJM IMIS, as on 09 Oct 2026): 450 of 455 households have a tap connection; status In progress". The newest official household tap test is Aug 2023, and the console says so instead of calling the water safe.
+
+## 16. Accounts, first-time setup and real calling (9 Oct evening)
+
+- **Accounts.** A Panchayat secretary creates their own account (Cognito hosted UI, email + password, emailed code). Each account sees only the villages bound to it (`USER#{sub}` / `VILLAGE#{vid}`); the `ADMIN` group (the team) sees all. `GET /api/me` says whether setup is needed.
+- **Setup (3 steps).**
+  1. Pick the village from the LGD/Census list (`GET /api/places`) or type it in.
+  2. Pump operator's and sarpanch's name and mobile number.
+  3. Paste families' mobile numbers (`POST /api/villages/{vid}/households/bulk`). Each new family gets **one consent call** (at most 25 waiting per village); families can also join themselves with a missed call (poster).
+  - Creating the village also creates its daily 19:00 check-in schedule. The first village on a stage takes unknown missed callers.
+- **Who can be dialled.** On an `open_dialing` stage, any number registered in the table can be dialled: a family a signed-in secretary added, a family that gave its own missed call, or a team member. Other stages use only the SSM allowlist. Every call still passes Cedar, and `+910000…` placeholders and helplines are never dialled. A team member's number is never registered as a family.
+- **Calling hours.** There is no calling-hours rule (the team removed it on 9 Oct). The daily call goes at the village's chosen time (default 19:00), and missed calls are called back at once. Cedar still enforces consent, no calls after a refusal, one daily call, and the call-back limit.
+- **Fresh start and sample data.** `scripts/reset_stage.py` clears village data but keeps the consent ledger and the missed-call log. `scripts/seed_sample.py` adds a labelled **Sample village** (`sample-…` id, generated answers stored as `SIMULATOR`, `+910000…` numbers). Its 30 days of history are computed by the real reconciler, for showing reports before a real village has history. Real villages never get generated data.
 
 ## 14. Honest limits (also in the README and the video)
 

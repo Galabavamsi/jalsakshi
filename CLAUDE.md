@@ -9,7 +9,7 @@ Read `docs/ARCHITECTURE.md` (the build contract) and `docs/HANDOVER.md` (who is 
 ## Rules
 - **Decisions are deterministic.** Day status, ticket transitions and calling permissions live in `core/` and `policy/`, as pure tested code. The LLM (`agent/`) only extracts free speech and writes prose, and it always has a template fallback. Never let a model decide a status.
 - **Every number shown to a user carries its source and freshness** (`SourceTag`). Simulated or replayed data is labelled `simulated` or `replay`, everywhere.
-- **Never place calls to real government helplines** (PHED 1800-233-0008, etc.) or to any number without consent on file. Calls only between 09:00 and 21:00 IST.
+- **Never place calls to real government helplines** (PHED 1800-233-0008, etc.) or to any number without consent on file. There is no calling-hours window (removed by the team on 9 Oct): the daily call goes at each village's chosen time (default 19:00), and missed calls are called back at any hour. Never put generated data into a real village; the labelled sample village is the only place for it.
 - **Region is `ap-south-1`.** Pass it explicitly to every boto3 client, CDK env and Strands `BedrockModel` (the shell has `AWS_REGION=us-east-1` for other work). Bedrock model IDs: `in.anthropic.claude-haiku-4-5-20251001-v1:0` → `global.amazon.nova-2-lite-v1:0` → template.
 - **Secrets** go in SSM Parameter Store `/jalsakshi/{stage}/…` (deployed) or `.env` (local, gitignored). Never commit keys, and never paste them into code or docs.
 - **Do not run Claude Code itself through Bedrock** (`CLAUDE_CODE_USE_BEDROCK` must be unset); use the Team plan.
