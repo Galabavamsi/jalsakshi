@@ -33,9 +33,10 @@ from jalsakshi.core.models import (
     TicketState,
     Village,
 )
-from jalsakshi.core.tickets import Denied, TicketEventKind
+from jalsakshi.core.tickets import Denied, TicketEventKind, closing_quorum
 from jalsakshi.core.verify import VerifyOutcome, evaluate_verification
-from jalsakshi.handlers import config, sfn, tickets
+from jalsakshi.data.official import load_official, official_age_note
+from jalsakshi.handlers import config, residents, sfn, tickets
 from jalsakshi.handlers.calls import household_decision
 from jalsakshi.handlers.common import (
     ApiError,
@@ -70,6 +71,7 @@ DEFAULT_ROLE: Final = OperatorRole.PANCHAYAT_SECRETARY
 _ROLE_ORDER: Final = (
     OperatorRole.PHED_EE_SIM,
     OperatorRole.PHED_AE_SIM,
+    OperatorRole.HANDPUMP_MECHANIC,
     OperatorRole.NAL_JAL_MITRA,
     OperatorRole.SARPANCH,
     OperatorRole.PANCHAYAT_SECRETARY,
@@ -87,7 +89,9 @@ def list_villages() -> Response:
     """Every village with today's status, its open ticket and the last 7 days' tally."""
     repo = config.repository()
     today = today_ist(config.now())
-    return json_response(200, [_village_row(repo, v, today) for v in repo.list_villages()])
+    allowed = _allowed_villages(repo)
+    rows = [_village_row(repo, v, today) for v in repo.list_villages() if v.id in allowed]
+    return json_response(200, rows)
 
 
 @app.get("/api/villages/<village_id>")
@@ -95,10 +99,14 @@ def get_village(village_id: str) -> Response:
     """Village, masked households, operators and the cached public context."""
     repo = config.repository()
     village = _village(repo, village_id)
+    official = load_official(village.lgd_code) if village.lgd_code else None
     body = {
         "village": _dump(village),
         "households": [_masked_household(h) for h in repo.list_households(village.id)],
         "operators": [_masked_operator(o) for o in repo.list_operators_for_village(village.id)],
+        "water_points": [_dump(p) for p in repo.list_water_points(village.id)],
+        "official": official.model_dump(mode="json") if official else None,
+        "official_note": official_age_note(official, config.now()) if official else None,
         "context": load_context(village.id),
     }
     return json_response(200, body)
@@ -190,14 +198,19 @@ def list_tickets() -> Response:
     """Tickets, newest first; every state when ``state`` is omitted."""
     state = _enum_query("state", TicketState)
     village_id = app.current_event.get_query_string_value("village_id") or None
-    found = config.repository().list_tickets(state=state, village_id=village_id)
-    return json_response(200, [_dump(t) for t in found])
+    repo = config.repository()
+    allowed = _allowed_villages(repo)
+    found = repo.list_tickets(state=state, village_id=village_id)
+    return json_response(200, [_dump(t) for t in found if t.village_id in allowed])
 
 
 @app.get("/api/tickets/<ticket_id>")
 def get_ticket(ticket_id: str) -> Response:
     """One ticket with its events."""
-    return json_response(200, _dump(tickets.load_ticket(config.repository(), ticket_id)))
+    repo = config.repository()
+    ticket = tickets.load_ticket(repo, ticket_id)
+    _village(repo, ticket.village_id)
+    return json_response(200, _dump(ticket))
 
 
 @app.post("/api/tickets/<ticket_id>/operator-fixed")
@@ -225,20 +238,24 @@ def close_ticket(ticket_id: str) -> Response:
     if ticket.state is TicketState.CLOSED_VERIFIED:
         return json_response(200, _dump(ticket))
     village = _village(repo, ticket.village_id)
+    quorum = closing_quorum(ticket, residents.point_quorum(repo, village, ticket.water_point_id))
     since = tickets.verify_started_at(ticket)
     checkins = tickets.verify_checkins(repo, ticket, today_ist(config.now()))
-    result = evaluate_verification(checkins, village.quorum, since=since)
-    decision = can_close_verified(ticket, village.quorum, result.yes)
+    result = evaluate_verification(checkins, quorum, since=since)
+    decision = can_close_verified(ticket, quorum, result.yes)
     if not decision.allowed:
         _note_denied(repo, ticket, decision)
         _require(decision, ticket.village_id, f"closing ticket {ticket.id}")
     if result.outcome is not VerifyOutcome.CLOSED_VERIFIED:
         raise ApiError(409, "verification_failed", "a household still reports a problem")
-    detail = {"via": "console", "yes": result.yes, "no": result.no, "quorum": village.quorum}
+    detail = {"via": "console", "yes": result.yes, "no": result.no, "quorum": quorum}
     closed = tickets.apply_event(repo, ticket.id, TicketEventKind.VERIFIED_OK, _actor(), detail)
     if not isinstance(closed, Denied):
         count("TicketsClosedVerified")
     return json_response(200, _dump(_transitioned(closed)))
+
+
+# --- who am I ------------------------------------------------------------------------------------
 
 
 # --- activity -------------------------------------------------------------------------------------
@@ -268,9 +285,22 @@ def _dump(model: BaseModel | None) -> dict[str, Any] | None:
 
 def _village(repo: Repository, village_id: str) -> Village:
     village = repo.get_village(village_id)
-    if village is None:
+    if village is None or village.id not in _allowed_villages(repo):
         raise ApiError(404, "not_found", f"village {village_id!r} not found")
     return village
+
+
+def user_id() -> str:
+    """The Cognito ``sub`` of the signed-in user ("local" in tests without one)."""
+    claims = _claims()
+    return str(claims.get("sub") or claims.get("username") or "local")
+
+
+def _allowed_villages(repo: Repository) -> set[str]:
+    """Admins (Cognito group ADMIN) see every village; everyone else only their own."""
+    if "ADMIN" in set(_groups(_claims().get("cognito:groups"))) or not _claims().get("sub"):
+        return {v.id for v in repo.list_villages()}
+    return set(repo.user_villages(user_id()))
 
 
 def _village_row(repo: Repository, village: Village, today: date) -> dict[str, Any]:
@@ -285,6 +315,7 @@ def _village_row(repo: Repository, village: Village, today: date) -> dict[str, A
         "village": _dump(village),
         "today": _dump(next((d for d in days if d.date == today), None)),
         "open_ticket": _dump(repo.get_open_ticket(village.id)),
+        "open_tickets": [_dump(t) for t in repo.list_open_tickets(village.id)],
         "observed_7d": observed,
     }
 
@@ -425,3 +456,8 @@ def _parse_since(raw: str) -> datetime:
     if since.tzinfo is None:
         raise ApiError(400, "invalid_request", "since needs a timezone (e.g. Z)")
     return since
+
+
+# Gram Panchayat routes (water points, families, consent, announcements, quality, analytics)
+# register on the same resolver.
+from jalsakshi.handlers import api_onboarding, api_panchayat  # noqa: E402, F401

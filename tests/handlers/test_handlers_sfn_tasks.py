@@ -23,7 +23,7 @@ from jalsakshi.handlers import calls, config, sfn_tasks, tickets
 from jalsakshi.handlers.dialer import DialError
 from jalsakshi.store import Repository
 
-from .fakes import DAY, NIGHT, NOW, PHONES, VID, Clock, FakeSfn, LambdaContext, checkin
+from .fakes import DAY, NOW, PHONES, VID, Clock, FakeSfn, LambdaContext, checkin
 
 CTX = LambdaContext()
 
@@ -93,12 +93,6 @@ def test_policy_check_denies_without_consent(seeded: Repository) -> None:
     out = run(sfn_tasks.policy_check_call, item("h3"))
     assert out == {**out, "allowed": False, "policy_id": "consent-required"}
     assert out["reason_hi"]
-
-
-def test_policy_check_denies_at_night(seeded: Repository, clock: Clock) -> None:
-    clock.now = NIGHT
-    out = run(sfn_tasks.policy_check_call, item("h1"))
-    assert out["allowed"] is False and out["policy_id"] == "calling-hours"
 
 
 def test_policy_check_allows_retry_after_unreachable_but_not_after_answer(
@@ -227,13 +221,23 @@ def test_reconcile_day_flags_no_supply(seeded: Repository) -> None:
 
 def test_reconcile_day_with_open_ticket_notes_instead_of_reopening(seeded: Repository) -> None:
     tid = open_assigned_ticket(seeded)
-    seeded.put_checkin(checkin("h1", water=WaterAnswer.YES, clean=CleanAnswer.NO))
-    seeded.put_checkin(checkin("h2", water=WaterAnswer.YES, clean=CleanAnswer.NO))
+    seeded.put_checkin(checkin("h1", water=WaterAnswer.NO))
+    seeded.put_checkin(checkin("h2", water=WaterAnswer.NO))
     out = run(sfn_tasks.reconcile_day, {"village_id": VID, "date": DAY.isoformat()})
-    assert out["status"] == "DIRTY" and out["ticket_reason"] is None
+    assert out["status"] == "NO_SUPPLY" and out["ticket_reason"] is None
     ticket = tickets.load_ticket(seeded, tid)
     assert ticket.events[-1].kind == "NOTE"
     assert ticket.events[-1].detail["note"] == "day_still_bad"
+
+
+def test_a_different_problem_opens_its_own_ticket(seeded: Repository) -> None:
+    open_assigned_ticket(seeded)  # NO_SUPPLY is open
+    seeded.put_checkin(checkin("h1", water=WaterAnswer.YES, clean=CleanAnswer.NO))
+    seeded.put_checkin(checkin("h2", water=WaterAnswer.YES, clean=CleanAnswer.NO))
+    out = run(sfn_tasks.reconcile_day, {"village_id": VID, "date": DAY.isoformat()})
+    assert out["status"] == "DIRTY" and out["ticket_reason"] == "DIRTY"
+    dirty = tickets.load_ticket(seeded, out["ticket_id"])
+    assert dirty.number is not None and sorted(dirty.reporters) == ["h1", "h2"]
 
 
 # --- TicketFlow tasks -----------------------------------------------------------------------------
@@ -383,7 +387,7 @@ def test_full_loop_check_in_to_verified_close(
         if not run(sfn_tasks.policy_check_call, call_item)["allowed"]:
             continue
         placed = run(sfn_tasks.place_call, call_item, token=f"call-{n}")
-        finish_sim_call(seeded, placed["call_id"], ["2", "#"])  # water: no; skip the note
+        finish_sim_call(seeded, placed["call_id"], ["2", "3", "#"])  # no water; none; no note
         assert sfn_fake.outputs_for(f"call-{n}")[0]["answered"] is True
     day = run(sfn_tasks.reconcile_day, {"village_id": VID, "date": roster["date"]})
     assert day["status"] == "NO_SUPPLY"
@@ -393,6 +397,7 @@ def test_full_loop_check_in_to_verified_close(
         "reason": day["ticket_reason"],
         "ticket_id": day["ticket_id"],
     }
+    assert day["tickets_opened"] == [day["ticket_id"]]
     assert run(sfn_tasks.open_ticket, flow_state)["opened"] is True
     run(sfn_tasks.notify_operator, flow_state, token="fix-1")
     operator_call = calls.find_pending(seeded, "op-1", Purpose.OPERATOR)

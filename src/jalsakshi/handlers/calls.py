@@ -8,38 +8,59 @@ and Lambda retries are harmless.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
-from typing import Final, Literal
+from datetime import date, timedelta
+from typing import Any, Final, Literal
 
 from pydantic import BaseModel, Field
 
 from jalsakshi.core.clock import today_ist
 from jalsakshi.core.models import (
+    BlockerCode,
     CallOutcome,
     CapturedVia,
     CheckIn,
     Consent,
+    ConsentStatus,
     DayStatus,
     Household,
     Operator,
     Purpose,
+    TicketOrigin,
     TicketReason,
     WaterAnswer,
 )
 from jalsakshi.core.reconcile import reconcile_day
 from jalsakshi.core.tickets import Denied
-from jalsakshi.handlers import config, sfn, tickets
+from jalsakshi.handlers import config, residents, sfn, tickets
 from jalsakshi.handlers.common import activity, count, logger
 from jalsakshi.handlers.config import VoiceProvider
 from jalsakshi.policy import Decision, can_place_call, ist_hour
 from jalsakshi.store import Repository
-from jalsakshi.voice.flow import FlowSession, result_to_checkin_fields, result_to_operator
+from jalsakshi.voice.flow import (
+    FlowSession,
+    FlowStep,
+    ReportChoice,
+    result_to_checkin_fields,
+    result_to_operator,
+    result_to_registration,
+    stop_requested,
+)
 
 PENDING_TTL_DAYS: Final = 1
 REACHED: Final = frozenset({CallOutcome.ANSWERED, CallOutcome.DECLINED})
 _WATER_HI: Final = {WaterAnswer.YES: "हाँ", WaterAnswer.NO: "नहीं", WaterAnswer.PARTIAL: "थोड़ा"}
-_PURPOSE_HI: Final = {Purpose.DAILY: "रोज़ की", Purpose.VERIFY: "पुष्टि की"}
+_PURPOSE_HI: Final = {
+    Purpose.DAILY: "रोज़ की",
+    Purpose.VERIFY: "पुष्टि की",
+    Purpose.REPORT: "मिस्ड-कॉल शिकायत की",
+}
+_REPORT_REASONS: Final = {
+    ReportChoice.NO_WATER: TicketReason.NO_SUPPLY,
+    ReportChoice.DIRTY: TicketReason.DIRTY,
+}
+CALLBACK_WINDOW: Final = timedelta(hours=24)
 
 
 class CallRecord(BaseModel):
@@ -49,9 +70,13 @@ class CallRecord(BaseModel):
     provider: VoiceProvider
     day: date
     attempt: int = Field(default=1, ge=1)
-    origin: Literal["workflow", "console"] = "console"
+    origin: Literal["workflow", "console", "callback", "broadcast", "summary"] = "console"
     finished: bool = False
     provider_call_uuid: str | None = None
+    caller_initiated: bool = False
+    phone_e164: str | None = None
+    broadcast_id: str | None = None
+    ticket_number: int | None = None
 
     @property
     def call_id(self) -> str:
@@ -118,25 +143,67 @@ def reached_today(repo: Repository, village_id: str, day: date, household_id: st
     )
 
 
-def household_decision(repo: Repository, household: Household, purpose: Purpose) -> Decision:
+def household_decision(
+    repo: Repository,
+    household: Household,
+    purpose: Purpose,
+    *,
+    caller_initiated: bool = False,
+    callbacks_today: int = 0,
+) -> Decision:
     """Cedar ``PlaceCall`` check for calling this household now."""
     now = config.now()
     calls = 0
     if purpose is Purpose.DAILY:
         calls = reached_today(repo, household.village_id, today_ist(now), household.id)
-    return can_place_call(household, purpose, ist_hour(now), calls)
+    elif purpose is Purpose.REGISTER and not caller_initiated:
+        calls = registered_today(repo, household.village_id, household.id)
+    return can_place_call(
+        household,
+        purpose,
+        ist_hour(now),
+        calls,
+        caller_initiated=caller_initiated,
+        callbacks_today=callbacks_today,
+        test_phone=household.phone_e164 in config.allowed_numbers(),
+    )
 
 
-def operator_decision(operator: Operator, village_id: str) -> Decision:
+def registered_today(repo: Repository, village_id: str, household_id: str) -> int:
+    """Registration calls already logged in the consent ledger for this household today."""
+    today = today_ist(config.now())
+    return sum(
+        1
+        for e in repo.list_consent_events(village_id)
+        if e.household_id == household_id and today_ist(e.at) == today
+    )
+
+
+def operator_decision(
+    operator: Operator,
+    village_id: str,
+    *,
+    caller_initiated: bool = False,
+    callbacks_today: int = 0,
+) -> Decision:
     """Cedar ``PlaceCall`` check for an operator call (calling hours apply to everyone).
 
     Operators agree to be called when they take the role, so the role itself is the consent.
+    A call-back after the operator's own missed call is limited like anyone else's.
     """
     consent = Consent(given_at=config.now(), channel="in_person", evidence_ref="operator-role")
     stand_in = Household(
         id=operator.id, village_id=village_id, phone_e164=operator.phone_e164, consent=consent
     )
-    return can_place_call(stand_in, Purpose.OPERATOR, ist_hour(config.now()), 0)
+    return can_place_call(
+        stand_in,
+        Purpose.OPERATOR,
+        ist_hour(config.now()),
+        0,
+        caller_initiated=caller_initiated,
+        callbacks_today=callbacks_today,
+        test_phone=operator.phone_e164 in config.allowed_numbers(),
+    )
 
 
 # --- simulator hand-off -----------------------------------------------------------------------
@@ -180,10 +247,17 @@ def finish_call(repo: Repository, loaded: LoadedCall, captured_via: CapturedVia)
     record = loaded.record
     if record.finished:
         return record
-    if record.flow.purpose is Purpose.OPERATOR:
-        _finish_operator(repo, record)
-    else:
-        _finish_household(repo, record, loaded.task_token, captured_via)
+    match record.flow.purpose:
+        case Purpose.OPERATOR:
+            _finish_operator(repo, record)
+        case Purpose.REGISTER:
+            _finish_registration(repo, record)
+        case Purpose.BROADCAST:
+            _finish_broadcast(repo, record)
+        case Purpose.SUMMARY:
+            logger.info("summary call ended", extra={"call_id": record.call_id})
+        case _:
+            record = _finish_household(repo, record, loaded.task_token, captured_via)
     done = record.model_copy(update={"finished": True})
     save_call(repo, done)
     return done
@@ -194,47 +268,139 @@ def refresh_day(repo: Repository, village_id: str, day: date) -> DayStatus | Non
     village = repo.get_village(village_id)
     if village is None:
         return None
-    checkins = repo.list_checkins(village_id, day, Purpose.DAILY)
-    status = reconcile_day(checkins, village, day, config.now())
+    checkins = repo.list_checkins(village_id, day)
+    points = repo.list_water_points(village_id)
+    status = reconcile_day(checkins, village, day, config.now(), points)
     repo.put_day_status(status)
     return status
 
 
-def reported_households(status: DayStatus | None, reason: TicketReason) -> int:
+def reported_households(
+    status: DayStatus | None, reason: TicketReason, water_point_id: str | None = None
+) -> int:
     """How many households reported the ticket's problem that day (for the operator summary)."""
     if status is None:
         return 0
-    return status.counts.dirty if reason is TicketReason.DIRTY else status.counts.no
+    counts = status.counts
+    for point in status.points:
+        if point.water_point_id == water_point_id:
+            counts = point.counts
+            break
+    return counts.dirty if reason is TicketReason.DIRTY else counts.no
 
 
 def _finish_household(
     repo: Repository, record: CallRecord, token: str | None, captured_via: CapturedVia
-) -> None:
+) -> CallRecord:
     flow = record.flow
     if flow.village_id is None or flow.household_id is None:
         raise ValueError(f"call {record.call_id} has no household")
-    fields = result_to_checkin_fields(flow)
+    household = repo.get_household(flow.village_id, flow.household_id)
+    if flow.purpose is Purpose.REPORT:
+        record = _finish_report(repo, record, household, captured_via)
+    else:
+        fields = result_to_checkin_fields(flow)
+        checkin = CheckIn(
+            village_id=flow.village_id,
+            date=record.day,
+            household_id=flow.household_id,
+            attempt=record.attempt,
+            call_id=record.call_id,
+            purpose=flow.purpose,
+            water_point_id=household.water_point_id if household else None,
+            captured_via=captured_via,
+            captured_at=config.now(),
+            **fields,
+        )
+        created = repo.put_checkin(checkin)
+        if created:
+            _report_checkin(checkin)
+        if token:
+            answered = checkin.outcome is CallOutcome.ANSWERED
+            output = {"call_id": record.call_id, "outcome": checkin.outcome, "answered": answered}
+            sfn.send_task_success(token, output)
+        elif created and flow.purpose is Purpose.DAILY:
+            refresh_day(repo, flow.village_id, record.day)
+    if stop_requested(flow) and household is not None:
+        residents.withdraw(repo, household, call_id=record.call_id)
+    clear_pending(repo, record)
+    return record
+
+
+def _finish_report(
+    repo: Repository, record: CallRecord, household: Household | None, captured_via: CapturedVia
+) -> CallRecord:
+    """A missed-call menu choice: store the answer, refresh the day, open or join a complaint."""
+    flow = record.flow
+    reason = _REPORT_REASONS.get(flow.answers.report) if flow.answers.report else None
+    village = repo.get_village(flow.village_id or "")
+    if reason is None or household is None or village is None:
+        return record
+    reports = repo.list_checkins(village.id, record.day, Purpose.REPORT)
+    stored = next((c for c in reports if c.call_id == record.call_id), None)
+    # A retried finish reuses this call's attempt, so the conditional put stays a no-op.
+    attempt = (
+        stored.attempt
+        if stored
+        else next_attempt(repo, village.id, record.day, Purpose.REPORT, household.id)
+    )
     checkin = CheckIn(
-        village_id=flow.village_id,
+        village_id=village.id,
         date=record.day,
-        household_id=flow.household_id,
-        attempt=record.attempt,
+        household_id=household.id,
+        attempt=attempt,
         call_id=record.call_id,
-        purpose=flow.purpose,
+        purpose=Purpose.REPORT,
+        water_point_id=household.water_point_id,
         captured_via=captured_via,
         captured_at=config.now(),
-        **fields,
+        **result_to_checkin_fields(flow),
     )
-    created = repo.put_checkin(checkin)
-    if created:
+    if repo.put_checkin(checkin):
         _report_checkin(checkin)
-    if token:
-        answered = checkin.outcome is CallOutcome.ANSWERED
-        output = {"call_id": record.call_id, "outcome": checkin.outcome, "answered": answered}
-        sfn.send_task_success(token, output)
-    elif created and flow.purpose is Purpose.DAILY:
-        refresh_day(repo, flow.village_id, record.day)
-    clear_pending(repo, record)
+    refresh_day(repo, village.id, record.day)
+    ticket = residents.report_problem(repo, village, household, reason, origin=TicketOrigin.REPORT)
+    return record.model_copy(update={"ticket_number": ticket.number})
+
+
+def _finish_registration(repo: Repository, record: CallRecord) -> None:
+    flow = record.flow
+    if flow.village_id is None or flow.household_id is None:
+        raise ValueError(f"registration call {record.call_id} has no village or household")
+    existing = repo.get_household(flow.village_id, flow.household_id)
+    phone = record.phone_e164 or (existing.phone_e164 if existing else None)
+    if phone is None:
+        raise ValueError(f"registration call {record.call_id} has no phone number")
+    result = result_to_registration(flow)
+    residents.finish_registration(
+        repo,
+        village_id=flow.village_id,
+        household_id=flow.household_id,
+        phone=phone,
+        call_id=record.call_id,
+        adult=result["adult"],
+        consent=result["consent"],
+        digits=result["consent_digits"],
+        access=result["access"],
+        language=result["language"],
+    )
+
+
+def _finish_broadcast(repo: Repository, record: CallRecord) -> None:
+    flow = record.flow
+    if not (record.broadcast_id and flow.village_id):
+        return
+    if flow.step is FlowStep.START:
+        return  # busy, no answer or failed: the hangup callback is not a delivery
+    from jalsakshi.handlers import broadcasts
+
+    broadcasts.record_delivery(
+        repo, flow.village_id, record.broadcast_id, heard=flow.answers.heard is True
+    )
+    if stop_requested(flow) and flow.household_id:
+        household = repo.get_household(flow.village_id, flow.household_id)
+        if household is not None:
+            residents.withdraw(repo, household, call_id=record.call_id)
 
 
 def _report_checkin(checkin: CheckIn) -> None:
@@ -261,16 +427,68 @@ def _report_checkin(checkin: CheckIn) -> None:
 
 def _finish_operator(repo: Repository, record: CallRecord) -> None:
     flow = record.flow
-    fixed = result_to_operator(flow)["fixed"]
+    outcome = result_to_operator(flow)
+    fixed, blocker = outcome["fixed"], outcome["blocker"]
+    actor = f"operator:{flow.operator_id}"
     if fixed is True and flow.ticket_id:
-        actor = f"operator:{flow.operator_id}"
         result = tickets.report_fixed(repo, flow.ticket_id, actor, via="call")
         if isinstance(result, Denied):
             logger.warning("operator fix not applied", extra={"reason": result.reason})
+        return
+    if blocker is not None and flow.ticket_id:
+        _record_blocker(repo, flow.ticket_id, blocker, actor, flow.operator_id)
         return
     activity(
         "call",
         flow.village_id,
         f"Operator {flow.operator_id} says ticket {flow.ticket_id} is not fixed yet",
         f"मित्र {flow.operator_id} ने कहा शिकायत {flow.ticket_id} अभी ठीक नहीं हुई",
+    )
+
+
+def _record_blocker(
+    repo: Repository,
+    ticket_id: str,
+    blocker: BlockerCode,
+    actor: str,
+    operator_id: str | None,
+) -> None:
+    """The operator gave a reason it is not fixed: note it, and re-route a "not mine"."""
+    detail: dict[str, object] = {"note": "operator_reason", "code": blocker.value}
+    if blocker is BlockerCode.NOT_MINE:
+        detail["not_mine"] = operator_id
+    result = residents.update_ticket(
+        repo, ticket_id, lambda t: t.model_copy(update={"blocker": blocker}), detail, actor
+    )
+    if isinstance(result, Denied):
+        logger.warning("blocker not recorded", extra={"reason": result.reason})
+        return
+    activity(
+        "ticket",
+        result.village_id,
+        f"Operator says complaint #{result.number} is blocked: {blocker.value}",
+        f"मित्र ने बताया शिकायत क्रमांक {result.number} क्यों अटकी है: {blocker.value}",
+    )
+
+
+def callbacks_today(repo: Repository, phone: str) -> int:
+    """Call-backs queued for this number's missed calls in the last 24 hours.
+
+    Rings inside the 10-minute cooldown are logged but queue nothing, so they do not count.
+    """
+    since = config.now() - CALLBACK_WINDOW
+    return sum(1 for m in repo.list_missed_calls(phone, since) if callback_queued(m))
+
+
+def callback_queued(missed: Mapping[str, Any]) -> bool:
+    """True when a logged missed call queued a call-back (entries without the flag: assume so)."""
+    return missed.get("callback", True) is not False
+
+
+def is_consented(household: Household | None) -> bool:
+    """True for an active household that has granted consent."""
+    return (
+        household is not None
+        and household.active
+        and household.effective_consent is ConsentStatus.GRANTED
     )

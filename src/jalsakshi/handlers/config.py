@@ -36,6 +36,7 @@ VOBIZ_AUTH_ID_PARAM: Final = "vobiz_auth_id"
 VOBIZ_AUTH_TOKEN_PARAM: Final = "vobiz_auth_token"
 VOBIZ_DID_PARAM: Final = "vobiz_did"
 ALLOWED_NUMBERS_PARAM: Final = "allowed_numbers"
+SARVAM_API_KEY_PARAM: Final = "sarvam_api_key"
 
 _BOTO_CONFIG: Final = Config(
     connect_timeout=3, read_timeout=10, retries={"max_attempts": 3, "mode": "standard"}
@@ -84,6 +85,17 @@ class Settings:
     brief_use_agent: bool
     verify_vobiz_signature: bool
     ivr_allowed_cidrs: tuple[str, ...]
+    prompts_bucket: str | None = None
+    outbound_fn: str | None = None
+    notes_fn: str | None = None
+    scheduler_group: str | None = None
+    scheduler_role_arn: str | None = None
+    outbound_fn_arn: str | None = None
+    callback_delay_s: int = 15
+    open_dialing: bool = False
+    checkin_group: str | None = None
+    checkin_role_arn: str | None = None
+    user_pool_id: str | None = None
 
     @property
     def ssm_prefix(self) -> str:
@@ -116,6 +128,17 @@ class Settings:
             brief_use_agent=_flag(env.get("JALSAKSHI_BRIEF_USE_AGENT"), True),
             verify_vobiz_signature=_flag(env.get("JALSAKSHI_VOBIZ_VERIFY_SIGNATURE"), False),
             ivr_allowed_cidrs=_csv(env.get("JALSAKSHI_IVR_ALLOWED_CIDRS")),
+            prompts_bucket=_optional(env, "JALSAKSHI_PROMPTS_BUCKET"),
+            outbound_fn=_optional(env, "JALSAKSHI_OUTBOUND_FN"),
+            notes_fn=_optional(env, "JALSAKSHI_NOTES_FN"),
+            scheduler_group=_optional(env, "JALSAKSHI_SCHEDULER_GROUP"),
+            scheduler_role_arn=_optional(env, "JALSAKSHI_SCHEDULER_ROLE_ARN"),
+            outbound_fn_arn=_optional(env, "JALSAKSHI_OUTBOUND_FN_ARN"),
+            callback_delay_s=int(_optional(env, "JALSAKSHI_CALLBACK_DELAY_S") or 15),
+            open_dialing=_flag(env.get("JALSAKSHI_OPEN_DIALING"), False),
+            checkin_group=_optional(env, "JALSAKSHI_CHECKIN_GROUP"),
+            checkin_role_arn=_optional(env, "JALSAKSHI_CHECKIN_ROLE_ARN"),
+            user_pool_id=_optional(env, "JALSAKSHI_USER_POOL_ID"),
         )
 
 

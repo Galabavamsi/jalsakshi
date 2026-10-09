@@ -7,6 +7,7 @@ or helpline numbers (PHED 1800-233-0008 and the like) never are.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Final
 from urllib.parse import urlencode
 
@@ -15,8 +16,17 @@ from jalsakshi.handlers.calls import CallRecord
 from jalsakshi.handlers.common import count, logger
 from jalsakshi.voice.adapters.vobiz import VobizAuth, place_call_request
 
+CALLER_WINDOW: Final = timedelta(hours=24)
 # Toll-free and shared-cost lines (where state helplines live) and emergency short codes.
-BLOCKED_PREFIXES: Final = ("+911800", "+911860", "+91100", "+91101", "+91102", "+91108")
+BLOCKED_PREFIXES: Final = (
+    "+911800",
+    "+911860",
+    "+91100",
+    "+91101",
+    "+91102",
+    "+91108",
+    "+910000",  # placeholder numbers of the labelled sample village
+)
 
 
 class DialError(RuntimeError):
@@ -24,11 +34,24 @@ class DialError(RuntimeError):
 
 
 def check_dialable(phone: str) -> None:
-    """Raise DialError unless ``phone`` is an allowlisted, non-helpline number."""
+    """Raise DialError unless ``phone`` may be dialled (never helplines or toll-free numbers).
+
+    Closed stages call only the SSM allowlist of test phones. Open stages also call numbers
+    that are registered in the table: a family added by a signed-in secretary (whose first call
+    asks for consent), a family that gave its own missed call, or a Panchayat team member.
+    Cedar still decides consent, calling hours and daily limits for every call.
+    """
     if phone.startswith(BLOCKED_PREFIXES):
         raise DialError("helpline and toll-free numbers are never dialled")
-    if phone not in config.allowed_numbers():
-        raise DialError("number is not on this stage's allowlist of consenting test phones")
+    if phone in config.allowed_numbers():
+        return
+    if config.settings().open_dialing:
+        repo = config.repository()
+        if repo.lookup_phone(phone).known:
+            return
+        if repo.list_missed_calls(phone, config.now() - CALLER_WINDOW):
+            return  # they called us: calling back is what they asked for
+    raise DialError("number is not registered with JalSakshi on this stage")
 
 
 def ivr_base_url() -> str:

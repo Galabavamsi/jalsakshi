@@ -16,7 +16,7 @@ from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, Response
 from jalsakshi.core.clock import today_ist
 from jalsakshi.core.ids import new_id
 from jalsakshi.core.models import CapturedVia, Household, Operator, Purpose, Ticket
-from jalsakshi.handlers import config, tickets
+from jalsakshi.handlers import config, residents, tickets
 from jalsakshi.handlers.calls import (
     CallRecord,
     LoadedCall,
@@ -64,7 +64,7 @@ def start_call() -> Response:
         loaded = _operator_call(repo, request.operator_id)
     else:
         loaded = _household_call(repo, str(request.household_id), request.purpose)
-    flow, actions = ivr.start(loaded.record.flow)
+    flow, actions = ivr.start(residents.with_language(repo, loaded.record.flow))
     record = loaded.record.model_copy(update={"flow": flow})
     save_call(repo, record)
     audio = config.settings().audio_base_url
@@ -117,6 +117,7 @@ def _household_call(repo: Repository, household_id: str, purpose: Purpose) -> Lo
         village_id=household.village_id,
         household_id=household.id,
         ticket_id=open_ticket.id if purpose is Purpose.VERIFY and open_ticket else None,
+        access=household.access,
     )
     attempt = next_attempt(repo, household.village_id, day, purpose, household.id)
     record = CallRecord(

@@ -22,7 +22,7 @@ from jalsakshi.core.models import (
     Village,
     WaterAnswer,
 )
-from jalsakshi.core.reconcile import is_answered, latest_attempts
+from jalsakshi.core.reconcile import DAY_PURPOSES, is_answered, latest_answers
 from jalsakshi.core.tickets import Denied, TicketEventKind, transition
 from jalsakshi.handlers import config, sfn
 from jalsakshi.handlers.common import activity, logger
@@ -133,16 +133,37 @@ def report_fixed(
 
 
 def verify_targets(
-    village: Village, ticket: Ticket, households: list[Household], daily: list[CheckIn]
+    village: Village,
+    ticket: Ticket,
+    households: list[Household],
+    daily: list[CheckIn],
+    quorum: int | None = None,
 ) -> list[Household]:
-    """Households to call back: those that reported the problem, else everyone active.
+    """Households to call back: those that reported the problem, else everyone on the point.
 
-    ``daily`` holds the DAILY check-ins of the day the ticket opened. When fewer reporters than
-    the quorum exist, all active households are called so a quorum stays reachable.
+    ``daily`` holds the DAILY and REPORT check-ins of the day the ticket opened; the ticket's own
+    ``reporters`` (missed calls, voice notes) always count. When fewer reporters than the quorum
+    exist, every active household on the ticket's water point (or the whole village) is called,
+    so a quorum stays reachable.
     """
-    reporters = {c.household_id for c in latest_attempts(daily) if _reported(c, ticket.reason)}
+    needed = quorum or ticket.quorum or village.quorum
+    day = [
+        c
+        for c in daily
+        if c.purpose in DAY_PURPOSES
+        and (ticket.water_point_id is None or c.water_point_id == ticket.water_point_id)
+    ]
+    reporters = {c.household_id for c in latest_answers(day) if _reported(c, ticket.reason)}
+    reporters.update(ticket.reporters)
     chosen = [h for h in households if h.id in reporters]
-    return chosen if len(chosen) >= village.quorum else households
+    if len(chosen) >= needed:
+        return chosen
+    on_point = [
+        h
+        for h in households
+        if ticket.water_point_id is None or h.water_point_id == ticket.water_point_id
+    ]
+    return on_point or households
 
 
 def ticket_day(ticket: Ticket) -> date:
@@ -167,7 +188,7 @@ def verify_checkins(repo: Repository, ticket: Ticket, today: date) -> list[Check
 
 
 def _reported(checkin: CheckIn, reason: TicketReason) -> bool:
-    if not is_answered(checkin) or checkin.purpose is not Purpose.DAILY:
+    if not is_answered(checkin) or checkin.purpose not in (Purpose.DAILY, Purpose.REPORT):
         return False
     if reason is TicketReason.DIRTY:
         return checkin.clean == CleanAnswer.NO

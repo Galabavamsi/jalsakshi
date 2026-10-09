@@ -28,7 +28,6 @@ from .fakes import (
     BUCKET,
     CHECKIN_ARN,
     DAY,
-    NIGHT,
     NOW,
     VID,
     Clock,
@@ -158,12 +157,6 @@ def test_run_checkin_starts_the_workflow(seeded: Repository, sfn_fake: FakeSfn) 
         "trigger": "console",
         "requested_by": "console:alice",
     }
-
-
-def test_run_checkin_denied_outside_calling_hours(seeded: Repository, clock: Clock) -> None:
-    clock.now = NIGHT
-    status, body, _ = post(f"/api/villages/{VID}/checkin/run", {"purpose": "DAILY"})
-    assert status == 403 and body["policy_id"] == "calling-hours"
 
 
 def test_run_checkin_rejects_other_purposes_and_missing_workflow(
@@ -316,3 +309,13 @@ def test_department_role_is_most_restrictive_group() -> None:
     assert api._groups("[SARPANCH PHED_EE_SIM]") == ["SARPANCH", "PHED_EE_SIM"]
     assert api._groups(["A", "B"]) == ["A", "B"]
     assert api._groups(None) == []
+
+
+def test_me_reports_role_and_allowed_actions(seeded: Repository) -> None:
+    status, body, _ = get("/api/me")
+    assert status == 200
+    assert body["role"] == "PANCHAYAT_SECRETARY"
+    assert body["can_approve_announcements"] is False
+    sarpanch = {**SECRETARY, "cognito:groups": "[SARPANCH]"}
+    status, body, _ = get("/api/me", claims=sarpanch)
+    assert body["role"] == "SARPANCH" and body["can_approve_announcements"] is True

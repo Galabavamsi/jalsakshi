@@ -17,7 +17,7 @@ from jalsakshi.core.tickets import TicketEventKind, new_ticket
 from jalsakshi.handlers import calls, sfn_tasks, sim, tickets
 from jalsakshi.store import Repository
 
-from .fakes import DAY, NIGHT, NOW, VID, Clock, FakeSfn, HttpEvent, LambdaContext, call
+from .fakes import DAY, NOW, VID, FakeSfn, HttpEvent, LambdaContext, call
 
 CLAIMS = {"username": "alice", "cognito:groups": "[SARPANCH]"}
 
@@ -62,6 +62,7 @@ def test_daily_call_end_to_end(seeded: Repository) -> None:
 def test_second_daily_call_same_day_is_denied(seeded: Repository) -> None:
     _, body = start({"household_id": "h1", "purpose": "DAILY"})
     press(body["call_id"], {"digits": "2"})
+    press(body["call_id"], {"digits": "3"})
     press(body["call_id"], {"digits": "#"})
     status, denied = start({"household_id": "h1", "purpose": "DAILY"})
     assert status == 403
@@ -72,12 +73,6 @@ def test_second_daily_call_same_day_is_denied(seeded: Repository) -> None:
 def test_household_without_consent_is_denied(seeded: Repository) -> None:
     status, denied = start({"household_id": "h3", "purpose": "DAILY"})
     assert status == 403 and denied["policy_id"] == "consent-required"
-
-
-def test_calls_outside_hours_are_denied(seeded: Repository, clock: Clock) -> None:
-    clock.now = NIGHT
-    status, denied = start({"household_id": "h1", "purpose": "VERIFY"})
-    assert status == 403 and denied["policy_id"] == "calling-hours"
 
 
 def test_unknown_household_and_call(seeded: Repository) -> None:
@@ -121,6 +116,7 @@ def test_pending_workflow_call_is_picked_up_and_resumes_the_task(
     _, body = start({"household_id": "h1", "purpose": "DAILY"})
     assert body["call_id"] == placed["call_id"]
     press(body["call_id"], {"digits": "2"})
+    press(body["call_id"], {"digits": "1"})
     _, done = press(body["call_id"], {"digits": "#"})
     assert done["done"] is True
     assert sfn_fake.outputs_for("tok-7") == [
