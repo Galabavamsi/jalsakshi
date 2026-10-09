@@ -47,6 +47,13 @@ TKT_PREFIX: Final = "TKT#"
 EVT_PREFIX: Final = "EVT#"
 OP_PREFIX: Final = "OP#"
 STEP_PREFIX: Final = "STEP#"
+WP_PREFIX: Final = "WP#"
+CONSENT_PREFIX: Final = "CONSENT#"
+BCAST_PREFIX: Final = "BCAST#"
+QT_PREFIX: Final = "QT#"
+OPEN_TICKET_PREFIX: Final = "OPENTKT#"
+TICKET_SEQ_SK: Final = "SEQ#TICKET"
+VILLAGE_WIDE: Final = "village"
 MAX_ATTEMPT: Final = 999
 
 _SERIALIZER: Final = TypeSerializer()
@@ -152,6 +159,46 @@ def op_pk(oid: str) -> str:
 def op_link_sk(oid: str) -> str:
     """`OP#{oid}` under a village: denormalised copy listing the village's operators."""
     return f"{OP_PREFIX}{_part(oid)}"
+
+
+def wp_sk(wpid: str) -> str:
+    """`WP#{wpid}`: water point under its village."""
+    return f"{WP_PREFIX}{_part(wpid)}"
+
+
+def open_ticket_sk(water_point_id: str | None, reason: str) -> str:
+    """`OPENTKT#{wpid|village}#{reason}`: at most one open ticket per water point and reason."""
+    return f"{OPEN_TICKET_PREFIX}{_part(water_point_id or VILLAGE_WIDE)}{SEP}{_part(reason)}"
+
+
+def consent_sk(at: datetime, hid: str) -> str:
+    """`CONSENT#{iso_ts}#{hid}`: one append-only consent ledger entry."""
+    return f"{CONSENT_PREFIX}{iso_ts(at)}{SEP}{_part(hid)}"
+
+
+def bcast_sk(bid: str) -> str:
+    """`BCAST#{bid}`: announcement under its village."""
+    return f"{BCAST_PREFIX}{_part(bid)}"
+
+
+def qt_sk(at: datetime, qid: str) -> str:
+    """`QT#{iso_ts}#{qid}`: water-quality test under its village, in test-time order."""
+    return f"{QT_PREFIX}{iso_ts(at)}{SEP}{_part(qid)}"
+
+
+def phone_pk(e164: str) -> str:
+    """`PHONE#{e164}`: reverse lookup from a caller's number to households and operators."""
+    return f"PHONE{SEP}{_part(e164)}"
+
+
+def user_pk(sub: str) -> str:
+    """`USER#{cognito sub}`: the villages a console account looks after."""
+    return f"USER{SEP}{_part(sub)}"
+
+
+def missed_pk(e164: str) -> str:
+    """`MISSED#{e164}`: log of missed calls from one number (rate limits, audit)."""
+    return f"MISSED{SEP}{_part(e164)}"
 
 
 def activity_pk(day: date) -> str:

@@ -32,3 +32,14 @@ class ActivityEntry(BaseModel):
     village_id: str | None = None
     text_en: str
     text_hi: str
+
+
+class PhoneRoles(BaseModel):
+    """Who a phone number belongs to: (village_id, household_id) pairs and operator ids."""
+
+    households: list[tuple[str, str]] = Field(default_factory=list)
+    operators: list[str] = Field(default_factory=list)
+
+    @property
+    def known(self) -> bool:
+        return bool(self.households or self.operators)

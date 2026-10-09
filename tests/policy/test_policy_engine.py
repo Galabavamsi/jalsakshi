@@ -93,16 +93,7 @@ def test_consent_required_denies_without_consent() -> None:
     assert decision.reasons_hi == [REASONS[PolicyId.CONSENT_REQUIRED].hi]
 
 
-# calling-hours
-
-
-@pytest.mark.parametrize("hour", range(-1, 25))
-def test_calling_hours_window(hour: int) -> None:
-    decision = ok_call(hour_ist=hour)
-    if 9 <= hour < 21:
-        assert_allowed(decision)
-    else:
-        assert_denied_by(decision, PolicyId.CALLING_HOURS)
+# no calling-hours rule: JalSakshi may call at any hour (decided 9 Oct)
 
 
 # one-call-per-day
@@ -123,7 +114,6 @@ def test_all_call_denials_are_reported_in_policy_order() -> None:
     assert_denied_by(
         decision,
         PolicyId.CONSENT_REQUIRED,
-        PolicyId.CALLING_HOURS,
         PolicyId.ONE_CALL_PER_DAY,
     )
 
@@ -139,11 +129,9 @@ def test_place_call_matches_the_written_rules(
 ) -> None:
     decision = can_place_call(make_household(consent=consent), purpose, hour, calls)
     expected: list[str] = []
-    if not consent:
+    if not consent and purpose is not Purpose.REGISTER:
         expected.append(PolicyId.CONSENT_REQUIRED)
-    if not 9 <= hour < 21:
-        expected.append(PolicyId.CALLING_HOURS)
-    if purpose is Purpose.DAILY and calls >= 1:
+    if purpose in (Purpose.DAILY, Purpose.REGISTER) and calls >= 1:
         expected.append(PolicyId.ONE_CALL_PER_DAY)
     assert decision.allowed is (not expected)
     assert decision.policy_ids == expected

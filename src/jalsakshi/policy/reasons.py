@@ -16,11 +16,15 @@ class PolicyId(StrEnum):
     """The ``@id`` of each forbid rule, in the order they appear in the policy file."""
 
     CONSENT_REQUIRED = "consent-required"
-    CALLING_HOURS = "calling-hours"
+    NO_CALLS_AFTER_WITHDRAWAL = "no-calls-after-withdrawal"
     ONE_CALL_PER_DAY = "one-call-per-day"
+    CALLBACK_LIMIT = "callback-limit"
     VERIFY_NEEDS_QUORUM = "verify-needs-quorum"
     NO_HOUSEHOLD_VIEW_FOR_DEPT = "no-household-view-for-dept"
     STALE_DATA = "stale-data"
+    BROADCAST_NEEDS_SARPANCH = "broadcast-needs-sarpanch"
+    BROADCAST_NOT_APPROVED = "broadcast-not-approved"
+    BROADCAST_WEEKLY_LIMIT = "broadcast-weekly-limit"
 
 
 ENGINE_ERROR_ID: Final = "policy-evaluation-error"
@@ -43,9 +47,25 @@ REASONS: Final[Mapping[str, Reason]] = MappingProxyType(
             en="No consent on file for this household.",
             hi="इस घर की सहमति दर्ज नहीं है, इसलिए कॉल नहीं होगी।",
         ),
-        PolicyId.CALLING_HOURS: Reason(
-            en="Calls are allowed only between 09:00 and 21:00 IST (TRAI rule).",
-            hi="कॉल सिर्फ़ सुबह 9 बजे से रात 9 बजे के बीच हो सकती है (TRAI नियम)।",
+        PolicyId.NO_CALLS_AFTER_WITHDRAWAL: Reason(
+            en="This family said no to calls (or stopped them), so it is not called.",
+            hi="इस परिवार ने कॉल के लिए मना किया है (या बंद कराई हैं), इसलिए कॉल नहीं होगी।",
+        ),
+        PolicyId.CALLBACK_LIMIT: Reason(
+            en="This number already got 5 call-backs today.",
+            hi="इस नंबर पर आज पहले ही 5 बार वापस कॉल हो चुकी है।",
+        ),
+        PolicyId.BROADCAST_NEEDS_SARPANCH: Reason(
+            en="Only the sarpanch can approve an announcement.",
+            hi="घोषणा को सिर्फ़ सरपंच मंज़ूरी दे सकते हैं।",
+        ),
+        PolicyId.BROADCAST_NOT_APPROVED: Reason(
+            en="The sarpanch has not approved this announcement yet.",
+            hi="सरपंच ने अभी इस घोषणा को मंज़ूरी नहीं दी है।",
+        ),
+        PolicyId.BROADCAST_WEEKLY_LIMIT: Reason(
+            en="At most 2 announcements a week can be sent to the village.",
+            hi="गाँव में हफ़्ते में ज़्यादा से ज़्यादा 2 घोषणाएँ भेजी जा सकती हैं।",
         ),
         PolicyId.ONE_CALL_PER_DAY: Reason(
             en="This household was already called today.",

@@ -21,7 +21,7 @@ from typing import Any, Final
 import cedarpy
 from pydantic import BaseModel, ConfigDict, Field
 
-from jalsakshi.core.models import Household, OperatorRole, Purpose, Ticket
+from jalsakshi.core.models import Broadcast, Household, OperatorRole, Purpose, Ticket
 from jalsakshi.policy.reasons import ALLOW_BY_DEFAULT_ID, ENGINE_ERROR_ID, PolicyId, reason_for
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,8 @@ class Action(StrEnum):
     CLOSE_VERIFIED = "CloseVerified"
     VIEW_HOUSEHOLD_ANSWERS = "ViewHouseholdAnswers"
     PUBLISH_EVIDENCE = "PublishEvidence"
+    APPROVE_BROADCAST = "ApproveBroadcast"
+    SEND_BROADCAST = "SendBroadcast"
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,16 +189,55 @@ def ist_hour(at: datetime) -> int:
 
 
 def can_place_call(
-    household: Household, purpose: Purpose, hour_ist: int, calls_today: int
+    household: Household,
+    purpose: Purpose,
+    hour_ist: int,
+    calls_today: int,
+    *,
+    caller_initiated: bool = False,
+    callbacks_today: int = 0,
+    test_phone: bool = False,
 ) -> Decision:
-    """May the system call this household now? ``calls_today`` counts this purpose's calls today."""
+    """May the system call this household now? ``calls_today`` counts this purpose's calls today.
+
+    ``caller_initiated`` marks a call back after the household's own missed call;
+    ``callbacks_today`` counts such call-backs to this number today.
+    """
     resource = Entity(
         "Household",
         household.id,
-        {"village_id": household.village_id, "consent_given": household.consent_given},
+        {
+            "village_id": household.village_id,
+            "consent_given": household.consent_given,
+            "consent_status": household.effective_consent.value,
+        },
     )
-    context = {"hour_ist": hour_ist, "calls_today": calls_today, "purpose": str(purpose)}
+    context = {
+        "hour_ist": hour_ist,
+        "calls_today": calls_today,
+        "purpose": str(purpose),
+        "caller_initiated": caller_initiated,
+        "callbacks_today": callbacks_today,
+        "test_phone": test_phone,
+    }
     return authorize(Action.PLACE_CALL, SYSTEM, resource, context)
+
+
+def can_approve_broadcast(role: OperatorRole, broadcast: Broadcast) -> Decision:
+    """May a console user with this role approve this announcement?"""
+    principal = Entity("Operator", f"role:{role}", {"role": str(role)})
+    return authorize(Action.APPROVE_BROADCAST, principal, _broadcast_entity(broadcast))
+
+
+def can_send_broadcast(broadcast: Broadcast, sent_last_7_days: int) -> Decision:
+    """May this announcement be played to households now?"""
+    context = {"sent_last_7_days": sent_last_7_days}
+    return authorize(Action.SEND_BROADCAST, SYSTEM, _broadcast_entity(broadcast), context)
+
+
+def _broadcast_entity(broadcast: Broadcast) -> Entity:
+    attrs = {"village_id": broadcast.village_id, "state": broadcast.state.value}
+    return Entity("Broadcast", broadcast.id, attrs)
 
 
 def can_close_verified(ticket: Ticket, quorum: int, verify_yes: int) -> Decision:
