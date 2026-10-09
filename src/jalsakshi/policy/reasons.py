@@ -17,7 +17,6 @@ class PolicyId(StrEnum):
 
     CONSENT_REQUIRED = "consent-required"
     NO_CALLS_AFTER_WITHDRAWAL = "no-calls-after-withdrawal"
-    ONE_CALL_PER_DAY = "one-call-per-day"
     CALLBACK_LIMIT = "callback-limit"
     VERIFY_NEEDS_QUORUM = "verify-needs-quorum"
     NO_HOUSEHOLD_VIEW_FOR_DEPT = "no-household-view-for-dept"
@@ -66,10 +65,6 @@ REASONS: Final[Mapping[str, Reason]] = MappingProxyType(
         PolicyId.BROADCAST_WEEKLY_LIMIT: Reason(
             en="At most 2 announcements a week can be sent to the village.",
             hi="गाँव में हफ़्ते में ज़्यादा से ज़्यादा 2 घोषणाएँ भेजी जा सकती हैं।",
-        ),
-        PolicyId.ONE_CALL_PER_DAY: Reason(
-            en="This household was already called today.",
-            hi="इस घर को आज पहले ही कॉल हो चुकी है।",
         ),
         PolicyId.VERIFY_NEEDS_QUORUM: Reason(
             en="Not enough households have confirmed that water is back.",

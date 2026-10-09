@@ -96,26 +96,18 @@ def test_consent_required_denies_without_consent() -> None:
 # no calling-hours rule: JalSakshi may call at any hour (decided 9 Oct)
 
 
-# one-call-per-day
+# no one-call-a-day rule: the secretary may call the families again the same day (decided 10 Oct)
 
 
 @pytest.mark.parametrize("calls_today", [1, 2, 7])
-def test_one_call_per_day_denies_second_daily_call(calls_today: int) -> None:
-    assert_denied_by(ok_call(calls_today=calls_today), PolicyId.ONE_CALL_PER_DAY)
+@pytest.mark.parametrize("purpose", [Purpose.DAILY, Purpose.REGISTER, Purpose.VERIFY])
+def test_more_calls_the_same_day_are_allowed(purpose: Purpose, calls_today: int) -> None:
+    assert_allowed(ok_call(purpose=purpose, calls_today=calls_today))
 
 
-@pytest.mark.parametrize("purpose", [Purpose.VERIFY, Purpose.OPERATOR])
-def test_one_call_per_day_only_limits_daily_calls(purpose: Purpose) -> None:
-    assert_allowed(ok_call(purpose=purpose, calls_today=3))
-
-
-def test_all_call_denials_are_reported_in_policy_order() -> None:
+def test_a_call_without_consent_is_denied_whatever_the_count() -> None:
     decision = ok_call(household=make_household(consent=False), hour_ist=22, calls_today=1)
-    assert_denied_by(
-        decision,
-        PolicyId.CONSENT_REQUIRED,
-        PolicyId.ONE_CALL_PER_DAY,
-    )
+    assert_denied_by(decision, PolicyId.CONSENT_REQUIRED)
 
 
 @given(
@@ -131,8 +123,6 @@ def test_place_call_matches_the_written_rules(
     expected: list[str] = []
     if not consent and purpose is not Purpose.REGISTER:
         expected.append(PolicyId.CONSENT_REQUIRED)
-    if purpose in (Purpose.DAILY, Purpose.REGISTER) and calls >= 1:
-        expected.append(PolicyId.ONE_CALL_PER_DAY)
     assert decision.allowed is (not expected)
     assert decision.policy_ids == expected
 

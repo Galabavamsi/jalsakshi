@@ -54,7 +54,7 @@ from jalsakshi.voice.catalog import audio_base_for, catalog_for
 MIN_NOTE_S: Final = 1
 HANGUP_XML: Final = f"{XML_DECLARATION}<Response><Hangup /></Response>"
 REJECT_XML: Final = f'{XML_DECLARATION}<Response><Hangup reason="rejected" /></Response>'
-CALLBACK_COOLDOWN: Final = timedelta(minutes=10)
+CALLBACK_COOLDOWN: Final = timedelta(minutes=2)
 _DIGITS_ONLY: Final = re.compile(r"\D")
 
 app = APIGatewayHttpResolver()
@@ -177,14 +177,20 @@ def _inbound(repo: Repository, event: VobizEvent) -> str:
         logger.info("missed call without caller id")
         return REJECT_XML
     now = config.now()
-    # Only call-backs count (1 per 10 min, 5 a day): repeated rings in the cooldown are logged
-    # but must not push the next call-back further away or use up the day's limit.
+    # Only call-backs count (1 per 2 min, 5 a day): a caller often rings twice in a row; those
+    # rings are logged (and shown) but must not queue a second call or use up the day's limit.
     since = now - CALLBACK_COOLDOWN
     recent = [m for m in repo.list_missed_calls(phone, since) if callback_queued(m)]
     repo.record_missed_call(phone, now, {"call_uuid": event.call_uuid, "callback": not recent})
     count("MissedCalls")
     if recent:
         logger.info("repeat missed call within cooldown", extra={"phone": mask_phone(phone)})
+        activity(
+            "missed_call",
+            None,
+            f"Missed call from {mask_phone(phone)} again; the call-back is already on its way",
+            f"{mask_phone(phone)} से फिर मिस्ड कॉल; वापस कॉल पहले से जा रही है",
+        )
         return REJECT_XML
     job = {"kind": "callback", "phone": phone, "missed_at": now.isoformat()}
     _invoke_async(config.settings().outbound_fn, {**job, "delay_s": _delay_s()})

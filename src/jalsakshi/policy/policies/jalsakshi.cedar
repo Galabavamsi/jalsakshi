@@ -20,15 +20,8 @@ when {
   ["DECLINED", "WITHDRAWN"].contains(resource.consent_status) && !context.caller_initiated
 };
 
-// At most one daily check-in (or one unasked registration call) per household per day.
-// Verify calls and calls back after a missed call are not limited here.
-@id("one-call-per-day")
-forbid (principal, action == Action::"PlaceCall", resource)
-when {
-  ["DAILY", "REGISTER"].contains(context.purpose) &&
-  !context.caller_initiated &&
-  context.calls_today >= 1
-};
+// There is no one-call-a-day limit (removed by the team on 10 Oct): the secretary may call the
+// families again the same day. Call-backs after missed calls stay limited below.
 
 // Calls back after missed calls: at most 5 a day per number, so nobody can be made to spam.
 @id("callback-limit")

@@ -41,9 +41,8 @@ def test_registration_call_needs_no_prior_consent() -> None:
     assert decision.allowed
 
 
-def test_only_one_unasked_registration_call_a_day() -> None:
-    decision = can_place_call(household(ConsentStatus.NONE), Purpose.REGISTER, 11, 1)
-    assert decision.policy_ids == [PolicyId.ONE_CALL_PER_DAY]
+def test_a_family_that_did_not_pick_up_can_be_called_again_the_same_day() -> None:
+    assert can_place_call(household(ConsentStatus.NONE), Purpose.REGISTER, 11, 1).allowed
 
 
 @pytest.mark.parametrize("status", [ConsentStatus.DECLINED, ConsentStatus.WITHDRAWN])
