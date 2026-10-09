@@ -1,0 +1,198 @@
+{
+ "help": "https://nwdp.nwic.gov.in/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "fields": [
+   {
+    "id": "_id",
+    "type": "int"
+   },
+   {
+    "id": "Station",
+    "type": "text"
+   },
+   {
+    "id": "Latitude",
+    "type": "text"
+   },
+   {
+    "id": "Longitude",
+    "type": "text"
+   },
+   {
+    "id": "Data Acquisition Time",
+    "type": "text"
+   },
+   {
+    "id": "Groundwater Level Telemetry 6 Hourly (meter)",
+    "type": "text"
+   }
+  ],
+  "filters": {
+   "District LGD Code": "378",
+   "Station": "Biroda_2"
+  },
+  "include_total": true,
+  "limit": 1500,
+  "records_format": "objects",
+  "resource_id": "40c11a45-e4ca-46a6-9af7-497844bf5267",
+  "sort": "_id desc",
+  "total_estimation_threshold": null,
+  "records": [
+   {
+    "_id": 34565,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.301"
+   },
+   {
+    "_id": 34564,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.148"
+   },
+   {
+    "_id": 34563,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-7.991"
+   },
+   {
+    "_id": 34562,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-10-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.103"
+   },
+   {
+    "_id": 34561,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "05-10-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.118"
+   },
+   {
+    "_id": 34560,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "05-10-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-8.092"
+   },
+   {
+    "_id": 34473,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "31-08-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-10.826"
+   },
+   {
+    "_id": 34406,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "21-05-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-19.402"
+   },
+   {
+    "_id": 34391,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "17-05-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-19.612"
+   },
+   {
+    "_id": 34376,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "12-05-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-19.959"
+   },
+   {
+    "_id": 34361,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "06-05-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-20.82"
+   },
+   {
+    "_id": 34345,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "30-04-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-22.104"
+   },
+   {
+    "_id": 34315,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "23-04-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-23.06"
+   },
+   {
+    "_id": 34285,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "15-04-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-22.157"
+   },
+   {
+    "_id": 34255,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "08-04-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-21.01"
+   },
+   {
+    "_id": 34225,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "31-03-2026 18:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-20.252"
+   },
+   {
+    "_id": 34212,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "28-03-2026 12:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-19.955"
+   },
+   {
+    "_id": 34199,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "22-03-2026 06:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-18.834"
+   },
+   {
+    "_id": 34186,
+    "Station": "Biroda_2",
+    "Latitude": "21.24440000",
+    "Longitude": "81.28330000",
+    "Data Acquisition Time": "19-03-2026 00:00",
+    "Groundwater Level Telemetry 6 Hourly (meter)": "-18.623"
+   }
+  ],
+  "total": 19,
+  "total_was_estimated": false
+ }
+}

@@ -22,22 +22,19 @@ def cat() -> PromptCatalog:
 
 
 def test_loads_repo_catalog(cat: PromptCatalog) -> None:
-    assert cat.version == 1
+    assert cat.version == 3
     assert cat.language == "hi-IN"
     assert "household.q_water" in cat.template_keys()
     assert "version" not in cat.template_keys()
 
 
 def test_plain_prompt_text(cat: PromptCatalog) -> None:
-    assert cat.text("household.q_water").startswith("Aaj nal mein paani aaya?")
+    assert cat.text("household.q_water_house_tap").startswith("Aaj ghar ke nal mein paani aaya?")
 
 
 def test_variable_prompt_uses_hindi_number_words(cat: PromptCatalog) -> None:
     text = cat.text("operator.summary_no_supply", households=3)
-    assert text == (
-        "Aaj gaon mein nal mein paani na aane ki shikayat hai. "
-        "Shikayat karne wale gharon ki sankhya: teen."
-    )
+    assert text == ("Paani na aane ki shikayat hai. Shikayat karne wale gharon ki sankhya: teen.")
 
 
 def test_large_counts_stay_digits(cat: PromptCatalog) -> None:
@@ -70,8 +67,9 @@ def test_audio_keys_cover_plain_prompts_and_variants(cat: PromptCatalog) -> None
     keys = cat.audio_keys()
     templated = [k for k in cat.template_keys() if cat.placeholders(k)]
     plain = [k for k in cat.template_keys() if not cat.placeholders(k)]
-    assert templated == ["operator.summary_no_supply", "operator.summary_dirty"]
-    assert len(keys) == len(plain) + 9 * len(templated)
+    numbered = [k for k in templated if len(cat.placeholders(k)) == 1]
+    assert numbered[:2] == ["operator.summary_no_supply", "operator.summary_dirty"]
+    assert len(keys) == len(plain) + 9 * len(numbered)
     assert "operator.summary_no_supply" not in keys
     assert {f"operator.summary_no_supply.n{n}" for n in range(1, 10)} <= set(keys)
     assert len(set(keys)) == len(keys)
@@ -162,4 +160,4 @@ def test_default_catalog_and_env_override(tmp_path: Path, monkeypatch: pytest.Mo
     finally:
         monkeypatch.delenv(catalog_module.PROMPTS_PATH_ENV)
         default_catalog.cache_clear()
-    assert default_catalog().version == 1
+    assert default_catalog().version == 3

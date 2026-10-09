@@ -34,7 +34,7 @@ def test_to_json_shapes_match_contract() -> None:
         {
             "type": "get_digits",
             "num_digits": 1,
-            "timeout_s": 10,
+            "timeout_s": 15,
             "prompts": [
                 {
                     "type": "play",
@@ -67,7 +67,8 @@ def test_to_json_fills_audio_urls_for_clips_only() -> None:
 
 def test_record_and_hangup_json() -> None:
     session, _ = start(FlowSession(call_id="sim-3", purpose=Purpose.DAILY))
-    session, actions, _ = on_input(session, "2")
+    session, _, _ = on_input(session, "2")
+    session, actions, _ = on_input(session, "1")
     assert to_json(actions)[-1] == {"type": "record", "max_s": 15}
     _, actions, done = on_input(session, "#")
     assert done

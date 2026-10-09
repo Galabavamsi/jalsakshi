@@ -8,9 +8,11 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from jalsakshi.core.models import (
+    BlockerCode,
     CallOutcome,
     CheckIn,
     CleanAnswer,
+    Fallback,
     Purpose,
     TicketReason,
     WaterAnswer,
@@ -90,7 +92,7 @@ def test_daily_start_greets_then_asks_water() -> None:
     gather = actions[-1]
     assert isinstance(gather, GetDigits)
     assert gather.num_digits == 1
-    assert gather.timeout_s == 10
+    assert gather.timeout_s == 15
 
 
 @pytest.mark.parametrize("digit", ["1", "3"])
@@ -101,10 +103,15 @@ def test_daily_water_came_asks_hours(digit: str) -> None:
     assert not done
 
 
-def test_daily_no_water_skips_to_note() -> None:
+def test_daily_no_water_asks_where_water_came_from_then_note() -> None:
     session, actions, done = feed(daily(), "2")
-    assert session.step is FlowStep.Q_NOTE
+    assert session.step is FlowStep.Q_FALLBACK
     assert session.answers.water is WaterAnswer.NO
+    assert asked(actions) == "household.q_fallback"
+    assert not done
+    session, actions, done = on_input(session, "2")
+    assert session.answers.fallback is Fallback.BOUGHT
+    assert session.step is FlowStep.Q_NOTE
     assert keys(actions) == ["household.q_note"]
     assert isinstance(actions[-1], Record)
     assert actions[-1].max_s == 15
@@ -145,11 +152,12 @@ def test_daily_full_path_with_note_skip() -> None:
         "water": WaterAnswer.YES,
         "hours": 6,
         "clean": CleanAnswer.YES,
+        "fallback": None,
     }
 
 
 def test_daily_note_recording_is_kept() -> None:
-    session, _, _ = feed(daily(), "2")
+    session, _, _ = feed(daily(), "2", "1")
     session, actions, done = on_input(session, None, recording_url="https://rec/1.mp3")
     assert done
     assert session.answers.note_recording_url == "https://rec/1.mp3"
@@ -157,26 +165,27 @@ def test_daily_note_recording_is_kept() -> None:
 
 
 def test_daily_note_timeout_finishes() -> None:
-    session, actions, done = feed(daily(), "2", TIMEOUT)
+    session, actions, done = feed(daily(), "2", "3", TIMEOUT)
     assert done
     assert session.answers.note_recording_url is None
     assert keys(actions) == ["household.bye"]
 
 
 def test_daily_no_water_result_leaves_hours_and_clean_unasked() -> None:
-    session, _, _ = feed(daily(), "2", "#")
+    session, _, _ = feed(daily(), "2", "3", "#")
     assert result_to_checkin_fields(session) == {
         "outcome": CallOutcome.ANSWERED,
         "water": WaterAnswer.NO,
         "hours": None,
         "clean": None,
+        "fallback": Fallback.NONE,
     }
 
 
 # --- re-prompts and timeouts ---------------------------------------------------------------
 
 
-@pytest.mark.parametrize("bad", ["4", "0", "9", "*", "#", "12", "", "  ", "x", TIMEOUT])
+@pytest.mark.parametrize("bad", ["4", "0", "*", "#", "12", "", "  ", "x", TIMEOUT])
 def test_invalid_or_timeout_reprompts_once(bad: str) -> None:
     session, actions, done = feed(daily(), bad)
     assert not done
@@ -310,16 +319,25 @@ def test_operator_summary_without_clip_uses_base_key(households: int) -> None:
 def test_operator_fixed() -> None:
     session, actions, done = feed(operator(), "1")
     assert done
-    assert result_to_operator(session) == {"fixed": True}
+    assert result_to_operator(session) == {"fixed": True, "blocker": None}
     assert keys(actions) == ["operator.ack_fixed"]
     assert isinstance(actions[-1], Hangup)
 
 
-def test_operator_not_fixed() -> None:
-    session, actions, done = feed(operator(), "2")
+@pytest.mark.parametrize(
+    ("digit", "blocker", "ack"),
+    [
+        ("2", BlockerCode.PARTS_NEEDED, "operator.ack_reason"),
+        ("3", BlockerCode.NO_POWER, "operator.ack_reason"),
+        ("4", BlockerCode.PIPE_BROKEN, "operator.ack_reason"),
+        ("5", BlockerCode.NOT_MINE, "operator.ack_not_mine"),
+    ],
+)
+def test_operator_not_fixed_gives_a_reason(digit: str, blocker: BlockerCode, ack: str) -> None:
+    session, actions, done = feed(operator(), digit)
     assert done
-    assert result_to_operator(session) == {"fixed": False}
-    assert keys(actions) == ["operator.ack_pending"]
+    assert result_to_operator(session) == {"fixed": False, "blocker": blocker}
+    assert keys(actions) == [ack]
 
 
 def test_operator_reprompt_then_unknown() -> None:
@@ -328,7 +346,7 @@ def test_operator_reprompt_then_unknown() -> None:
     assert keys(actions) == ["household.invalid", "operator.q_fixed"]
     session, actions, done = on_input(session, None, timeout=True)
     assert done
-    assert result_to_operator(session) == {"fixed": None}
+    assert result_to_operator(session) == {"fixed": None, "blocker": None}
     assert keys(actions) == ["operator.ack_pending"]
 
 
@@ -380,7 +398,7 @@ def test_current_actions_replays_step(inputs: tuple[str, ...], expected: list[st
 
 
 def test_current_actions_for_note_and_done() -> None:
-    session, _, _ = feed(daily(), "2")
+    session, _, _ = feed(daily(), "2", "1")
     assert isinstance(current_actions(session)[-1], Record)
     session, _, _ = on_input(session, "#")
     assert isinstance(current_actions(session)[-1], Hangup)
@@ -404,14 +422,14 @@ def test_engine_does_not_mutate_input() -> None:
 
 
 def test_with_recording_after_done() -> None:
-    session, _, _ = feed(daily(), "2", "#")
+    session, _, _ = feed(daily(), "2", "1", "#")
     updated = with_recording(session, "https://rec/late.mp3")
     assert updated.answers.note_recording_url == "https://rec/late.mp3"
     assert updated.step is FlowStep.DONE
 
 
 def test_session_roundtrip_as_dict() -> None:
-    session, _, _ = feed(operator(), "5")
+    session, _, _ = feed(operator(), "8")
     item = session.to_item()
     assert item["purpose"] == "OPERATOR"
     assert item["step"] == "Q_FIXED"

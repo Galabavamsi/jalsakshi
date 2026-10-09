@@ -1,0 +1,136 @@
+{
+ "fetched_at": "2026-10-09T05:00:00+05:30",
+ "source": "JJM IMIS / WQMIS public dashboard (as entered by the state)",
+ "url": "https://ejalshakti.gov.in/jjmreport/JJMIndia.aspx",
+ "district": {
+  "district": "Durg",
+  "state": "Chhattisgarh",
+  "report": "J8",
+  "as_on": "2026-10-08",
+  "villages": 385,
+  "hgj_reported": 164,
+  "hgj_certified": 148
+ },
+ "villages": [
+  {
+   "village_lgd": "442569",
+   "imis_village_id": "0000523118",
+   "name": "Kutela Bhatha",
+   "gram_panchayat": "Kutelabhatha",
+   "gp_imis_id": "0000216969",
+   "households": 455,
+   "tap_connections": 450,
+   "population": 2036,
+   "population_sc": 477,
+   "population_st": 199,
+   "hgj_status": "IN_PROGRESS",
+   "schemes": [
+    {
+     "scheme_id": "40006378",
+     "name": "Retrofitting Scheme Kutelabhata",
+     "sanction_year": "2021-22",
+     "estimated_lakh": 56.01,
+     "spent_lakh": 48.93,
+     "status": "Ongoing",
+     "functional_status": "Functional"
+    },
+    {
+     "scheme_id": "40061307",
+     "name": "Jeora-Sirsakhurd-Bhatgaon 17 MVS",
+     "sanction_year": "2021-22",
+     "estimated_lakh": 2371.58,
+     "spent_lakh": 1549.22,
+     "status": "Ongoing",
+     "functional_status": "Functional"
+    }
+   ],
+   "source_type": "Deep tubewell (groundwater) in village",
+   "wq": {
+    "last_household_test": "2023-08-17",
+    "household_test_dates": ["2023-03-18", "2023-08-10", "2023-08-17"],
+    "last_household_values_date": "2023-08-10",
+    "last_household_values": {
+     "pH": "7.02–7.2",
+     "Turbidity (NTU)": "0.5–0.8",
+     "TDS (mg/L)": "432–456",
+     "Nitrate (mg/L, limit 45)": "44.5–44.9",
+     "Fluoride": "0.195–0.237",
+     "Arsenic": "0"
+    },
+    "samples_summary": "6 household tap samples (18 Mar 2023, 10 Aug 2023, 17 Aug 2023), all Safe",
+    "contamination_flags": ["FY 2024-25 lab: turbidity, 1 sample"],
+    "ftk_this_fy": "2026-27",
+    "ftk_samples_this_fy": 13,
+    "ftk_samples_last_fy": 14,
+    "ftk_parameters": ["pH", "turbidity", "TDS", "hardness"],
+    "ftk_note": "No chlorine test in field test kit samples",
+    "women_trained_ftk": 5
+   }
+  },
+  {
+   "village_lgd": "442570",
+   "imis_village_id": "0000523119",
+   "name": "Khapri (Ku)",
+   "households": 271,
+   "tap_connections": 209,
+   "hgj_status": "IN_PROGRESS"
+  },
+  {
+   "village_lgd": "442561",
+   "imis_village_id": "0000523105",
+   "name": "Jewra",
+   "households": 1029,
+   "tap_connections": 988,
+   "hgj_status": "IN_PROGRESS"
+  },
+  {
+   "village_lgd": "442629",
+   "imis_village_id": "0000523104",
+   "name": "Sirsa Khurd",
+   "households": 1553,
+   "tap_connections": 1547,
+   "hgj_status": "IN_PROGRESS"
+  },
+  {
+   "village_lgd": "442568",
+   "imis_village_id": "0000523102",
+   "name": "Bhatgaon",
+   "households": 543,
+   "tap_connections": 509,
+   "hgj_status": "IN_PROGRESS"
+  },
+  {
+   "village_lgd": "442552",
+   "imis_village_id": "0000523106",
+   "name": "Kachandur",
+   "households": 466,
+   "tap_connections": 466,
+   "hgj_status": "CERTIFIED",
+   "schemes": [
+    {
+     "scheme_id": "40013723",
+     "name": null,
+     "status": "Ongoing",
+     "kind": "Retrofitting"
+    },
+    {
+     "scheme_id": "40061307",
+     "name": "Jeora-Sirsakhurd-Bhatgaon 17 MVS",
+     "sanction_year": "2021-22",
+     "estimated_lakh": 2371.58,
+     "spent_lakh": 1549.22,
+     "status": "Ongoing",
+     "functional_status": "Functional"
+    }
+   ]
+  },
+  {
+   "village_lgd": "442565",
+   "imis_village_id": "0000523151",
+   "name": "Belaudi",
+   "households": 448,
+   "tap_connections": 320,
+   "hgj_status": "IN_PROGRESS"
+  }
+ ]
+}

@@ -36,7 +36,7 @@ HINDI_NUMBER_WORDS = (
     "nau",
 )
 
-_META_KEYS = frozenset({"version", "language"})
+_META_KEYS = frozenset({"version", "language", "numbers"})
 _VARIANT_KEY = re.compile(r"^(?P<base>[a-z0-9_.]+)\.n(?P<n>[1-9])$")
 _SAFE_KEY = re.compile(r"^[a-z0-9_]+(\.[a-z0-9_]+)*$")
 
@@ -47,6 +47,12 @@ class PromptCatalog:
     def __init__(self, data: Mapping[str, Any]) -> None:
         self.version = int(data.get("version", 0))
         self.language = str(data.get("language", "hi-IN"))
+        numbers = data.get("numbers")
+        self.number_words: tuple[str, ...] = (
+            tuple(str(n) for n in numbers)
+            if isinstance(numbers, list) and len(numbers) == 10
+            else HINDI_NUMBER_WORDS
+        )
         self._templates: dict[str, str] = dict(_flatten(data, prefix="", top=True))
         if not self._templates:
             raise ValueError("prompt catalog has no prompts")
@@ -84,7 +90,7 @@ class PromptCatalog:
         extra = variables.keys() - names
         if extra:
             raise ValueError(f"prompt {base!r} does not take {sorted(extra)}")
-        spoken = {name: spoken_value(value) for name, value in variables.items()}
+        spoken = {name: spoken_value(value, self.number_words) for name, value in variables.items()}
         return self.template(base).format(**spoken)
 
     def audio_key(self, key_path: str, **variables: object) -> str | None:
@@ -141,10 +147,10 @@ class PromptCatalog:
         return base, {**variables, names[0]: int(match["n"])}
 
 
-def spoken_value(value: object) -> str:
-    """How a value is read out: 0..9 as Hindi words, everything else as text."""
+def spoken_value(value: object, words: tuple[str, ...] = HINDI_NUMBER_WORDS) -> str:
+    """How a value is read out: 0..9 as number words of the catalog, everything else as text."""
     if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 9:
-        return HINDI_NUMBER_WORDS[value]
+        return words[value]
     return str(value)
 
 
@@ -164,6 +170,55 @@ def prompts_path() -> Path:
 def default_catalog() -> PromptCatalog:
     """The process-wide catalog, loaded once (call ``default_catalog.cache_clear()`` to reload)."""
     return PromptCatalog.from_file(prompts_path())
+
+
+CALL_LANGUAGES: dict[str, tuple[str, str]] = {
+    "hi": ("Hindi", "hi-IN"),
+    "hne": ("Chhattisgarhi", "hi-IN"),
+    "te": ("Telugu", "te-IN"),
+    "mr": ("Marathi", "mr-IN"),
+    "or": ("Odia", "od-IN"),
+    "bn": ("Bengali", "bn-IN"),
+    "gu": ("Gujarati", "gu-IN"),
+    "kn": ("Kannada", "kn-IN"),
+    "ml": ("Malayalam", "ml-IN"),
+    "pa": ("Punjabi", "pa-IN"),
+    "ta": ("Tamil", "ta-IN"),
+}
+"""Call languages: code -> (English name, Sarvam voice language). Chhattisgarhi is read by the
+Hindi voice (same script); a language works on calls once ``prompts/{code}.yaml`` exists."""
+
+DEFAULT_LANGUAGE = "hi"
+
+
+def available_languages() -> list[str]:
+    """Call languages that have a prompt file next to the default catalog."""
+    folder = prompts_path().parent
+    return [code for code in CALL_LANGUAGES if (folder / f"{code}.yaml").is_file()]
+
+
+@lru_cache(maxsize=16)
+def catalog_for(language: str | None) -> PromptCatalog:
+    """The prompt catalog of a call language (the default Hindi catalog when it has none)."""
+    code = (language or DEFAULT_LANGUAGE).strip().lower()
+    if code == DEFAULT_LANGUAGE:
+        return default_catalog()
+    path = prompts_path().parent / f"{code}.yaml"
+    return PromptCatalog.from_file(path) if path.is_file() else default_catalog()
+
+
+def audio_base_for(base_url: str | None, language: str | None) -> str | None:
+    """Clip base URL of a language: ``…/prompts/hi`` becomes ``…/prompts/{code}``."""
+    code = (language or DEFAULT_LANGUAGE).strip().lower()
+    if not base_url or code == DEFAULT_LANGUAGE or catalog_for(code) is default_catalog():
+        return base_url
+    root, _, last = base_url.rstrip("/").rpartition("/")
+    return f"{root}/{code}" if last == DEFAULT_LANGUAGE else base_url
+
+
+def sarvam_language(language: str | None) -> str:
+    """Sarvam voice language for a call language (Hindi for unknown codes)."""
+    return CALL_LANGUAGES.get((language or DEFAULT_LANGUAGE).lower(), ("", "hi-IN"))[1]
 
 
 def prompt(key_path: str, **variables: object) -> str:

@@ -1,0 +1,363 @@
+{
+ "help": "https://nwdp.nwic.gov.in/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "filters": {
+   "District": "DURG"
+  },
+  "include_total": true,
+  "limit": 10,
+  "records_format": "objects",
+  "resource_id": "8752174f-1d17-4aaf-8058-2eb396f50157",
+  "sort": "_id desc",
+  "total_estimation_threshold": null,
+  "records": [
+   {
+    "_id": 6477,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-08",
+    "Daily Actual": "4.4",
+    "Daily Normal": "3.3",
+    "Daily Departure Per": "33%",
+    "Daily Category": "E",
+    "Week Date": "01-10-2026 To 07-10-2026",
+    "Weekly \nActual": "0",
+    "Weekly Normal": "21",
+    "Weekly Departure Per": "-100%",
+    "Weekly Category": "NR",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "4.4",
+    "Cumulative Normal": "24.3",
+    "Cumulative Departue Per": "-82%",
+    "Cumulative \nCategory": "LD",
+    "Monthly Date": "From 01-10-2026 To 08-10-2026",
+    "Monthly Acutual": "4.4",
+    "Monthly Normal": "24.3",
+    "Monthly \nDeparture Per": "-82%",
+    "Monthly Category": "LD"
+   },
+   {
+    "_id": 6476,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-07",
+    "Daily Actual": "0",
+    "Daily Normal": "3.8",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "01-10-2026 To 07-10-2026",
+    "Weekly \nActual": "0",
+    "Weekly Normal": "21",
+    "Weekly Departure Per": "-100%",
+    "Weekly Category": "NR",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "0",
+    "Cumulative Normal": "21",
+    "Cumulative Departue Per": "-100%",
+    "Cumulative \nCategory": "NR",
+    "Monthly Date": "From 01-10-2026 To 07-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "21",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6475,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-06",
+    "Daily Actual": "0",
+    "Daily Normal": "3",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "06-10-2026",
+    "Weekly \nActual": "0",
+    "Weekly Normal": "3",
+    "Weekly Departure Per": "-100%",
+    "Weekly Category": "NR",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "0",
+    "Cumulative Normal": "17.2",
+    "Cumulative Departue Per": "-100%",
+    "Cumulative \nCategory": "NR",
+    "Monthly Date": "From 01-10-2026 To 06-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "17.2",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6474,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-05",
+    "Daily Actual": "0",
+    "Daily Normal": "3.4",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "24-09-2026 To 30-09-2026",
+    "Weekly \nActual": "198.7",
+    "Weekly Normal": "28.1",
+    "Weekly Departure Per": "607%",
+    "Weekly Category": "LE",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "976.5",
+    "Cumulative Normal": "984.8",
+    "Cumulative Departue Per": "-1%",
+    "Cumulative \nCategory": "N",
+    "Monthly Date": "From 01-10-2026 To 05-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "14.2",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6473,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-04",
+    "Daily Actual": "0",
+    "Daily Normal": "2.5",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "24-09-2026 To 30-09-2026",
+    "Weekly \nActual": "198.7",
+    "Weekly Normal": "28.1",
+    "Weekly Departure Per": "607%",
+    "Weekly Category": "LE",
+    "Cumulative Date": "2026-06-01",
+    "Cumulative Actual": "976.5",
+    "Cumulative Normal": "984.8",
+    "Cumulative Departue Per": "-1%",
+    "Cumulative \nCategory": "N",
+    "Monthly Date": "From 01-10-2026 To 04-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "10.8",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6472,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-03",
+    "Daily Actual": "0",
+    "Daily Normal": "3.6",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "24-09-2026 To 30-09-2026",
+    "Weekly \nActual": "198.7",
+    "Weekly Normal": "28.1",
+    "Weekly Departure Per": "607%",
+    "Weekly Category": "LE",
+    "Cumulative Date": "2026-06-01",
+    "Cumulative Actual": "976.5",
+    "Cumulative Normal": "984.8",
+    "Cumulative Departue Per": "-1%",
+    "Cumulative \nCategory": "N",
+    "Monthly Date": "From 01-10-2026 To 03-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "8.3",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6471,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-02",
+    "Daily Actual": "0",
+    "Daily Normal": "3.4",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "24-09-2026 To 30-09-2026",
+    "Weekly \nActual": "198.7",
+    "Weekly Normal": "28.1",
+    "Weekly Departure Per": "607%",
+    "Weekly Category": "LE",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "0",
+    "Cumulative Normal": "4.7",
+    "Cumulative Departue Per": "-100%",
+    "Cumulative \nCategory": "NR",
+    "Monthly Date": "From 01-10-2026 To 02-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "4.7",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6470,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-10-01",
+    "Daily Actual": "0",
+    "Daily Normal": "1.3",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "01-10-2026",
+    "Weekly \nActual": "0",
+    "Weekly Normal": "1.3",
+    "Weekly Departure Per": "-100%",
+    "Weekly Category": "NR",
+    "Cumulative Date": "2026-10-01",
+    "Cumulative Actual": "0",
+    "Cumulative Normal": "1.3",
+    "Cumulative Departue Per": "-100%",
+    "Cumulative \nCategory": "NR",
+    "Monthly Date": "From 01-10-2026 To 01-10-2026",
+    "Monthly Acutual": "0",
+    "Monthly Normal": "1.3",
+    "Monthly \nDeparture Per": "-100%",
+    "Monthly Category": "NR"
+   },
+   {
+    "_id": 6469,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-09-30",
+    "Daily Actual": "0",
+    "Daily Normal": "4.2",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "24-09-2026 To 30-09-2026",
+    "Weekly \nActual": "198.7",
+    "Weekly Normal": "28.1",
+    "Weekly Departure Per": "607%",
+    "Weekly Category": "LE",
+    "Cumulative Date": "2026-06-01",
+    "Cumulative Actual": "976.5",
+    "Cumulative Normal": "984.8",
+    "Cumulative Departue Per": "-1%",
+    "Cumulative \nCategory": "N",
+    "Monthly Date": "From 01-09-2026 To 30-09-2026",
+    "Monthly Acutual": "297.7",
+    "Monthly Normal": "178.3",
+    "Monthly \nDeparture Per": "67%",
+    "Monthly Category": "LE"
+   },
+   {
+    "_id": 6468,
+    "State": "CHHATISGARH",
+    "District": "DURG",
+    "Date": "2026-09-29",
+    "Daily Actual": "0",
+    "Daily Normal": "4.1",
+    "Daily Departure Per": "-100%",
+    "Daily Category": "NR",
+    "Week Date": "17-09-2026 To 23-09-2026",
+    "Weekly \nActual": "16.4",
+    "Weekly Normal": "42.1",
+    "Weekly Departure Per": "-61%",
+    "Weekly Category": "LD",
+    "Cumulative Date": "2026-06-01",
+    "Cumulative Actual": "777.8",
+    "Cumulative Normal": "956.7",
+    "Cumulative Departue Per": "-19%",
+    "Cumulative \nCategory": "N",
+    "Monthly Date": "From 01-09-2026 To 29-09-2026",
+    "Monthly Acutual": "297.7",
+    "Monthly Normal": "174.1",
+    "Monthly \nDeparture Per": "71%",
+    "Monthly Category": "LE"
+   }
+  ],
+  "fields": [
+   {
+    "id": "_id",
+    "type": "int"
+   },
+   {
+    "id": "State",
+    "type": "text"
+   },
+   {
+    "id": "District",
+    "type": "text"
+   },
+   {
+    "id": "Date",
+    "type": "text"
+   },
+   {
+    "id": "Daily Actual",
+    "type": "text"
+   },
+   {
+    "id": "Daily Normal",
+    "type": "text"
+   },
+   {
+    "id": "Daily Departure Per",
+    "type": "text"
+   },
+   {
+    "id": "Daily Category",
+    "type": "text"
+   },
+   {
+    "id": "Week Date",
+    "type": "text"
+   },
+   {
+    "id": "Weekly \nActual",
+    "type": "text"
+   },
+   {
+    "id": "Weekly Normal",
+    "type": "text"
+   },
+   {
+    "id": "Weekly Departure Per",
+    "type": "text"
+   },
+   {
+    "id": "Weekly Category",
+    "type": "text"
+   },
+   {
+    "id": "Cumulative Date",
+    "type": "text"
+   },
+   {
+    "id": "Cumulative Actual",
+    "type": "text"
+   },
+   {
+    "id": "Cumulative Normal",
+    "type": "text"
+   },
+   {
+    "id": "Cumulative Departue Per",
+    "type": "text"
+   },
+   {
+    "id": "Cumulative \nCategory",
+    "type": "text"
+   },
+   {
+    "id": "Monthly Date",
+    "type": "text"
+   },
+   {
+    "id": "Monthly Acutual",
+    "type": "text"
+   },
+   {
+    "id": "Monthly Normal",
+    "type": "text"
+   },
+   {
+    "id": "Monthly \nDeparture Per",
+    "type": "text"
+   },
+   {
+    "id": "Monthly Category",
+    "type": "text"
+   }
+  ],
+  "total": 51,
+  "total_was_estimated": false
+ }
+}

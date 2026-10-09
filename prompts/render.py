@@ -46,7 +46,7 @@ from jalsakshi.voice.catalog import PromptCatalog, prompts_path  # noqa: E402
 
 SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
 DEFAULT_MODEL = "bulbul:v3"
-DEFAULT_SPEAKER = "priya"
+DEFAULT_SPEAKER = "ritu"
 DEFAULT_PACE = 0.9
 SAMPLE_RATE_HZ = 8000
 AUDIO_CODEC = "mp3"
