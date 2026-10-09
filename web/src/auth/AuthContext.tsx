@@ -8,13 +8,14 @@ export interface AuthValue {
   status: AuthStatus;
   user: SessionUser | null;
   signIn: () => void;
+  signUp: () => void;
   signOut: () => void;
 }
 
 /** Fired by the API client on a 401, so the console asks the user to sign in again. */
 export const UNAUTHORIZED_EVENT = 'jalsakshi:unauthorized';
 
-const DEMO_USER: SessionUser = { name: 'डेमो उपयोगकर्ता (Demo user)', email: null };
+const DEMO_USER: SessionUser = { name: 'Panchayat secretary', email: null };
 
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -50,15 +51,24 @@ export function AuthProvider({ auth, children }: { auth: CognitoAuth | null; chi
     };
   }, [auth]);
 
+  // Mock mode (no Cognito): sign out shows the sign-in screen, sign in returns, and
+  // Create account starts a fresh account so the setup flow can be tried.
   const signIn = useCallback(() => {
-    void auth?.signIn(currentPath());
+    if (auth) void auth.signIn(currentPath());
+    else setStatus('disabled');
+  }, [auth]);
+
+  const signUp = useCallback(() => {
+    if (auth) void auth.signUp('/');
+    else window.location.assign('/?as=new');
   }, [auth]);
 
   const signOut = useCallback(() => {
-    void auth?.signOut();
+    if (auth) void auth.signOut();
+    else setStatus('signed_out');
   }, [auth]);
 
-  const value = useMemo(() => ({ status, user, signIn, signOut }), [status, user, signIn, signOut]);
+  const value = useMemo(() => ({ status, user, signIn, signUp, signOut }), [status, user, signIn, signUp, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

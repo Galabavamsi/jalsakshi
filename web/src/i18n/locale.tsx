@@ -1,9 +1,7 @@
 /**
- * Console language. English is the default for everyone; Hindi is opt-in via the header switcher
- * or `?lang=hi`. The phone IVR is always Hindi and is not affected by this setting.
- *
- * Strings stay as { en, hi } pairs next to the code that uses them (lib/labels.ts works this way),
- * so a missing translation is a compile error. Components pick one language at render time.
+ * Language switch for the residents' page (/v/:id) only: villagers can read it in English or Hindi
+ * (`?lang=hi` or the EN | हिन्दी buttons). The console itself is plain English (`lib/text.ts`).
+ * Strings are { en, hi } pairs; read them with `const t = useT(); t(m.title); t(m.count, { n })`.
  */
 import {
   createContext,
@@ -27,6 +25,28 @@ export const STORAGE_KEY = 'jalsakshi.lang';
 export interface BilingualFn<P> {
   en: (p: P) => string;
   hi: (p: P) => string;
+}
+
+/** Anything a namespace may hold: a plain pair or a parameterised pair. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Message = Bilingual | BilingualFn<any>;
+export type Messages = Record<string, Message>;
+
+/** Declares a namespace; keeps each entry's exact type, so `t(m.x, params)` is type-checked. */
+export function defineMessages<T extends Messages>(messages: T): T {
+  return messages;
+}
+
+/** A parameterised message: `msgFn<{ n: number }>({ en: ({ n }) => ..., hi: ({ n }) => ... })`. */
+export function msgFn<P>(m: BilingualFn<P>): BilingualFn<P> {
+  return m;
+}
+
+const enPluralRules = new Intl.PluralRules('en');
+
+/** "1 family" / "3 families". Write the zero case yourself ("No families yet"). */
+export function enCount(n: number, one: string, other: string): string {
+  return `${n} ${enPluralRules.select(n) === 'one' ? one : other}`;
 }
 
 export function isLocale(v: unknown): v is Locale {
@@ -83,26 +103,21 @@ export function urlWithoutLang(href: string): string | null {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export const DOCUMENT_TITLE: Bilingual = { en: 'JalSakshi console', hi: 'जल साक्षी कंसोल' };
+export const DOCUMENT_TITLE: Bilingual = { en: 'JalSakshi', hi: 'à¤à¤² à¤¸à¤¾à¤à¥à¤·à¥' };
 
-/** Sets <html lang> and the title. Called before the first render too, so the first paint is right. */
+const DEFAULT_TITLES = new Set(['', 'JalSakshi', 'à¤à¤² à¤¸à¤¾à¤à¥à¤·à¥', 'JalSakshi console', 'à¤à¤² à¤¸à¤¾à¤à¥à¤·à¥ à¤à¤à¤¸à¥à¤²']);
+
+/**
+ * Sets <html lang>. Called before the first render too, so the first paint is right. The title
+ * changes only while no page has set its own ("{Page} Â· {village} Â· JalSakshi", PageHeader).
+ */
 export function applyDocumentLocale(l: Locale): void {
   if (typeof document === 'undefined') return;
   const html = document.documentElement;
   html.lang = l;
   html.dir = 'ltr';
   html.dataset.locale = l;
-  document.title = DOCUMENT_TITLE[l];
-}
-
-const DEVANAGARI_FAMILY = '"Anek Devanagari Variable"';
-
-/** Warms the Devanagari webfont before showing Hindi, so the switch does not flash. */
-export function preloadHindiFont(timeoutMs = 1200): Promise<void> {
-  if (typeof document === 'undefined' || !('fonts' in document)) return Promise.resolve();
-  const load = document.fonts.load(`450 1em ${DEVANAGARI_FAMILY}`, 'हिन्दी').then(() => undefined);
-  const timeout = new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs));
-  return Promise.race([load, timeout]).catch(() => undefined);
+  if (DEFAULT_TITLES.has(document.title)) document.title = DOCUMENT_TITLE[l];
 }
 
 function prefersReducedMotion(): boolean {
@@ -142,8 +157,7 @@ export function LocaleProvider({ initial, children }: { initial: Locale; childre
         commit();
       }
     };
-    if (next === 'hi') void preloadHindiFont().then(run);
-    else run();
+    run();
   }, []);
 
   const value = useMemo(() => ({ locale, setLocale }), [locale, setLocale]);
@@ -189,52 +203,4 @@ export function useT(): Translate {
     }
     return t;
   }, [locale]);
-}
-
-const SWITCHED: Bilingual = {
-  en: 'Showing the console in English.',
-  hi: 'कंसोल अब हिन्दी में है।',
-};
-
-const OPTIONS: Array<{ id: Locale; label: string; name: string }> = [
-  { id: 'en', label: 'EN', name: 'English' },
-  { id: 'hi', label: 'हिन्दी', name: 'हिन्दी (Hindi)' },
-];
-
-/** EN | हिन्दी. Each label is in its own language and script; no flags. */
-export function LanguageSwitcher({ className }: { className?: string }) {
-  const { locale, setLocale } = useLocale();
-  const [announce, setAnnounce] = useState('');
-  const choose = (next: Locale) => {
-    if (next === locale) return;
-    setLocale(next);
-    setAnnounce(SWITCHED[next]);
-  };
-  return (
-    <div
-      role="group"
-      aria-label={locale === 'hi' ? 'भाषा' : 'Language'}
-      className={className ? `lang-switch ${className}` : 'lang-switch'}
-    >
-      {OPTIONS.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          lang={o.id}
-          translate="no"
-          aria-pressed={locale === o.id}
-          aria-label={o.name}
-          className="lang-opt"
-          onPointerEnter={o.id === 'hi' ? () => void preloadHindiFont() : undefined}
-          onFocus={o.id === 'hi' ? () => void preloadHindiFont() : undefined}
-          onClick={() => choose(o.id)}
-        >
-          {o.label}
-        </button>
-      ))}
-      <span className="visually-hidden" role="status" aria-live="polite">
-        {announce}
-      </span>
-    </div>
-  );
 }

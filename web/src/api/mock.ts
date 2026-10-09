@@ -6,18 +6,24 @@
  * the r1 rule, and opens or verifies tickets. All data is labelled demo.
  */
 
+import { effectiveConsent, isCallable } from '../lib/households';
 import { addDays, istDate, minutesFrom } from '../lib/time';
 import { ApiError, PolicyDeniedError, type JalApi } from './client';
+import { officialAgeNote } from './mockAnalytics';
 import { buildMockBrief } from './mockBrief';
 import { startIvr, stepIvr, type IvrSession, type OperatorSummary } from './mockIvr';
-import { dayStatusFrom, seedMockState, type MockState } from './mockSeed';
+import { createPanchayatMock } from './mockPanchayat';
+import { dayStatusFrom, type MockState } from './mockSeed';
+import { createSetupMock, seedSampleState } from './mockSetup';
 import type {
   ActivityItem,
   CheckInMasked,
   DayStatus,
   IsoDate,
+  Me,
   Observed7d,
   Operator,
+  OperatorRole,
   PolicyDenied,
   Purpose,
   SimInputRequest,
@@ -38,7 +44,13 @@ export interface MockApiOptions {
   state?: MockState;
   /** Who the console user is, as written into ticket events. */
   actor?: string;
+  /** The console user's role for Cedar checks (default: Panchayat Secretary, like the API). */
+  role?: OperatorRole;
+  /** 'admin' sees every village; 'new' starts with none (needs setup). Default 'admin'. */
+  user?: MockUser;
 }
+
+export type MockUser = 'admin' | 'new' | 'member';
 
 interface SimCall {
   villageId: string;
@@ -75,7 +87,7 @@ function openTicketFor(state: MockState, vid: string): Ticket | undefined {
 }
 
 function callableHouseholds(state: MockState, vid: string): number {
-  return state.households.filter((h) => h.village_id === vid && h.active && h.consent).length;
+  return state.households.filter((h) => h.village_id === vid && isCallable(h)).length;
 }
 
 function villageOperators(state: MockState, vid: string): Operator[] {
@@ -152,12 +164,25 @@ const CONSENT_DENIAL: PolicyDenied = {
   reason_en: 'No consent on file for this household.',
 };
 
+const WITHDRAWN_DENIAL: PolicyDenied = {
+  denied: true,
+  policy_id: 'no-calls-after-withdrawal',
+  reason_hi: 'इस परिवार ने कॉल के लिए मना किया है (या बंद कराई हैं), इसलिए कॉल नहीं होगी।',
+  reason_en: 'This family said no to calls (or stopped them), so it is not called.',
+};
+
 /** Factory for the in-memory API. */
 export function createMockApi(options: MockApiOptions = {}): JalApi {
   const now = options.now ?? (() => new Date());
-  const state = options.state ?? seedMockState(now());
+  const state = options.state ?? seedSampleState(now());
   const latency = options.latencyMs ?? 0;
   const actor = options.actor ?? 'console:demo-user';
+  const role: OperatorRole = options.role ?? 'PANCHAYAT_SECRETARY';
+  const user: MockUser = options.user ?? 'admin';
+  /** Villages bound to this account (null: admin, sees all). */
+  const bound: string[] | null =
+    user === 'admin' ? null : user === 'new' ? [] : state.villages.map((v) => v.id);
+  const visible = (vid: string) => bound === null || bound.includes(vid);
   const calls = new Map<string, SimCall>();
   let seq = 0;
 
@@ -165,6 +190,15 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
     if (latency > 0) await sleep(latency);
     return structuredClone(fn());
   }
+
+  const panchayat = createPanchayatMock({
+    state,
+    now,
+    actor,
+    role,
+    reply,
+    activity: (kind, villageId, en, hi) => pushActivity(state, now(), kind, villageId, en, hi),
+  });
 
   function markOperatorFixed(ticket: Ticket, operatorId: string, via: string): void {
     if (!FIXABLE.includes(ticket.state)) {
@@ -202,10 +236,19 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
     );
   }
 
+  /** The water point a bad day is about: the first point with that status (null = whole village). */
+  function badPoint(day: DayStatus): string | null {
+    return (day.points ?? []).find((p) => p.status === day.status)?.water_point_id ?? null;
+  }
+
   function openTicket(village: Village, day: DayStatus): void {
     const at = now();
     seq += 1;
     const reason = day.status === 'DIRTY' ? 'DIRTY' : 'NO_SUPPLY';
+    const wpid = badPoint(day);
+    const number = (state.ticketSeq[village.id] ?? 0) + 1;
+    state.ticketSeq[village.id] = number;
+    const point = state.waterPoints.find((p) => p.id === wpid);
     const ticket: Ticket = {
       id: `tkt-sim-${String(seq).padStart(4, '0')}`,
       village_id: village.id,
@@ -214,6 +257,13 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
       opened_at: at.toISOString(),
       updated_at: at.toISOString(),
       events: [],
+      number,
+      water_point_id: wpid,
+      origin: 'reconcile',
+      reporters: [],
+      quorum: point?.quorum ?? village.quorum,
+      issue: null,
+      blocker: null,
     };
     addEvent(ticket, {
       at: at.toISOString(),
@@ -230,7 +280,7 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
       kind: 'notified',
       from_state: 'OPEN',
       to_state: 'ASSIGNED',
-      detail: { operator_id: njm?.id ?? null },
+      detail: { operator_id: point?.operator_ids[0] ?? njm?.id ?? null },
     });
     state.tickets.unshift(ticket);
     pushActivity(
@@ -265,7 +315,17 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
       );
     }
     const bad = next.status === 'NO_SUPPLY' || next.status === 'DIRTY';
-    if (bad && !openTicketFor(state, village.id)) openTicket(village, next);
+    // One open ticket per water point and reason (OPENTKT#{wpid|village}#{reason}).
+    const reason = next.status === 'DIRTY' ? 'DIRTY' : 'NO_SUPPLY';
+    const wpid = badPoint(next);
+    const already = state.tickets.some(
+      (t) =>
+        t.village_id === village.id &&
+        t.state !== 'CLOSED_VERIFIED' &&
+        t.reason === reason &&
+        (t.water_point_id ?? null) === wpid,
+    );
+    if (bad && !already) openTicket(village, next);
   }
 
   function recordCheckin(call: SimCall, purpose: Purpose): CheckInMasked {
@@ -288,6 +348,7 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
       water,
       hours,
       clean,
+      water_point_id: hh?.water_point_id ?? null,
       note_transcript: null,
       note_issue: null,
       captured_via: 'SIMULATOR',
@@ -353,7 +414,7 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
     const opened = ticket.events.find((e) => e.kind === 'opened')?.detail ?? {};
     const key = ticket.reason === 'DIRTY' ? 'dirty' : 'no';
     const households = typeof opened[key] === 'number' ? (opened[key] as number) : 2;
-    return { reason: ticket.reason, households };
+    return { reason: ticket.reason === 'DIRTY' ? 'DIRTY' : 'NO_SUPPLY', households };
   }
 
   function resolveCallTarget(req: SimStartRequest): Omit<SimCall, 'session'> {
@@ -370,32 +431,60 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
     }
     const hh = state.households.find((h) => h.id === req.household_id);
     if (!hh) throw notFound('household', req.household_id);
-    if (!hh.consent) throw new PolicyDeniedError(CONSENT_DENIAL);
+    const consent = effectiveConsent(hh);
+    if (consent === 'DECLINED' || consent === 'WITHDRAWN') throw new PolicyDeniedError(WITHDRAWN_DENIAL);
+    if (consent !== 'GRANTED') throw new PolicyDeniedError(CONSENT_DENIAL);
     return { villageId: hh.village_id, householdId: hh.id, operatorId: null };
   }
 
   return {
+    ...panchayat,
+    ...createSetupMock({ state, bound, reply }),
+
+    getMe: () =>
+      reply((): Me => {
+        const ids = state.villages.map((v) => v.id).filter(visible);
+        return {
+          username: user === 'new' ? 'new-panchayat' : role === 'SARPANCH' ? 'sarpanch' : 'secretary',
+          email: null,
+          role,
+          is_admin: bound === null,
+          village_ids: ids,
+          needs_setup: ids.length === 0,
+          can_approve_announcements: role === 'SARPANCH',
+        };
+      }),
+
     listVillages: () =>
       reply((): VillageSummary[] => {
         const today = istDate(now());
-        return state.villages.map((village) => {
+        return state.villages.filter((v) => visible(v.id)).map((village) => {
           const days = state.days.filter((d) => d.village_id === village.id);
           return {
             village,
             today: days.find((d) => d.date === today) ?? null,
             open_ticket: openTicketFor(state, village.id) ?? null,
+            open_tickets: state.tickets.filter(
+              (t) => t.village_id === village.id && t.state !== 'CLOSED_VERIFIED',
+            ),
             observed_7d: observed7d(days, today),
           };
         });
       }),
 
     getVillage: (vid) =>
-      reply(() => ({
-        village: findVillage(state, vid),
-        households: state.households.filter((h) => h.village_id === vid),
-        operators: villageOperators(state, vid),
-        context: state.context[vid] ?? {},
-      })),
+      reply(() => {
+        const official = state.official[vid] ?? null;
+        return {
+          village: findVillage(state, vid),
+          households: state.households.filter((h) => h.village_id === vid),
+          operators: villageOperators(state, vid),
+          water_points: state.waterPoints.filter((p) => p.village_id === vid),
+          official,
+          official_note: official ? officialAgeNote(official, now()) : null,
+          context: state.context[vid] ?? {},
+        };
+      }),
 
     getDays: (vid, from, to) =>
       reply(() => {
@@ -449,17 +538,18 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
           throw new ApiError(409, 'already_closed', 'This ticket is already closed.');
         }
         const village = findVillage(state, ticket.village_id);
+        const quorum = ticket.quorum ?? village.quorum;
         const yes = verifyYesCount(state, ticket);
         const at = now();
-        if (ticket.state !== 'VERIFYING' || yes < village.quorum) {
-          const denied = quorumDenial(yes, village.quorum);
+        if (ticket.state !== 'VERIFYING' || yes < quorum) {
+          const denied = quorumDenial(yes, quorum);
           addEvent(ticket, {
             at: at.toISOString(),
             actor,
             kind: 'close_denied',
             from_state: null,
             to_state: null,
-            detail: { policy_id: denied.policy_id, verify_yes: yes, quorum: village.quorum },
+            detail: { policy_id: denied.policy_id, verify_yes: yes, quorum: quorum },
           });
           pushActivity(state, at, 'policy_denied', village.id,
             `${village.name}: close blocked by Cedar. ${denied.reason_en}`,
@@ -472,7 +562,7 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
           kind: 'closed_verified',
           from_state: 'VERIFYING',
           to_state: 'CLOSED_VERIFIED',
-          detail: { verify_yes: yes, quorum: village.quorum },
+          detail: { verify_yes: yes, quorum: quorum },
         });
         pushActivity(state, at, 'ticket', village.id,
           `${village.name}: ticket closed after ${yes} households confirmed water.`,

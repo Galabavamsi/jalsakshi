@@ -1,8 +1,7 @@
-import '@fontsource-variable/anek-latin/wdth.css';
-import '@fontsource-variable/anek-devanagari/wght.css';
-import '@fontsource/tiro-devanagari-hindi/400.css';
-import './styles/global.css';
-import './styles/watercolour.css';
+import '@fontsource-variable/inter/wght.css';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/app.css';
 
 import { StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -13,13 +12,24 @@ import { ApiProvider } from './api/context';
 import { appConfig } from './appConfig';
 import { AuthProvider, UNAUTHORIZED_EVENT } from './auth/AuthContext';
 import { createCognitoAuth, type CognitoAuth } from './auth/cognito';
-import { LocaleProvider, applyDocumentLocale, resolveInitialLocale } from './i18n/locale';
-import { ConfigError } from './pages/AuthScreens';
+import { mockIdentityFromUrl } from './lib/demo';
+import { ConfigError } from './shell';
+
+function sessionStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 async function createApi(auth: CognitoAuth | null): Promise<JalApi> {
   if (appConfig.mode === 'mock') {
     const { createMockApi } = await import('./api/mock');
-    return createMockApi({ latencyMs: 250, actor: 'console:demo-user' });
+    // Default: an admin who sees the sample village. ?as=new is a fresh account (setup flow);
+    // ?as=sarpanch can approve announcements.
+    const { user, role } = mockIdentityFromUrl(window.location.search, sessionStore());
+    return createMockApi({ latencyMs: 150, actor: 'console:secretary', role, user });
   }
   return createHttpApi({
     baseUrl: appConfig.apiBase,
@@ -28,32 +38,22 @@ async function createApi(auth: CognitoAuth | null): Promise<JalApi> {
   });
 }
 
-// English unless ?lang=hi or a saved choice says otherwise; set before the first paint.
-const initialLocale = resolveInitialLocale();
-applyDocumentLocale(initialLocale);
-
 async function boot(root: Root): Promise<void> {
   if (appConfig.missing.length > 0) {
-    root.render(
-      <LocaleProvider initial={initialLocale}>
-        <ConfigError missing={appConfig.missing} />
-      </LocaleProvider>,
-    );
+    root.render(<ConfigError missing={appConfig.missing} />);
     return;
   }
   const auth = appConfig.cognito ? createCognitoAuth(appConfig.cognito) : null;
   const api = await createApi(auth);
   root.render(
     <StrictMode>
-      <LocaleProvider initial={initialLocale}>
-        <BrowserRouter>
-          <AuthProvider auth={auth}>
-            <ApiProvider api={api}>
-              <App auth={auth} />
-            </ApiProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </LocaleProvider>
+      <BrowserRouter>
+        <AuthProvider auth={auth}>
+          <ApiProvider api={api}>
+            <App auth={auth} />
+          </ApiProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </StrictMode>,
   );
 }

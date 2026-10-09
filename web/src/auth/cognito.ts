@@ -18,6 +18,8 @@ export interface CognitoAuth {
   getAccessToken(): Promise<string | null>;
   getUser(): Promise<SessionUser | null>;
   signIn(returnTo: string): Promise<void>;
+  /** Same as signIn, but opens the Hosted UI's "create account" page (/signup). */
+  signUp(returnTo: string): Promise<void>;
   /** Finishes the redirect; returns the path the user was on before signing in. */
   completeSignIn(): Promise<string>;
   signOut(): Promise<void>;
@@ -29,13 +31,13 @@ interface SignInState {
   returnTo?: string;
 }
 
-function createManager(cfg: CognitoConfig): UserManager {
+function createManager(cfg: CognitoConfig, page: 'oauth2/authorize' | 'signup' = 'oauth2/authorize'): UserManager {
   const d = cfg.domain;
   return new UserManager({
     authority: d,
     metadata: {
       issuer: d,
-      authorization_endpoint: `${d}/oauth2/authorize`,
+      authorization_endpoint: `${d}/${page}`,
       token_endpoint: `${d}/oauth2/token`,
       userinfo_endpoint: `${d}/oauth2/userInfo`,
       revocation_endpoint: `${d}/oauth2/revoke`,
@@ -67,6 +69,9 @@ function toSessionUser(user: User): SessionUser {
 /** Builds the auth helper around one UserManager. */
 export function createCognitoAuth(cfg: CognitoConfig): CognitoAuth {
   const manager = createManager(cfg);
+  // The sign-up page takes the same query (client_id, PKCE, redirect_uri); the callback is
+  // finished by `manager`, which shares the same state store.
+  const signUpManager = createManager(cfg, 'signup');
   let refreshing: Promise<User | null> | null = null;
 
   async function refresh(): Promise<User | null> {
@@ -100,6 +105,10 @@ export function createCognitoAuth(cfg: CognitoConfig): CognitoAuth {
     async signIn(returnTo) {
       const state: SignInState = { returnTo };
       await manager.signinRedirect({ state });
+    },
+    async signUp(returnTo) {
+      const state: SignInState = { returnTo };
+      await signUpManager.signinRedirect({ state });
     },
     async completeSignIn() {
       const user = await manager.signinRedirectCallback();
