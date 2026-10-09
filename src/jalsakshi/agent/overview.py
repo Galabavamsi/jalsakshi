@@ -108,7 +108,7 @@ STATE_EN: Final[dict[TicketState, str]] = {
     TicketState.VERIFYING: "asking families if water is back",
     TicketState.CLOSED_VERIFIED: "closed, families confirmed",
     TicketState.REOPENED: "families say it is still not fixed",
-    TicketState.ESCALATED: "escalated",
+    TicketState.ESCALATED: "sent to the Sarpanch",
 }
 
 

@@ -403,9 +403,9 @@ def test_send_to_sarpanch_from_the_console(v2: V2Fakes, seeded: Repository) -> N
     assert status == 200 and out["state"] == "ESCALATED"
     escalated = out["events"][-1]
     assert escalated["kind"] == "ESCALATED" and escalated["actor"] == "console:alice"
-    assert escalated["detail"]["to"] == "SARPANCH"
+    assert escalated["detail"] == {"to": "SARPANCH", "by": None, "reason": "panchayat_office"}
     [job] = v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)
-    assert job["ticket_id"] == tid and job["delay_s"] == 0
+    assert job["ticket_id"] == tid and job["delay_s"] == 0 and job["reason"] == "panchayat_office"
 
 
 def with_state(repo: Repository, tid: str, state: TicketState) -> None:

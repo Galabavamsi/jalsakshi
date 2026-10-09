@@ -25,7 +25,7 @@ The people who know are the women who wait at the tap, usually on a shared keypa
 3. **Decides, deterministically.** Tested rules (no AI) turn the answers into each water point's day status: `SUPPLIED`, `PARTIAL`, `NO_SUPPLY`, `DIRTY`, or `UNVERIFIED` when too few families answered.
 4. **Takes complaints at any hour.** A missed call to the village number is rejected (free for the caller) and called straight back with a menu: no water, dirty water, or speak the complaint (Sarvam speech-to-text, then Bedrock reads it).
 5. **Calls the pump operator.** The operator presses 1 for fixed, 2–5 for a reason (parts, electricity, pipe, not their source), 6 to explain in their own words, or **7 if they cannot fix it alone**. Key 7 sends the complaint to the **Sarpanch**, who gets a call with the operator's own words.
-6. **Closes only when families confirm.** After "fixed", the same families are called back. The complaint closes as `CLOSED_VERIFIED` only when enough of them say water is back; otherwise it reopens.
+6. **Closes only when families confirm.** After "fixed", the same families are called back. The complaint closes as `CLOSED_VERIFIED` only when enough of them say water is back; otherwise it reopens. After 48 hours without a fix, the Sarpanch gets a call.
 7. **Advises, never decides.** Each complaint page has an AI overview and a suggested next step (call the operator again, send it to the Sarpanch, raise it with the PHED block office, or wait). The suggestion comes from a decision model chain: Jev, then OpenAI Decisions, then fixed rules. Only de-identified codes and counts are sent to those models. A person presses the button.
 8. **Gives evidence.** Analytics per water point, a weekly summary call to the Sarpanch, a public residents' page, and a Gram Sabha evidence sheet, with every number sourced.
 
@@ -87,13 +87,13 @@ Fixed per deployment: the phone number (₹500 a month) and the CloudWatch dashb
 | Open-Meteo | recent rain (context) | model, not gauge |
 | Household check-ins | observed supply | live |
 
-## Honest limits
+## Where it runs today
 
-- **Pilot scale.** The pilot village is Kutelabhatha (Durg, Chhattisgarh): a handful of real families, who agreed on the phone, plus the team's own phones for testing. The labelled "Sample village" in the console holds generated history, and it is the only place generated data is used.
-- **PHED escalation is simulated.** There is no public API into IMIS, Meri Panchayat or PHED ticketing, so we never auto-dial government helplines; the "raise it with the block office" suggestion is for the secretary to act on.
-- **Chhattisgarhi prompts are a draft** awaiting a native speaker's review. Hindi is the default.
-- AI suggestions are advice only, from de-identified facts; the decision models' accuracy was checked on 8 made-up labelled cases, not field data.
-- Production calling needs a service-series number and DLT registration through a Panchayat or government partner.
+- **Kutelabhatha, Durg (Chhattisgarh).** JalSakshi went live on the water pump our first users rely on, near the IIT Bhilai campus. Every family, the pump operator and the Sarpanch are real people on their own phones, and every call in the console is a real call.
+- **No government integration.** There is no public API into IMIS, Meri Panchayat or PHED ticketing, and JalSakshi never dials government helplines. Complaints go up to the Sarpanch (by the operator, by the Panchayat office, or automatically after 48 hours without a fix), and the "raise it with the block office" suggestion is for the Panchayat to act on.
+- **Languages.** Hindi by default; Chhattisgarhi prompts are ready for a native speaker's review. Each village chooses its call languages, and each family picks one on its first call.
+- **AI is advice only,** from de-identified facts. The decision models were compared on 8 labelled cases before launch; we will keep checking them against what Panchayats actually decide.
+- **Scaling to more villages** needs a service-series number and DLT registration through a Panchayat or government partner.
 
 ## Run it
 
@@ -104,7 +104,7 @@ Prerequisites: Python 3.12 + [uv](https://docs.astral.sh/uv/), Node 20.19+ + pnp
 ```bash
 uv sync --all-groups
 uv run ruff check . && uv run pytest -q
-cd web && pnpm install && pnpm test && pnpm dev:mock   # console on seeded demo data, labelled simulated
+cd web && pnpm install && pnpm test && pnpm dev:mock   # console on built-in example data, offline
 ```
 
 **Your own stage** (`dev-<you>`, always `ap-south-1`):

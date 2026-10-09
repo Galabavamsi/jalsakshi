@@ -81,7 +81,9 @@ OPEN ─NOTIFIED─▶ ASSIGNED ─OPERATOR_FIXED─▶ OPERATOR_REPORTED_FIXED 
 VERIFYING ─VERIFIED_OK (quorum yes)─▶ CLOSED_VERIFIED
 VERIFYING ─VERIFY_FAILED (any no)───▶ REOPENED ─NOTIFIED─▶ ASSIGNED
 every unresolved state ─ESCALATED─▶ ESCALATED   (OPEN, ASSIGNED, OPERATOR_REPORTED_FIXED, VERIFYING,
-                                                 REOPENED; to PHED_AE_SIM, labelled simulated)
+                                                 REOPENED; to the SARPANCH, detail.reason operator |
+                                                 no_fix_48h | panchayat_office; a repair being
+                                                 confirmed keeps its state and gets a NOTE instead)
 ESCALATED ─OPERATOR_FIXED─▶ OPERATOR_REPORTED_FIXED   (an escalated repair is still verified)
 NOTE is allowed in every state and never changes it.
 ```
@@ -102,7 +104,7 @@ Step Functions: TicketFlow
    ─▶ StartVerification ─▶ Map(verify households) ─▶ EvaluateVerification ─▶ Choice:
         CLOSED_VERIFIED ⇒ done · REOPENED ⇒ NotifyOperator again
         PENDING in round 1 ⇒ wait 30 min, one extra round · PENDING after round 2 ⇒ Escalate
-   Escalate (PHED_AE_SIM, simulated) [waitForTaskToken: a fix, 14 days] ─▶ StartVerification
+   Escalate (to the Sarpanch: ALERT call, reason no_fix_48h) [waitForTaskToken: a fix, 14 days] ─▶ StartVerification
         no fix in 14 days ⇒ Fail (NoFix) ⇒ failed-executions queue (alarmed)
 API Gateway HTTP API
    /ivr/vobiz/{token}/{action}  provider webhooks (secret path token from SSM; optional provider CIDR
@@ -438,7 +440,7 @@ The complaint page shows an **AI overview** and a **suggested next step**. Advic
   - the piped scheme JJM IMIS lists (`wp-piped-1`, scheme 40006378);
   - the pilot coordinator. The coordinator's display name says they stand in for the Panchayat, and complaints are routed to them because the real Nal Jal Mitra is not enrolled.
 - **Families.** They are added with consent `NONE` and have no answers. Their first call is the REGISTER (consent) call.
-- **Team phones.** These live only in the demo villages (`seed_demo.py`, names marked "(डेमो)", `simulated` source tags). A missed call from a team phone resolves to the demo household, so nothing a team member presses is recorded against Kutelabhatha. `seed_village.py` refuses a team number as a family.
+- **First users (10 Oct).** Kutelabhatha went live with the team and their friends as its first users: real people on their own phones, as families, pump operator and Sarpanch, around the water pump they use near the IIT Bhilai campus. The Team test village was removed; there are no demo or sample villages on the launch stage (`dev-vamsi`, https://jalsakshi.humanslop.in).
 - **Government records.** They are shown next to families' answers and never merged with them: "Government record (JJM IMIS, as on 09 Oct 2026): 450 of 455 households have a tap connection; status In progress". The newest official household tap test is Aug 2023, and the console says so instead of calling the water safe.
 
 ## 16. Accounts, first-time setup and real calling (9 Oct evening)
@@ -453,9 +455,8 @@ The complaint page shows an **AI overview** and a **suggested next step**. Advic
 - **Calling hours.** There is no calling-hours rule (the team removed it on 9 Oct). The daily call goes at the village's chosen time (default 19:00), and missed calls are called back at once. Cedar still enforces consent, no calls after a refusal, and the call-back limit. There is no one-call-a-day rule either (removed 10 Oct): "Call families now" calls every agreed family each time it is pressed, and a family that did not pick up its consent call can be called again from Families → "Call again" (each console request is its own call id; a retried delivery of one request dials once).
 - **Fresh start and sample data.** `scripts/reset_stage.py` clears village data but keeps the consent ledger and the missed-call log. `scripts/seed_sample.py` adds a labelled **Sample village** (`sample-…` id, generated answers stored as `SIMULATOR`, `+910000…` numbers). Its 30 days of history are computed by the real reconciler, for showing reports before a real village has history. Real villages never get generated data.
 
-## 14. Honest limits (also in the README and the video)
+## 14. Limits (also in the README)
 
-- PHED escalation and the operator's real-world repair are **simulated**. There is no public API into IMIS, Meri Panchayat or PHED.
-- Demo villagers and the operator are **team members playing roles**, and this is labelled on screen.
-- Outbound calls go only to consenting test numbers. In production this needs a service-series (1600) number and DLT registration via a government or panchayat partner.
-- Hindi only in the MVP; Chhattisgarhi speech is handled through keypad-first design.
+- There is no public API into IMIS, Meri Panchayat or PHED, so JalSakshi never connects to them or dials government helplines. Escalation goes to the Sarpanch (§15.7); the Panchayat takes block-level problems further.
+- Calls go only to people who agreed on the phone. Scaling beyond the first village needs a service-series (1600) number and DLT registration via a government or Panchayat partner.
+- Hindi by default; Chhattisgarhi prompts await a native speaker's review.

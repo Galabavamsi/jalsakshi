@@ -215,7 +215,9 @@ def send_to_sarpanch(ticket_id: str) -> Any:
         raise ApiError(409, "closed", "this complaint is already closed")
     if not config.settings().outbound_fn:
         raise ApiError(503, "not_configured", "outbound calls are not configured on this stage")
-    calls.escalate_to_panchayat(repo, ticket.id, _actor(), None, delay_s=0)
+    calls.escalate_to_panchayat(
+        repo, ticket.id, _actor(), None, delay_s=0, reason=calls.ESCALATION_OFFICE
+    )
     return json_response(200, _dump(tickets.load_ticket(repo, ticket.id)))
 
 

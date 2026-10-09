@@ -208,6 +208,13 @@ class AppStack(cdk.Stack):
             self._grant_task_response(fn)
         if task == "reconcile_day":
             self._grant_start_ticket_flow(fn)
+        if task == "escalate":  # 48 hours without a fix: the Sarpanch gets a call
+            fn.add_to_role_policy(
+                iam.PolicyStatement(
+                    actions=["lambda:InvokeFunction"],
+                    resources=[self._function_arn(OUTBOUND_SLUG)],
+                )
+            )
         return fn
 
     def _api_functions(self, web: WebStack) -> None:

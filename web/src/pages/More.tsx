@@ -28,7 +28,6 @@ const m = defineMessages({
   signOut: 'Sign out',
   admin: 'Admin',
   allVillages: 'All villages',
-  testCall: 'Test call',
   sourcesSub: 'Taps, handpumps, borewells',
   teamSub: 'Pump operator, sarpanch, secretary',
   annSub: 'Write → sarpanch approves → send (2 a week)',
@@ -94,7 +93,6 @@ export function MorePage() {
   const admin: Item[] = [
     { to: `${base}/more/new-panchayat`, label: m.newPanchayat, sub: m.newPanchayatSub },
     { to: `${base}/more/villages`, label: m.allVillages },
-    { to: `${base}/more/test-call`, label: m.testCall },
   ];
   const row = (it: Item) => (
     <li key={it.to}>

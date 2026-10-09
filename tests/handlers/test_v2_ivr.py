@@ -578,9 +578,10 @@ def test_key_7_sends_the_complaint_to_the_sarpanch(v2: V2Fakes, seeded: Reposito
     assert ticket.state.value == "ESCALATED"
     escalated = ticket.events[-1]
     assert escalated.kind == "ESCALATED" and escalated.actor == "operator:op-1"
-    assert escalated.detail == {"to": "SARPANCH", "by": "op-1", "simulated": False}
+    assert escalated.detail == {"to": "SARPANCH", "by": "op-1", "reason": "operator"}
     [job] = v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)
     assert job["ticket_id"] == tid and job["delay_s"] == calls.PANCHAYAT_ALERT_DELAY_S
+    assert job["reason"] == "operator"
     assert v2.sfn.outputs_for("fix-1") == []  # still waiting for a fix
     feed = seeded.list_activity(MORNING - timedelta(hours=1))
     assert any("sent to the Sarpanch" in e.text_en for e in feed)
@@ -608,7 +609,10 @@ def test_the_sarpanch_hears_the_complaint_and_the_operators_words(
     assert flow.ticket_id == tid and loaded.record.origin == "alert"
     message = flow.message_text_hi or ""
     assert message.startswith("Shikayat kramank 7: paani nahi aaya.")
+    assert "Nal Jal Mitra ne kaha hai ki yeh unke bas mein nahi hai." in message
     assert "मोटर जल गई है" in message
+    no_fix = outbound.alert_text(seeded, seeded.get_ticket_by_id(tid), "no_fix_48h")  # type: ignore[arg-type]
+    assert "do din se theek nahi hui" in no_fix
     alert = run_call(out["call_id"], ["1"])
     assert plays(alert[-1]) == [f"{CDN}/alert.bye.mp3"]
     ticket = seeded.get_ticket_by_id(tid)

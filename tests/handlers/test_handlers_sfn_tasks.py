@@ -352,18 +352,15 @@ def test_evaluate_ignores_answers_from_before_the_round(seeded: Repository, cloc
     assert out["outcome"] == "PENDING"
 
 
-def test_escalate_marks_simulated_phed_and_waits(seeded: Repository) -> None:
+def test_escalate_after_48_hours_sends_it_to_the_sarpanch_and_waits(seeded: Repository) -> None:
     tid = open_assigned_ticket(seeded)
     state = {"ticket_id": tid, "escalation_cause": {"Error": "States.HeartbeatTimeout"}}
     out = run(sfn_tasks.escalate, state, token="esc-1")
     assert out["status"] == "waiting"
     ticket = tickets.load_ticket(seeded, tid)
     assert ticket.state is TicketState.ESCALATED
-    assert ticket.events[-1].detail == {
-        "to": "PHED_AE_SIM",
-        "simulated": True,
-        "cause": "States.HeartbeatTimeout",
-    }
+    assert ticket.events[-1].actor == "system:escalation"
+    assert ticket.events[-1].detail == {"to": "SARPANCH", "by": None, "reason": "no_fix_48h"}
     again = run(sfn_tasks.escalate, state, token="esc-2")
     assert again["status"] == "waiting"
     assert len(tickets.load_ticket(seeded, tid).events) == len(ticket.events)

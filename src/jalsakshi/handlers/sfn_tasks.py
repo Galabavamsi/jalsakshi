@@ -23,7 +23,6 @@ from jalsakshi.core.models import (
     CapturedVia,
     CheckIn,
     DayStatusValue,
-    OperatorRole,
     Purpose,
     Ticket,
     TicketReason,
@@ -35,8 +34,10 @@ from jalsakshi.core.tickets import Denied, TicketEventKind, closing_quorum, new_
 from jalsakshi.core.verify import VerifyOutcome
 from jalsakshi.handlers import config, residents, sfn, tickets
 from jalsakshi.handlers.calls import (
+    ESCALATION_NO_FIX,
     CallRecord,
     clear_pending,
+    escalate_to_panchayat,
     household_call_id,
     household_decision,
     load_call,
@@ -371,7 +372,8 @@ def evaluate_verification(event: Any, context: Any) -> dict[str, Any]:
 
 @entrypoint
 def escalate(event: Any, context: Any) -> dict[str, Any]:
-    """Escalate to PHED (simulated) and wait for a fix; skip when a fix already arrived."""
+    """No fix for 48 hours: send the complaint to the Sarpanch (a real call) and wait for a fix;
+    skip when a fix already arrived. A complaint already escalated is not sent again."""
     payload, token = _unwrap(event)
     if not token:
         raise TaskError("escalate must be invoked with a task token")
@@ -383,17 +385,9 @@ def escalate(event: Any, context: Any) -> dict[str, Any]:
         sfn.send_task_success(token, {"fixed": True, "state": ticket.state.value})
         return {"ticket_id": ticket.id, "status": "already_fixed"}
     if ticket.state is not TicketState.ESCALATED:
-        cause = payload.get("escalation_cause")
-        detail = {
-            "to": OperatorRole.PHED_AE_SIM.value,
-            "simulated": True,
-            "cause": cause.get("Error") if isinstance(cause, Mapping) else None,
-        }
-        result = tickets.apply_event(
-            repo, ticket.id, TicketEventKind.ESCALATED, "system:escalation", detail
+        escalate_to_panchayat(
+            repo, ticket.id, "system:escalation", None, delay_s=0, reason=ESCALATION_NO_FIX
         )
-        if isinstance(result, Denied):
-            raise TaskError(result.reason)
     return {"ticket_id": ticket.id, "status": "waiting"}
 
 

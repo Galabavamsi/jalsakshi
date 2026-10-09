@@ -66,6 +66,18 @@ _REPORT_REASONS: Final = {
 }
 CALLBACK_WINDOW: Final = timedelta(hours=24)
 PANCHAYAT_ALERT_DELAY_S: Final = 45
+# Why a complaint went to the Sarpanch (ESCALATED/NOTE detail "reason", and the ALERT call).
+ESCALATION_OPERATOR: Final = "operator"
+ESCALATION_NO_FIX: Final = "no_fix_48h"
+ESCALATION_OFFICE: Final = "panchayat_office"
+ESCALATION_FEED: Final[dict[str, tuple[str, str]]] = {
+    ESCALATION_OPERATOR: (
+        "the pump operator cannot fix it alone",
+        "नल जल मित्र अकेले ठीक नहीं कर सकते",
+    ),
+    ESCALATION_NO_FIX: ("not fixed for 48 hours", "48 घंटे से ठीक नहीं हुई"),
+    ESCALATION_OFFICE: ("sent by the Panchayat office", "पंचायत कार्यालय ने भेजी"),
+}
 # States where sending a complaint to the Sarpanch must not change the state: an ESCALATED
 # there would stop the families' confirmation (or it is escalated already).
 KEEP_STATE_ON_ESCALATION: Final = frozenset(
@@ -504,15 +516,17 @@ def escalate_to_panchayat(
     actor: str,
     operator_id: str | None,
     delay_s: int = PANCHAYAT_ALERT_DELAY_S,
+    reason: str = ESCALATION_OPERATOR,
 ) -> None:
-    """The operator cannot fix it alone: the complaint goes to the Sarpanch, who gets a call.
+    """Send a complaint to the Sarpanch, who gets a call about it.
 
-    After the operator's key 7 the call waits ``PANCHAYAT_ALERT_DELAY_S`` so their spoken reason
-    is usually transcribed by then and read out to the Sarpanch (the console sends at once).
-    An already escalated complaint (e.g. after 48 hours) keeps its state; the Sarpanch is still
-    called.
+    ``reason``: the operator cannot fix it alone (key 7), no fix for 48 hours (TicketFlow), or
+    the Panchayat office sent it (console). After key 7 the call waits ``PANCHAYAT_ALERT_DELAY_S``
+    so the operator's spoken reason is usually transcribed by then and read out to the Sarpanch.
+    A repair being confirmed, or an already escalated complaint, keeps its state; the Sarpanch is
+    still called.
     """
-    detail = {"to": OperatorRole.SARPANCH.value, "by": operator_id, "simulated": False}
+    detail = {"to": OperatorRole.SARPANCH.value, "by": operator_id, "reason": reason}
     current = repo.get_ticket_by_id(ticket_id)
     if current is None:
         return
@@ -529,11 +543,12 @@ def escalate_to_panchayat(
         logger.warning("escalation not recorded", extra={"reason": result.reason})
         return
     ticket = result
+    why_en, why_hi = ESCALATION_FEED.get(reason, ESCALATION_FEED[ESCALATION_OPERATOR])
     activity(
         "ticket",
         ticket.village_id,
-        f"Complaint #{ticket.number} sent to the Sarpanch: the pump operator cannot fix it alone",
-        f"शिकायत क्रमांक {ticket.number} सरपंच को भेजी: नल जल मित्र अकेले ठीक नहीं कर सकते",
+        f"Complaint #{ticket.number} sent to the Sarpanch: {why_en}",
+        f"शिकायत क्रमांक {ticket.number} सरपंच को भेजी: {why_hi}",
     )
     queue_outbound(
         {
@@ -541,6 +556,7 @@ def escalate_to_panchayat(
             "ticket_id": ticket_id,
             "delay_s": delay_s,
             "requested_at": config.now().isoformat(),
+            "reason": reason,
         }
     )
 

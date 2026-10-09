@@ -39,6 +39,9 @@ from jalsakshi.core.models import (
 from jalsakshi.core.summary import weekly_summary_text
 from jalsakshi.handlers import broadcasts, config, residents
 from jalsakshi.handlers.calls import (
+    ESCALATION_NO_FIX,
+    ESCALATION_OFFICE,
+    ESCALATION_OPERATOR,
     CallRecord,
     callbacks_today,
     household_decision,
@@ -106,6 +109,7 @@ def handler(event: Any, context: Any) -> dict[str, Any]:
                 str(payload.get("ticket_id", "")),
                 int(payload.get("delay_s") or 0),
                 str(payload.get("requested_at") or ""),
+                str(payload.get("reason") or ESCALATION_OPERATOR),
             )
         case "operator_call":
             from jalsakshi.handlers import sfn_tasks, tickets
@@ -355,9 +359,13 @@ def call_household(
 
 
 def panchayat_alert(
-    repo: Repository, ticket_id: str, delay_s: int = 0, requested_at: str = ""
+    repo: Repository,
+    ticket_id: str,
+    delay_s: int = 0,
+    requested_at: str = "",
+    reason: str = ESCALATION_OPERATOR,
 ) -> dict[str, Any]:
-    """Call the sarpanch (else the secretary) about a complaint the operator cannot fix alone."""
+    """Call the sarpanch (else the secretary) about a complaint sent to them, and say why."""
     if delay_s > 0:  # let the operator's spoken reason be transcribed first
         time.sleep(min(delay_s, ALERT_MAX_DELAY_S))
     ticket = repo.get_ticket_by_id(ticket_id)
@@ -389,7 +397,7 @@ def panchayat_alert(
         operator_id=person.id,
         ticket_id=ticket.id,
         ticket_number=ticket.number,
-        message_text_hi=alert_text(repo, ticket),
+        message_text_hi=alert_text(repo, ticket, reason),
     )
     record = CallRecord(
         flow=flow, provider=config.settings().voice_provider, day=today, origin="alert"
@@ -400,18 +408,22 @@ def panchayat_alert(
     )
 
 
-def alert_text(repo: Repository, ticket: Ticket) -> str:
-    """What the sarpanch hears: number, problem, place and the operator's own words."""
+ALERT_WHY: Final[dict[str, str]] = {
+    ESCALATION_OPERATOR: "Nal Jal Mitra ne kaha hai ki yeh unke bas mein nahi hai.",
+    ESCALATION_NO_FIX: "Yeh shikayat do din se theek nahi hui hai.",
+    ESCALATION_OFFICE: "Panchayat karyalay ne yeh shikayat aapko bheji hai.",
+}
+
+
+def alert_text(repo: Repository, ticket: Ticket, reason: str = ESCALATION_OPERATOR) -> str:
+    """What the sarpanch hears: number, problem, place, why it came, the operator's words."""
     place = residents.point_name(repo, ticket.village_id, ticket.water_point_id) or "poora gaon"
     words = operator_words(ticket)
-    said = (
-        f"Nal Jal Mitra ne kaha: {words}."
-        if words
-        else "Nal Jal Mitra ne bolkar koi kaaran nahi bataya."
-    )
+    said = f" Nal Jal Mitra ke shabd: {words}." if words else ""
     number = f"Shikayat kramank {ticket.number}" if ticket.number else "Ek shikayat"
+    why = ALERT_WHY.get(reason, ALERT_WHY[ESCALATION_OPERATOR])
     return (
-        f"{number}: {residents.REASON_HI[ticket.reason]}. Jagah: {place}. {said} "
+        f"{number}: {residents.REASON_HI[ticket.reason]}. Jagah: {place}. {why}{said} "
         "Kripya Panchayat mein dekh lein."
     )
 

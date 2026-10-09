@@ -98,7 +98,7 @@ export function isClosed(t: Pick<Ticket, 'state'>): boolean {
 export const COMPLAINT_WORD: Record<TicketState, Bilingual> = {
   OPEN: { en: 'New', hi: 'नई' },
   REOPENED: { en: 'Still not fixed', hi: 'अब भी ठीक नहीं' },
-  ESCALATED: { en: 'Escalated', hi: 'आगे भेजी गई' },
+  ESCALATED: { en: 'With the Sarpanch', hi: 'सरपंच के पास' },
   ASSIGNED: { en: 'Pump operator told', hi: 'पंप ऑपरेटर को बताया' },
   OPERATOR_REPORTED_FIXED: { en: 'Operator says fixed', hi: 'ऑपरेटर कहता है ठीक' },
   VERIFYING: { en: 'Asking families', hi: 'परिवारों से पूछ रहे हैं' },
@@ -191,7 +191,7 @@ const EVENT_TEXT: Record<string, Bilingual> = {
   reopened: { en: 'Families said water is still not back', hi: 'परिवारों ने कहा पानी अब भी नहीं आया' },
   closed_verified: { en: 'Closed: families confirmed water is back', hi: 'बंद: परिवारों ने पुष्टि की कि पानी आ गया' },
   close_denied: { en: 'Someone tried to close it; families had not confirmed yet', hi: 'बंद करने की कोशिश हुई; परिवारों ने अभी पुष्टि नहीं की थी' },
-  escalated: { en: 'Marked as needing PHED help', hi: 'PHED की मदद के लिए चिह्नित' },
+  escalated: { en: 'Escalated', hi: 'आगे भेजी गई' },
   day_still_bad: { en: 'Still a problem the next day', hi: 'अगले दिन भी समस्या' },
   another_report: { en: 'Another family reported the same problem', hi: 'एक और परिवार ने यही समस्या बताई' },
   operator_reason: { en: 'Pump operator said why it is not fixed yet', hi: 'पंप ऑपरेटर ने बताया अभी क्यों ठीक नहीं हुआ' },
@@ -233,13 +233,18 @@ export function timelineLines(ticket: Ticket): TimelineLine[] {
   });
 }
 
+/** Why a complaint went to the Sarpanch (the escalation's detail.reason). */
+const SARPANCH_WHY: Record<string, Bilingual> = {
+  operator: { en: 'Pump operator cannot fix it alone', hi: 'पंप ऑपरेटर अकेले ठीक नहीं कर सकते' },
+  no_fix_48h: { en: 'Not fixed for 48 hours', hi: '48 घंटे से ठीक नहीं' },
+  panchayat_office: { en: 'Panchayat office', hi: 'पंचायत कार्यालय' },
+};
+
 /** Event lines whose wording depends on the event's detail (who it went to, what was said). */
 function detailText(key: string, detail: Record<string, unknown>): Bilingual | null {
-  if (key === 'escalated' && detail.to === 'SARPANCH') {
-    return { en: 'Pump operator cannot fix it alone: sent to the Sarpanch', hi: 'पंप ऑपरेटर अकेले ठीक नहीं कर सकते: सरपंच को भेजी' };
-  }
-  if (key === 'escalated') {
-    return { en: 'No fix for 48 hours: marked as needing PHED help (simulated)', hi: '48 घंटे में ठीक नहीं: PHED की मदद के लिए चिह्नित (सिम्युलेटेड)' };
+  if ((key === 'escalated' || key === 'sent_to_sarpanch') && detail.to === 'SARPANCH') {
+    const why = SARPANCH_WHY[typeof detail.reason === 'string' ? detail.reason : 'operator'] ?? SARPANCH_WHY.operator!;
+    return { en: `${why.en}: sent to the Sarpanch`, hi: `${why.hi}: सरपंच को भेजी` };
   }
   if (key === 'operator_reason' && typeof detail.code === 'string') {
     const label = BLOCKER[detail.code as BlockerCode];

@@ -563,7 +563,7 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
             kind: 'ESCALATED',
             from_state: ticket.state,
             to_state: 'ESCALATED',
-            detail: { to: 'SARPANCH', by: null, simulated: false },
+            detail: { to: 'SARPANCH', by: null, reason: 'panchayat_office' },
           });
         }
         return ticket;

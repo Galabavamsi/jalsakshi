@@ -56,8 +56,8 @@ _FEED: Final[dict[TicketEventKind, tuple[str, str]]] = {
         "शिकायत {tid} फिर खुली: एक घर ने कहा समस्या अभी है",
     ),
     TicketEventKind.ESCALATED: (
-        "Ticket {tid} escalated to PHED (simulated)",
-        "शिकायत {tid} PHED को भेजी गई (सिम्युलेटेड)",
+        "Ticket {tid} escalated",
+        "शिकायत {tid} आगे भेजी गई",
     ),
 }
 

@@ -45,11 +45,13 @@ describe('Complaint history lines', () => {
         ev('NOTE', { note: 'operator_voice', transcript: 'मोटर जल गई', summary_en: 'Motor burnt' }),
         ev('ESCALATED', { to: 'SARPANCH' }),
         ev('NOTE', { note: 'sarpanch_told' }),
+        ev('NOTE', { note: 'sent_to_sarpanch', to: 'SARPANCH', reason: 'no_fix_48h' }),
       ],
     } as Ticket).map((l) => l.text.en);
     expect(lines[0]).toBe('Pump operator: not fixed yet. Cannot fix it alone: needs the Panchayat');
     expect(lines[1]).toBe('Pump operator said: "मोटर जल गई" (Motor burnt; AI-transcribed)');
     expect(lines[2]).toBe('Pump operator cannot fix it alone: sent to the Sarpanch');
     expect(lines[3]).toBe('The Sarpanch heard it on the phone (pressed 1)');
+    expect(lines[4]).toBe('Not fixed for 48 hours: sent to the Sarpanch');
   });
 });

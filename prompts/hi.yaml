@@ -72,7 +72,7 @@ broadcast:
 summary:
   greet: "Namaste. JalSakshi ki saaptahik report, Gram Panchayat ke liye."
 alert:
-  greet: "Namaste. JalSakshi se Gram Panchayat ke liye ek zaroori soochna hai. Ek paani ki shikayat Nal Jal Mitra ke bas mein nahi hai."
+  greet: "Namaste. JalSakshi se Gram Panchayat ke liye paani ki ek shikayat par zaroori soochna hai."
   bye: "Dhanyavaad. Poori jaankari JalSakshi console mein hai."
 lang:
   hi: "Hindi"
