@@ -113,7 +113,7 @@ Lambda (Python 3.12, Powertools, X-Ray, one shared code asset): one per workflow
    ivr and a daily context refresh (06:00 IST, §11)
 DynamoDB (single table, PITR, TTL) · S3: prompt audio behind CloudFront, private evidence bucket
    (today it holds the context/ cache)
-Bedrock: in.anthropic.claude-haiku-4-5-20251001-v1:0 → global.amazon.nova-2-lite-v1:0 → template
+Bedrock: global.anthropic.claude-haiku-5-5 → in.anthropic.claude-haiku-4-5-20251001-v1:0 → global.amazon.nova-2-lite-v1:0 → template
 SSM Parameter Store SecureString /jalsakshi/{stage}/*: vendor keys, ivr_path_token, allowed_numbers
 CloudWatch dashboard + alarms (any DLQ > 0: failed executions, scheduler, context refresh; ivr Errors > 0)
 CloudFront + S3 for the console · Cognito user pool (operators, one group per role)
@@ -134,7 +134,7 @@ The policy file permits by default (`@id("allow-by-default")`) and adds one `for
 |---|---|---|
 | `consent-required` | forbid `PlaceCall` unless `resource.consent_given` | "No consent on file for this household." |
 | `calling-hours` | forbid `PlaceCall` unless 9 ≤ `context.hour_ist` < 21 | "Calls are allowed only between 09:00 and 21:00 IST (TRAI rule)." |
-| `one-call-per-day` | forbid `PlaceCall` when `context.calls_today ≥ 1` and purpose = DAILY | "This household was already called today." |
+| ~~`one-call-per-day`~~ | removed by the team on 10 Oct: the secretary may call the families again the same day | n/a |
 | `verify-needs-quorum` | forbid `CloseVerified` unless `context.verify_yes ≥ resource.quorum` | "Only N of the M households needed have confirmed water." |
 | `no-household-view-for-dept` | forbid `ViewHouseholdAnswers` when principal role ∈ {PHED_*_SIM} | "The department sees village totals only, not household answers." |
 | `stale-data` | forbid `PublishEvidence` when `context.data_age_hours > 24` | "Data is older than 24 hours. Refresh it first." |
@@ -276,7 +276,7 @@ A village with one water point gets exactly the r1 result.
   - `Household` gains `consent_status`; `PlaceCall` context gains `caller_initiated: Bool`.
   - `consent-required` now exempts `purpose == "REGISTER"`.
   - New `no-calls-after-withdrawal` forbids any call when `consent_status ∈ {DECLINED, WITHDRAWN}`, unless `caller_initiated`.
-  - `one-call-per-day` also covers REGISTER, unless `caller_initiated`.
+  - `one-call-per-day` was removed on 10 Oct (`calls_today` stays in the context for the record).
   - New `callback-limit` forbids caller-initiated calls when `callbacks_today ≥ 5`.
 
 ### 15.4 Missed-call reporting
@@ -284,7 +284,7 @@ A village with one water point gets exactly the r1 result.
 ```
 resident ──missed call──▶ Vobiz DID ──▶ /ivr/vobiz/{token}/inbound
    reply <Hangup reason="rejected"/>   (the caller is not charged; per Vobiz docs, neither are we)
-   log MISSED#{phone}; ignore withheld numbers; rate limit 1 callback / 10 min, 5 / day
+   log MISSED#{phone}; ignore withheld numbers; rate limit 1 callback / 2 min, 5 / day
    ─▶ EventBridge Scheduler one-off at(+1 min), or 09:00 IST if it arrived outside calling hours
    ─▶ Lambda callback ─▶ Cedar PlaceCall(caller_initiated) ─▶ dial the caller back with:
         consented household   → REPORT menu
@@ -334,11 +334,13 @@ Record (25 s max, # to end) ─▶ /recording callback ─▶ async Lambda notes
 
 ### 15.7 Operator reason codes
 
-The operator call asks, after the summary: 1 fixed · 2 parts needed · 3 no electricity · 4 pipe broken or leaking · 5 not my responsibility.
+The operator call asks, after the summary: 1 fixed · 2 parts needed · 3 no electricity · 4 pipe broken or leaking · 5 not my responsibility · 6 something else (say it) · 7 cannot fix it alone, needs the Sarpanch.
 
 - 1 applies `OPERATOR_FIXED`, as before.
-- 2–5 add a `NOTE{note: "operator_reason", code}` and set `ticket.blocker`.
+- 2–7 add a `NOTE{note: "operator_reason", code}` and set `ticket.blocker` (`OTHER` for 6, `NEEDS_PANCHAYAT` for 7).
 - Code 5 also moves the ticket to the next person in the routing chain (§15.1).
+- 6 and 7 are followed by a spoken note (30 s, `#` ends it). The notes Lambda transcribes it (Sarvam), adds an English gist (Bedrock) and writes `NOTE{note: "operator_voice", transcript, summary_en, code}` on the complaint, labelled AI-transcribed.
+- 7 also applies `ESCALATED{to: "SARPANCH", by: operator}` (an already escalated complaint keeps its state) and queues the outbound job `panchayat_alert` 45 s later, so the operator's words are usually transcribed by then. That job calls the village's Sarpanch, or the Panchayat Secretary when there is no Sarpanch, with a new `ALERT` call: intro, the complaint number, problem, place and the operator's words (runtime TTS), then "press 1 if you heard". Pressing 1 writes `NOTE{note: "sarpanch_told"}`. The TicketFlow keeps waiting for a fix; the 48-hour PHED escalation (simulated) still applies.
 - Analytics counts blockers per water point. This is the "why does water fail here" evidence.
 
 ### 15.8 Approved announcements (broadcasts)
@@ -395,12 +397,12 @@ Every number carries its `SourceTag`.
 
 ### 15.12 New keys, purposes and routes
 
-- **Purposes:** `REGISTER`, `REPORT`, `BROADCAST`, `SUMMARY`. Only `REPORT` produces a CheckIn, alongside the existing `DAILY` and `VERIFY`.
+- **Purposes:** `REGISTER`, `REPORT`, `BROADCAST`, `SUMMARY`, `ALERT` (a complaint sent to the Sarpanch, §15.7). Only `REPORT` produces a CheckIn, alongside the existing `DAILY` and `VERIFY`.
 - **DynamoDB:**
   - `VILLAGE#{vid}`: `WP#{wpid}` · `CONSENT#{iso}#{hid}` · `BCAST#{bid}` · `QT#{iso}#{qid}` · `SEQ#TICKET`
   - `OPENTKT#{wpid|village}#{reason}`
   - `PHONE#{e164}`: `HH#{hid}` (`village_id`) and `OP#{oid}`, the reverse lookup for inbound calls
-  - `MISSED#{e164}`: `{iso}`, a missed-call log (TTL 30 days); `data.callback` records whether that ring queued a call-back, so only those count towards the 10-minute cooldown and the 5-a-day limit
+  - `MISSED#{e164}`: `{iso}`, a missed-call log (TTL 30 days); `data.callback` records whether that ring queued a call-back, so only those count towards the 2-minute cooldown and the 5-a-day limit
 - **Routes:**
   - `POST /ivr/vobiz/{token}/inbound` (the Vobiz Application's answer URL)
   - `GET /public/{proxy+}` (no authorizer)
@@ -409,7 +411,25 @@ Every number carries its `SourceTag`.
   - `GET|POST /api/villages/{vid}/broadcasts`, `POST /api/villages/{vid}/broadcasts/{bid}/approve|send|cancel`
   - `GET|POST /api/villages/{vid}/quality`
   - `GET /api/villages/{vid}/analytics`, `GET /api/villages/{vid}/summary`
+  - `POST /api/villages/{vid}/households/{hid}/consent-call` (call a family that has not answered yet)
+  - `GET /api/tickets/{id}/overview`, `POST /api/tickets/{id}/send-to-sarpanch`, `POST /api/tickets/{id}/call-operator` (§15.14)
 - **Runtime TTS** (`voice/tts.py`). A `Play` with no pre-rendered clip (a number, a water point name, an announcement) is rendered once with Sarvam Bulbul at request time. It is cached in the prompt bucket under `prompts/hi/dyn/{sha256[:32]}.mp3` and served through CloudFront (`{audio_base_url}/dyn/...`). Vobiz `Speak` has no Hindi voice, so text is never sent to it.
+
+### 15.14 AI advice on a complaint (10 Oct)
+
+The complaint page shows an **AI overview** and a **suggested next step**. Advice only: nothing changes until the secretary presses "Send to the Sarpanch" or "Call the pump operator again", and those actions go through the same state machine, Cedar and dialer as everything else.
+
+- **Facts** (`agent/overview.py: facts_for`): built deterministically from the complaint record. De-identified: the problem, status, hours open, counts, the operator's reason codes and the English gist of the operator's own words with long digit runs removed. Never names, phone numbers, household ids or families' words.
+- **Next step** (`suggest`): one of `CALL_OPERATOR_AGAIN`, `SEND_TO_SARPANCH`, `RAISE_WITH_BLOCK_OFFICE` (the secretary does this; JalSakshi never calls government numbers), `WAIT_FOR_REPAIR`.
+  - A chain of decision models, each asked one typed `choice` question plus an `urgent` yes/no, one attempt each with a 4 s timeout:
+    1. TypeSafe **Jev** (`POST https://api.typesafe.ai/v1/systemone`, model pinned to `jev-1.13.0`, SSM key `jev_api_key`);
+    2. **OpenAI Decisions** (`POST https://api.openai.com/v1/decisions`, `gpt-6-luna`, `choice` + `predicate`, SSM key `openai_api_key`);
+    3. the **fixed rules** (`suggest_rules`), which are also the behaviour without keys.
+  - A model that fails or is below 40% confident is skipped, and the page lists why ("the Jev decision model was unsure (13%)"). Both models are outside AWS, which is why they get the codes and counts only (not even the gist of the operator's words).
+  - A test of 8 labelled made-up complaints on 10 Oct: OpenAI 6/8, Jev 5/8 (one timeout), both about 0.4 s from India. The rules match the labels by construction.
+- **Overview text**: 2–3 plain sentences from the Bedrock model chain (`agent.reader.converse_text`), with a fixed template as fallback. The page names who wrote it and when, and shows Jev's confidence as a percentage with its source.
+- **During the call loop**: after an operator's spoken note (key 6), if the advice is "send it to the Sarpanch", the activity feed says so. The secretary decides.
+- Results are cached per Lambda container for each version (`updated_at`) of a complaint.
 
 ### 15.13 Pilot honesty rules (real village, real families)
 
@@ -430,7 +450,7 @@ Every number carries its `SourceTag`.
   3. Paste families' mobile numbers (`POST /api/villages/{vid}/households/bulk`). Each new family gets **one consent call** (at most 25 waiting per village); families can also join themselves with a missed call (poster).
   - Creating the village also creates its daily 19:00 check-in schedule. The first village on a stage takes unknown missed callers.
 - **Who can be dialled.** On an `open_dialing` stage, any number registered in the table can be dialled: a family a signed-in secretary added, a family that gave its own missed call, or a team member. Other stages use only the SSM allowlist. Every call still passes Cedar, and `+910000…` placeholders and helplines are never dialled. A team member's number is never registered as a family.
-- **Calling hours.** There is no calling-hours rule (the team removed it on 9 Oct). The daily call goes at the village's chosen time (default 19:00), and missed calls are called back at once. Cedar still enforces consent, no calls after a refusal, one daily call, and the call-back limit.
+- **Calling hours.** There is no calling-hours rule (the team removed it on 9 Oct). The daily call goes at the village's chosen time (default 19:00), and missed calls are called back at once. Cedar still enforces consent, no calls after a refusal, and the call-back limit. There is no one-call-a-day rule either (removed 10 Oct): "Call families now" calls every agreed family each time it is pressed, and a family that did not pick up its consent call can be called again from Families → "Call again" (each console request is its own call id; a retried delivery of one request dials once).
 - **Fresh start and sample data.** `scripts/reset_stage.py` clears village data but keeps the consent ledger and the missed-call log. `scripts/seed_sample.py` adds a labelled **Sample village** (`sample-…` id, generated answers stored as `SIMULATOR`, `+910000…` numbers). Its 30 days of history are computed by the real reconciler, for showing reports before a real village has history. Real villages never get generated data.
 
 ## 14. Honest limits (also in the README and the video)

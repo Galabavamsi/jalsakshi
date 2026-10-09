@@ -477,7 +477,7 @@ Rules: one CSS module per component, tokens only; no hex outside `tokens.css`; n
 | home | Today · Water today · Needs your attention | आज · आज पानी · आपके ध्यान के लिए |
 | all clear | All clear. Nothing needs you right now. | सब ठीक है। अभी आपके लिए कोई काम नहीं। |
 | call now | Call families now | अभी परिवारों को कॉल करें |
-| call confirm | Call {n} families now? Each family gets one call a day. | अभी {n} परिवारों को कॉल करें? हर परिवार को दिन में एक ही कॉल जाती है। |
+| call confirm | Call {n} families now? | अभी {n} परिवारों को कॉल करें? |
 | hours | Calls go out only between 9 am and 9 pm. | कॉल सिर्फ़ सुबह 9 से रात 9 बजे के बीच जाती हैं। |
 | actions | Raise a complaint · Add a family · Add a water source · Record a water test · New announcement | शिकायत दर्ज करें · परिवार जोड़ें · पानी का स्रोत जोड़ें · पानी की जाँच दर्ज करें · नई घोषणा |
 | approve / send | Approve (sarpanch only) · Send now · Yes, send now | मंज़ूर करें (सिर्फ़ सरपंच) · अभी भेजें · हाँ, अभी भेजें |
