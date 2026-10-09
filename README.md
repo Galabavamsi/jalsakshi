@@ -3,7 +3,7 @@
 **Water witness. Households confirm whether tap water actually came, and repairs count only when they confirm it's back.**
 
 > Built for **Environmental Hacks** (WeMakeDevs × AWS Builder Center, Bharat Builds Tour), **Heat & Water** track.
-> Demo video: _coming soon_ · Live console: _coming soon_
+> Live console: **https://jalsakshi.humanslop.in** (Panchayat login) · How it works on AWS, no login: **https://jalsakshi.humanslop.in/how** · Demo video: _coming soon_
 
 ---
 
@@ -20,45 +20,63 @@ The people who know are the women who wait at the tap, usually on a shared keypa
 
 ## What JalSakshi does
 
-1. **Asks.** A short Hindi phone call (works on any keypad phone): *Aaj nal mein paani aaya? Kitne ghante? Saaf tha?* ("Did tap water come today? For how many hours? Was it clean?")
-2. **Decides, deterministically.** A tested rule engine (no AI) turns household answers into the village's day status: `SUPPLIED`, `PARTIAL`, `NO_SUPPLY`, `DIRTY`, or `UNVERIFIED` when too few households answered.
-3. **Acts.** `NO_SUPPLY` or `DIRTY` opens a repair ticket and calls the village **Nal Jal Mitra** (pump operator) in Hindi.
-4. **Verifies.** When the operator says "fixed", JalSakshi **calls the same households back**. The ticket closes as `CLOSED_VERIFIED` only when they confirm water. Otherwise it reopens, and escalates after 48 hours.
-5. **Gives evidence.** It produces a Hindi evidence sheet for the **Gram Sabha**: observed reliability against the village's claimed Har Ghar Jal status, with every number sourced.
+1. **Registers families by phone, with consent.** The Panchayat secretary pastes numbers, photographs the register (Bedrock reads names, mobiles and areas, and the secretary checks every row), or families simply give a missed call. The first call reads a short notice in the family's language (Hindi or Chhattisgarhi today) and asks them to press 1 to agree. Every consent is kept in an append-only record.
+2. **Asks every evening.** A short call on any keypad phone: *Did water come today from your tap / standpost / handpump / borewell / tanker? For how many hours? Was it clean?* It works for any drinking-water source, not only Jal Jeevan Mission taps.
+3. **Decides, deterministically.** Tested rules (no AI) turn the answers into each water point's day status: `SUPPLIED`, `PARTIAL`, `NO_SUPPLY`, `DIRTY`, or `UNVERIFIED` when too few families answered.
+4. **Takes complaints at any hour.** A missed call to the village number is rejected (free for the caller) and called straight back with a menu: no water, dirty water, or speak the complaint (Sarvam speech-to-text, then Bedrock reads it).
+5. **Calls the pump operator.** The operator presses 1 for fixed, 2–5 for a reason (parts, electricity, pipe, not their source), 6 to explain in their own words, or **7 if they cannot fix it alone**. Key 7 sends the complaint to the **Sarpanch**, who gets a call with the operator's own words.
+6. **Closes only when families confirm.** After "fixed", the same families are called back. The complaint closes as `CLOSED_VERIFIED` only when enough of them say water is back; otherwise it reopens.
+7. **Advises, never decides.** Each complaint page has an AI overview and a suggested next step (call the operator again, send it to the Sarpanch, raise it with the PHED block office, or wait). The suggestion comes from a decision model chain: Jev, then OpenAI Decisions, then fixed rules. Only de-identified codes and counts are sent to those models. A person presses the button.
+8. **Gives evidence.** Analytics per water point, a weekly summary call to the Sarpanch, a public residents' page, and a Gram Sabha evidence sheet, with every number sourced.
 
-**Who it serves:** the household that needs water (the beneficiary), and the sarpanch, Panchayat Secretary and pump operator who must act (the operators).
-**What changes:** a Gram Sabha certifies, or sends back a defect list, based on evidence from its own households, and a broken pump is fixed and *proven* fixed.
+**Who it serves:** the family that needs water, and the Sarpanch, Panchayat Secretary and pump operator who must act. The JalSakshi team sets up each Panchayat's login and call languages.
+**What changes:** a broken pump is fixed and *proven* fixed by the families who use it, and the Gram Sabha decides on certification with evidence from its own households.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  S[EventBridge Scheduler<br/>per village, IST] --> C[Step Functions<br/>CheckInRun]
-  C -->|Cedar: consent, hours, 1/day| P[Lambda: place call]
-  P --> V[(Vobiz +91 DID<br/>Hindi IVR)]
-  V -->|webhook| G[API Gateway] --> I[Lambda: IVR engine]
+  F[Families' keypad phones] <-->|Vobiz +91 number| G[API Gateway] --> I[Lambda: IVR engine]
+  S[EventBridge Scheduler<br/>per village, 19:00 IST] --> C[Step Functions<br/>CheckInRun]
+  C -->|Cedar: consent, refusals, call-back limit| P[Lambda: place call]
   I -->|SendTaskSuccess| C
   C --> R[Lambda: reconcile<br/>deterministic rules]
   R -->|NO_SUPPLY / DIRTY| T[Step Functions<br/>TicketFlow]
-  T --> O[Call Nal Jal Mitra]
-  T -->|operator: fixed| VF[Verification calls]
+  T --> O[Call pump operator]
+  O -->|key 7| SP[Call the Sarpanch]
+  T -->|operator: fixed| VF[Families confirm by phone]
   VF -->|quorum yes, Cedar| CV[CLOSED_VERIFIED]
+  I --> N[Lambda: voice notes] --> STT[Sarvam STT] --> B[Bedrock: Claude Haiku 5.5]
   R --> D[(DynamoDB)]
-  B[Strands agent on Bedrock<br/>in. India profile] --> E[Hindi Gram Sabha sheet]
-  D --> W[Operator console<br/>CloudFront + Cognito]
+  D --> W[Console: CloudFront + S3, Cognito]
+  W --> A[AI advice: Bedrock overview,<br/>Jev → OpenAI → rules]
 ```
 
 | Layer | AWS |
 |---|---|
-| Orchestration | Step Functions (Map, `waitForTaskToken`, Retry/Catch), EventBridge Scheduler |
-| Compute | Lambda (Python 3.12, Powertools), API Gateway HTTP API |
-| Data | DynamoDB (single table, PITR), S3 (prompt audio, daily data-source cache) |
-| AI | Amazon Bedrock (Claude Haiku 4.5 via the **India** cross-region profile, so inference stays in Mumbai and Hyderabad; Nova 2 Lite fallback), **Strands Agents** (open source) |
-| Policy | **Cedar** (open source): consent, calling hours, quorum-before-close, department privacy |
-| Web | CloudFront + S3, Cognito |
-| Ops | CloudWatch dashboard and alarms, AWS CDK (Python), region `ap-south-1` |
+| Orchestration | Step Functions (Map, `waitForTaskToken`, Retry/Catch), EventBridge Scheduler (daily calls, delayed jobs) |
+| Compute | Lambda (Python 3.12, Powertools; 18 functions), API Gateway HTTP API |
+| Data | DynamoDB (single table, PITR, TTL), S3 (prompt audio, voice-note archive, data-source cache) |
+| AI | Amazon Bedrock: Claude Haiku 5.5 → Claude Haiku 4.5 → Nova 2 Lite, then a template (voice notes, names and areas, register photos, complaint overviews); Strands Agents |
+| Policy | **Cedar**: consent, no calls after a refusal, call-back limit, quorum before close, Sarpanch-approved announcements, department privacy |
+| Web | CloudFront + S3, Cognito (team-created Panchayat logins) |
+| Ops | CloudWatch dashboard and alarms, SSM Parameter Store for keys, AWS CDK (Python), region `ap-south-1` (Mumbai) |
 
-Voice: Vobiz Indian DID with our own Lambda serving the call flow. Hindi prompts are voiced by Sarvam Bulbul. Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Outside AWS: Vobiz (Indian phone number), Sarvam (Bulbul voice "Ritu", speech-to-text), and the decision models Jev and OpenAI Decisions (de-identified facts only). Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## What it costs (estimate)
+
+AWS usage for one village of **50 families**, one evening call each, a few complaints a month. These are estimates from AWS list prices in Oct 2026, not a bill.
+
+| Item | Assumption | Per village per month |
+|---|---|---|
+| Step Functions (standard) | ~310 state transitions per evening run, $0.025 per 1,000 | ~$0.23 |
+| Lambda, API Gateway, DynamoDB, S3 | ~9,000 small invocations and writes | under $0.05 |
+| Bedrock (Haiku 5.5) | ~30 voice notes and overviews, ~2,000 tokens each, $0.10 / $0.50 per M tokens in/out | under $0.05 |
+| Decision models | Jev $0.042, OpenAI $0.10 per M input tokens, ~300 tokens a suggestion | under $0.01 |
+| **AWS + AI total** | | **about $0.35** |
+
+Fixed per deployment: the phone number (₹500 a month) and the CloudWatch dashboard and alarms (a few dollars). Telephony minutes are the main running cost and depend on the Vobiz plan. Prompt audio is rendered once with Sarvam and cached; speech-to-text runs only for spoken notes.
 
 ## Data sources and freshness
 
@@ -71,10 +89,11 @@ Voice: Vobiz Indian DID with our own Lambda serving the call flow. Hindi prompts
 
 ## Honest limits
 
-- **Demo roles are played by our team** (villagers, pump operator), and this is labelled in the video. Calls go only to consenting test numbers.
-- **PHED escalation is simulated.** There is no public API into IMIS, Meri Panchayat or PHED ticketing, so we never auto-dial government helplines.
-- Production calling needs a service-series number and DLT registration through a panchayat or government partner.
-- The MVP is Hindi only; keypad-first design keeps it usable for Chhattisgarhi speakers.
+- **Pilot scale.** The pilot village is Kutelabhatha (Durg, Chhattisgarh): a handful of real families, who agreed on the phone, plus the team's own phones for testing. The labelled "Sample village" in the console holds generated history, and it is the only place generated data is used.
+- **PHED escalation is simulated.** There is no public API into IMIS, Meri Panchayat or PHED ticketing, so we never auto-dial government helplines; the "raise it with the block office" suggestion is for the secretary to act on.
+- **Chhattisgarhi prompts are a draft** awaiting a native speaker's review. Hindi is the default.
+- AI suggestions are advice only, from de-identified facts; the decision models' accuracy was checked on 8 made-up labelled cases, not field data.
+- Production calling needs a service-series number and DLT registration through a Panchayat or government partner.
 
 ## Run it
 
@@ -103,9 +122,10 @@ uv run python prompts/render.py --stage dev-<you>      # Hindi prompt audio (Sar
 
 Then:
 - Put the vendor secrets in SSM as SecureString under `/jalsakshi/dev-<you>/`: `sarvam_api_key`, `vobiz_auth_id`, `vobiz_auth_token`, `vobiz_did`.
-- Enable Bedrock model access in `ap-south-1` for Claude Haiku 4.5 (`in.` profile) and Nova 2 Lite (`global.` profile). Without it the brief falls back to its template.
+- Optional: `jev_api_key` and `openai_api_key` for the next-step suggestions (`scripts/put_secrets.py` copies them from `.env`). Without them the fixed rules suggest.
+- Enable Bedrock model access in `ap-south-1` for Claude Haiku 5.5 (`global.` profile), Claude Haiku 4.5 (`in.` profile) and Nova 2 Lite (`global.` profile). Without them, every AI text falls back to its template.
 - Console against the stage: copy `web/.env.example` to `web/.env.local`, fill it from the stack outputs (`ApiUrl`, `CognitoDomain`, `UserPoolClientId`, `WebUrl`/auth/callback), run `pnpm build`, and deploy `JalSakshi-dev-<you>-Web` again. Add users to a role group (`PANCHAYAT_SECRETARY`, `NAL_JAL_MITRA`, ...).
-- Real phone calls: once the Vobiz DID is live, redeploy with `-c voice_provider=vobiz`. Only numbers on the stage's consent allowlist are ever dialled, and only 09:00–21:00 IST.
+- Real phone calls: once the Vobiz DID is live, redeploy with `-c voice_provider=vobiz` and run `scripts/vobiz_inbound.py --stage dev-<you>` for missed calls. Families are called only after they agree on the phone; there is no calling-hours window (missed calls are called back at any hour).
 
 ## Repository layout
 
@@ -125,7 +145,7 @@ docs/            architecture, handover, demo script, research
 
 ## AI tools used
 
-Built with **Claude Code** (Anthropic) for research, planning and implementation, as the hackathon rules require us to disclose. In the product itself, Claude Haiku 4.5 on Amazon Bedrock is used only to extract spoken notes and write the Hindi evidence sheet; every decision is made by deterministic code.
+Built with **Claude Code** (Anthropic) for research, planning and implementation, as the hackathon rules require us to disclose. In the product itself, Claude on Amazon Bedrock reads spoken notes, names and register photos and writes overviews and the evidence sheet; Jev and OpenAI Decisions suggest a next step. Every status and every call permission is decided by deterministic code and Cedar, and every action on a complaint is pressed by a person.
 
 ## License
 

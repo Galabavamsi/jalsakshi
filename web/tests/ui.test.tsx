@@ -135,3 +135,13 @@ describe('Set up a Panchayat (team only)', () => {
     expect(screen.getByRole('button', { name: 'Copy login details' })).toBeTruthy();
   });
 });
+
+describe('How JalSakshi works (/how)', () => {
+  it('names each step and the AWS service behind it, without a login', async () => {
+    renderApp('/how');
+    expect(await screen.findByRole('heading', { name: 'How JalSakshi works' })).toBeTruthy();
+    expect(screen.getAllByText(/AWS Step Functions/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Amazon Bedrock')).toBeTruthy();
+    expect(screen.getByText(/never by AI/)).toBeTruthy();
+  });
+});

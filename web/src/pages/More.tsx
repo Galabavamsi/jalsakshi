@@ -23,6 +23,8 @@ const m = defineMessages({
   poster: 'Missed-call poster',
   residents: "Residents' page",
   help: 'Help',
+  how: 'How JalSakshi works',
+  howSub: 'Each step and the AWS service behind it',
   signOut: 'Sign out',
   admin: 'Admin',
   allVillages: 'All villages',
@@ -87,6 +89,7 @@ export function MorePage() {
     { to: `/v/${encodeURIComponent(vid)}`, label: m.residents, sub: m.residentsSub, external: true },
     { to: `${base}/more/settings`, label: m.settings, sub: m.settingsSub },
     { to: `${base}/more/help`, label: m.help },
+    { to: '/how', label: m.how, sub: m.howSub },
   ];
   const admin: Item[] = [
     { to: `${base}/more/new-panchayat`, label: m.newPanchayat, sub: m.newPanchayatSub },

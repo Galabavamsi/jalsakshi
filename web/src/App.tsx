@@ -33,10 +33,11 @@ const PosterPage = page(() => import('./pages/Poster'), 'PosterPage');
 const TestCallPage = page(() => import('./pages/TestCall'), 'TestCallPage');
 const SetupPage = page(() => import('./pages/Setup'), 'SetupPage');
 const PublicPage = page(() => import('./pages/Public'), 'PublicPage');
+const HowItWorksPage = page(() => import('./pages/HowItWorks'), 'HowItWorksPage');
 
 /**
- * Routes (DESIGN.md §0, v4). Everything except the OAuth callback and the residents' page
- * (/v/:villageId) needs a session (skipped in mock mode).
+ * Routes (DESIGN.md §0, v4). Everything except the OAuth callback, the residents' page
+ * (/v/:villageId) and "How JalSakshi works" (/how) needs a session (skipped in mock mode).
  */
 export function App({ auth }: { auth: CognitoAuth | null }) {
   return (
@@ -44,6 +45,7 @@ export function App({ auth }: { auth: CognitoAuth | null }) {
       <Routes>
         <Route path={callbackPath(appConfig)} element={<AuthCallback auth={auth} />} />
         <Route path="v/:villageId" element={<PublicPage />} />
+        <Route path="how" element={<HowItWorksPage />} />
         <Route element={<RequireAuth />}>
           <Route index element={<RootRedirect />} />
           <Route path="setup" element={<SetupPage />} />

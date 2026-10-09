@@ -166,6 +166,10 @@ pre.summary { white-space: pre-wrap; font-family: inherit; margin: 0; }
 .secret { font-family: var(--font-mono); word-break: break-all; text-align: right; }
 .errors { margin: 0; padding-left: var(--s6); }
 .steps { margin: 0; padding-left: var(--s5); display: flex; flex-direction: column; gap: var(--s2); }
+.steps li > span { display: block; }
+.steps.how-steps { list-style: decimal; padding-left: var(--s5); }
+.how-steps li::marker { color: var(--accent); font-weight: 600; }
+.aws { color: var(--accent); font-size: var(--fs-sm); }
 .nowrap { white-space: nowrap; }
 .group + .group { margin-top: var(--s3); }
 .group-title { font-size: var(--fs-md); padding-bottom: var(--s1); border-bottom: 1px solid var(--border); }
