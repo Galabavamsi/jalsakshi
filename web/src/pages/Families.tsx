@@ -24,6 +24,9 @@ const m = defineMessages({
   noSource: 'Water source not set',
   areaFilter: 'Area',
   allAreas: 'All areas',
+  callAgain: 'Call again',
+  calling: 'Calling…',
+  called: 'Call placed',
 });
 
 const NO_AREA_KEY = '__none__';
@@ -37,6 +40,7 @@ export function FamiliesPage() {
   const [params, setParams] = useSearchParams();
   const adding = params.get('add') === '1';
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [calls, setCalls] = useState<Record<string, string>>({});
   const counts = familyCounts(detail.households);
   const families = detail.households.filter((h) => h.active);
   const areas = areaList(families);
@@ -46,6 +50,16 @@ export function FamiliesPage() {
 
   function setAdding(on: boolean) {
     setParams(on ? { add: '1' } : {}, { replace: true });
+  }
+
+  async function callAgain(hid: string) {
+    setCalls((c) => ({ ...c, [hid]: m.calling }));
+    try {
+      await api.callAgain(vid, hid);
+      setCalls((c) => ({ ...c, [hid]: m.called }));
+    } catch (err) {
+      setCalls((c) => ({ ...c, [hid]: errorText(err) }));
+    }
   }
 
   async function downloadCsv() {
@@ -116,7 +130,17 @@ export function FamiliesPage() {
                           </span>
                           <span className="row-sub">{sub.join(' · ')}</span>
                         </span>
-                        <span className={`word ${WORD_CLASS[status]}`}>{FAMILY_STATUS[status].en}</span>
+                        <span className="row-actions">
+                          {status === 'WAITING' &&
+                            (calls[h.id] ? (
+                              <span className="muted">{calls[h.id]}</span>
+                            ) : (
+                              <Button variant="link" onClick={() => void callAgain(h.id)}>
+                                {m.callAgain}
+                              </Button>
+                            ))}
+                          <span className={`word ${WORD_CLASS[status]}`}>{FAMILY_STATUS[status].en}</span>
+                        </span>
                       </li>
                     );
                   })}

@@ -8,6 +8,8 @@ One Lambda, invoked asynchronously (by the IVR handler, the console API or Event
 - ``register``: the first (consent) call to a household the secretary added in the console.
 - ``broadcast``: deliver an approved announcement.
 - ``weekly_summary``: the Monday summary call to each village's sarpanch and secretary.
+- ``panchayat_alert``: the operator pressed 7 (cannot fix it alone): call the sarpanch (or the
+  secretary when the village has no sarpanch) with the complaint and the operator's words.
 
 Every call passes Cedar ``PlaceCall`` and the dialer's allowlist; call ids are deterministic per
 event, and ``STEP#dispatch`` is a conditional write, so a retried invocation never dials twice.
@@ -30,6 +32,8 @@ from jalsakshi.core.models import (
     Operator,
     OperatorRole,
     Purpose,
+    Ticket,
+    TicketState,
     Village,
 )
 from jalsakshi.core.summary import weekly_summary_text
@@ -58,7 +62,10 @@ from jalsakshi.store import Repository
 from jalsakshi.voice.flow import FlowSession
 
 MAX_DELAY_S: Final = 30
+ALERT_MAX_DELAY_S: Final = 60
 SUMMARY_ROLES: Final = (OperatorRole.SARPANCH, OperatorRole.PANCHAYAT_SECRETARY)
+ALERT_ROLES: Final = (OperatorRole.SARPANCH, OperatorRole.PANCHAYAT_SECRETARY)
+OPERATOR_WORDS_MAX: Final = 300
 
 
 @entrypoint
@@ -76,7 +83,12 @@ def handler(event: Any, context: Any) -> dict[str, Any]:
                 str(payload.get("missed_at", "")),
             )
         case "register":
-            return register(repo, str(payload["village_id"]), str(payload["household_id"]))
+            return register(
+                repo,
+                str(payload["village_id"]),
+                str(payload["household_id"]),
+                str(payload.get("requested_at") or ""),
+            )
         case "broadcast":
             broadcast = broadcasts.load(
                 repo, str(payload["village_id"]), str(payload["broadcast_id"])
@@ -88,11 +100,18 @@ def handler(event: Any, context: Any) -> dict[str, Any]:
             return {"broadcast_id": sent.id, "recipients": sent.recipients}
         case "weekly_summary":
             return weekly_summaries(repo)
+        case "panchayat_alert":
+            return panchayat_alert(
+                repo,
+                str(payload.get("ticket_id", "")),
+                int(payload.get("delay_s") or 0),
+                str(payload.get("requested_at") or ""),
+            )
         case "operator_call":
             from jalsakshi.handlers import sfn_tasks, tickets
 
             ticket = tickets.load_ticket(repo, str(payload.get("ticket_id", "")))
-            sfn_tasks.call_operator(repo, ticket)
+            sfn_tasks.call_operator(repo, ticket, str(payload.get("requested_at") or ""))
             return {"status": "done", "ticket_id": ticket.id}
     logger.warning("unknown outbound job", extra={"kind": kind})
     return {"status": "ignored"}
@@ -251,6 +270,11 @@ def _register_callback(
     )
 
 
+def _stamp(requested_at: str) -> str:
+    """``2026-10-10T06:52:03.12+00:00`` -> ``20261010065203`` (empty when not given)."""
+    return "".join(ch for ch in requested_at[:19] if ch.isdigit())
+
+
 def _inbound_village(repo: Repository) -> Village | None:
     villages = repo.list_villages()
     return next((v for v in villages if v.inbound and v.active), None)
@@ -259,8 +283,14 @@ def _inbound_village(repo: Repository) -> Village | None:
 # --- console-triggered calls ------------------------------------------------------------------
 
 
-def register(repo: Repository, village_id: str, household_id: str) -> dict[str, Any]:
-    """The first call to a household added in the console: read the notice, ask for consent."""
+def register(
+    repo: Repository, village_id: str, household_id: str, requested_at: str = ""
+) -> dict[str, Any]:
+    """The first call to a household added in the console: read the notice, ask for consent.
+
+    Each console request (``requested_at``) is its own call, so the secretary can call a family
+    that did not pick up again the same day; a retried delivery of one request dials once.
+    """
     household = repo.get_household(village_id, household_id)
     if household is None:
         return {"status": "ignored", "reason": "household missing"}
@@ -270,7 +300,7 @@ def register(repo: Repository, village_id: str, household_id: str) -> dict[str, 
         return {"status": "denied", "policy_id": decision.policy_ids[0]}
     today = today_ist(config.now())
     flow = FlowSession(
-        call_id=f"reg-{village_id}-{household_id}-{today:%Y%m%d}",
+        call_id=f"reg-{village_id}-{household_id}-{_stamp(requested_at) or f'{today:%Y%m%d}'}",
         purpose=Purpose.REGISTER,
         village_id=village_id,
         household_id=household_id,
@@ -319,6 +349,79 @@ def call_household(
     )
     result = _dial(repo, record, household.phone_e164, None)
     return result.get("status") in {"dialled", "pending"}
+
+
+# --- complaint sent to the Panchayat ----------------------------------------------------------
+
+
+def panchayat_alert(
+    repo: Repository, ticket_id: str, delay_s: int = 0, requested_at: str = ""
+) -> dict[str, Any]:
+    """Call the sarpanch (else the secretary) about a complaint the operator cannot fix alone."""
+    if delay_s > 0:  # let the operator's spoken reason be transcribed first
+        time.sleep(min(delay_s, ALERT_MAX_DELAY_S))
+    ticket = repo.get_ticket_by_id(ticket_id)
+    if ticket is None:
+        return {"status": "ignored", "reason": "ticket missing"}
+    if ticket.state is TicketState.CLOSED_VERIFIED:
+        return {"status": "ignored", "reason": "already closed"}
+    team = repo.list_operators_for_village(ticket.village_id)
+    person = next((o for role in ALERT_ROLES for o in team if o.role is role), None)
+    if person is None:
+        activity(
+            "ticket",
+            ticket.village_id,
+            f"Complaint #{ticket.number} needs the Sarpanch, but no Sarpanch or Secretary "
+            "phone is set (More, Team)",
+            f"शिकायत क्रमांक {ticket.number} सरपंच को जानी है, पर सरपंच या सचिव का नंबर नहीं है",
+        )
+        return {"status": "ignored", "reason": "no sarpanch or secretary"}
+    decision = operator_decision(person, ticket.village_id)
+    if not decision.allowed:
+        record_denial(decision, ticket.village_id, f"Panchayat call to {person.id}")
+        return {"status": "denied", "policy_id": decision.policy_ids[0]}
+    today = today_ist(config.now())
+    stamp = _stamp(requested_at) or f"{today:%Y%m%d}"
+    flow = FlowSession(
+        call_id=f"alert-{ticket.id}-{stamp}",
+        purpose=Purpose.ALERT,
+        village_id=ticket.village_id,
+        operator_id=person.id,
+        ticket_id=ticket.id,
+        ticket_number=ticket.number,
+        message_text_hi=alert_text(repo, ticket),
+    )
+    record = CallRecord(
+        flow=flow, provider=config.settings().voice_provider, day=today, origin="alert"
+    )
+    who = "Sarpanch" if person.role is OperatorRole.SARPANCH else "Secretary"
+    return _dial(
+        repo, record, person.phone_e164, f"Calling the {who} about complaint #{ticket.number}"
+    )
+
+
+def alert_text(repo: Repository, ticket: Ticket) -> str:
+    """What the sarpanch hears: number, problem, place and the operator's own words."""
+    place = residents.point_name(repo, ticket.village_id, ticket.water_point_id) or "poora gaon"
+    words = operator_words(ticket)
+    said = (
+        f"Nal Jal Mitra ne kaha: {words}."
+        if words
+        else "Nal Jal Mitra ne bolkar koi kaaran nahi bataya."
+    )
+    number = f"Shikayat kramank {ticket.number}" if ticket.number else "Ek shikayat"
+    return (
+        f"{number}: {residents.REASON_HI[ticket.reason]}. Jagah: {place}. {said} "
+        "Kripya Panchayat mein dekh lein."
+    )
+
+
+def operator_words(ticket: Ticket) -> str | None:
+    """The latest transcript of the operator's spoken reason on this complaint, if any."""
+    for event in reversed(ticket.events):
+        if event.detail.get("note") == "operator_voice" and event.detail.get("transcript"):
+            return str(event.detail["transcript"])[:OPERATOR_WORDS_MAX]
+    return None
 
 
 # --- weekly summary ----------------------------------------------------------------------------

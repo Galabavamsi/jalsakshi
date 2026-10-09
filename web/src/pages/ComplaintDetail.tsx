@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApi } from '../api/context';
-import { TICKET_REASONS, type PolicyDenied, type TicketReason } from '../api/types';
+import { TICKET_REASONS, type PolicyDenied, type Ticket, type TicketReason } from '../api/types';
 import { useAsync } from '../hooks/useAsync';
 import { defineMessages, msgFn } from '../lib/text';
 import { areaOf, reporterAreaText } from '../lib/households';
@@ -39,7 +39,120 @@ const m = defineMessages({
   choose: 'Choose a family',
   submit: 'Raise complaint',
   noFamilies: 'No families yet. Add families first.',
+  aiTitle: 'AI overview',
+  aiLoading: 'Reading the complaint…',
+  aiFailed: 'The AI overview is not available right now. The facts below are complete.',
+  suggested: 'Suggested next step:',
+  urgent: 'Looks urgent for the families.',
+  byModel: msgFn<{ model: string; pct: number }>(({ model, pct }) => `Suggested by the ${model} decision model, ${pct}% sure.`),
+  byRules: msgFn<{ why: string }>(({ why }) => `Suggested by JalSakshi's fixed rules: ${why}.`),
+  written: msgFn<{ who: string; when: string }>(({ who, when }) => `Summary written by ${who}, ${when}.`),
+  aiNote: 'AI suggestion only: nothing happens until you press a button. The AI sees no names or phone numbers.',
+  toSarpanch: 'Send to the Sarpanch',
+  callAgain: 'Call the pump operator again',
+  sent: 'Sent. The Sarpanch is being called now.',
+  calling: 'The pump operator is being called now.',
+  blockOffice: 'Raise it with the PHED block office yourself (JalSakshi never calls government numbers).',
 });
+
+const TEMPLATE_NAME = 'a fixed template';
+
+/** "jev-1.13.0" -> "Jev"; Bedrock ids -> a short model name. */
+function modelName(source: string): string {
+  if (source.startsWith('jev')) return 'Jev';
+  if (source.startsWith('gpt')) return `OpenAI ${source}`;
+  if (source.includes('haiku')) return 'Claude Haiku (Amazon Bedrock)';
+  if (source.includes('nova')) return 'Amazon Nova (Amazon Bedrock)';
+  return source;
+}
+
+function AdviceCard({ ticket, onChanged }: { ticket: Ticket; onChanged: (t: Ticket) => void }) {
+  const api = useApi();
+  const errorText = useErrorText();
+  const advice = useAsync(() => api.getOverview(ticket.id), `overview:${ticket.id}:${ticket.updated_at}`);
+  const [busy, setBusy] = useState<'sarpanch' | 'operator' | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const now = new Date();
+  const open = ticket.state !== 'CLOSED_VERIFIED';
+  const canCallOperator = ['ASSIGNED', 'REOPENED', 'ESCALATED'].includes(ticket.state);
+  const s = advice.data?.suggestion ?? null;
+
+  async function act(kind: 'sarpanch' | 'operator') {
+    setBusy(kind);
+    setMessage(null);
+    try {
+      if (kind === 'sarpanch') {
+        onChanged(await api.sendToSarpanch(ticket.id));
+        setMessage({ ok: true, text: m.sent });
+      } else {
+        await api.callOperatorAgain(ticket.id);
+        setMessage({ ok: true, text: m.calling });
+      }
+    } catch (err) {
+      setMessage({ ok: false, text: errorText(err) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card title={m.aiTitle}>
+      {advice.data ? (
+        <>
+          <p>{advice.data.text}</p>
+          {s && (
+            <>
+              <p>
+                <b>{m.suggested}</b> {s.label}
+              </p>
+              {s.urgent !== null && s.urgent >= 0.7 && <p className="warn-box">{m.urgent}</p>}
+              <p className="muted">
+                {s.confidence !== null
+                  ? m.byModel({ model: modelName(s.source), pct: Math.round(s.confidence * 100) })
+                  : m.byRules({ why: s.reasons.join('; ').replace(/^./, (ch) => ch.toLowerCase()) })}
+              </p>
+              {s.step === 'RAISE_WITH_BLOCK_OFFICE' && <Note>{m.blockOffice}</Note>}
+            </>
+          )}
+          <p className="muted">
+            {m.written({
+              who: advice.data.text_source === 'template' ? TEMPLATE_NAME : modelName(advice.data.text_source),
+              when: whenText(advice.data.generated_at, now).en,
+            })}
+          </p>
+        </>
+      ) : advice.error ? (
+        <p className="muted">{m.aiFailed}</p>
+      ) : (
+        <p className="muted">{m.aiLoading}</p>
+      )}
+      {open && (
+        <div className="actions">
+          <Button
+            variant={s?.step === 'SEND_TO_SARPANCH' ? 'primary' : undefined}
+            busy={busy === 'sarpanch'}
+            disabled={busy !== null}
+            onClick={() => void act('sarpanch')}
+          >
+            {m.toSarpanch}
+          </Button>
+          {canCallOperator && (
+            <Button
+              variant={s?.step === 'CALL_OPERATOR_AGAIN' ? 'primary' : undefined}
+              busy={busy === 'operator'}
+              disabled={busy !== null}
+              onClick={() => void act('operator')}
+            >
+              {m.callAgain}
+            </Button>
+          )}
+        </div>
+      )}
+      {message && <p className={message.ok ? 'ok-box' : 'warn-box'} role="status">{message.text}</p>}
+      <Note>{m.aiNote}</Note>
+    </Card>
+  );
+}
 
 function DeniedText({ denied }: { denied: PolicyDenied }) {
   return <>{denied.reason_en}</>;
@@ -120,6 +233,7 @@ export function ComplaintDetailPage() {
         {!closed && <p className="muted">{m.open({ d: howLong(c.opened_at, now).en })}</p>}
       </Card>
 
+      <AdviceCard ticket={c} onChanged={(t) => ticket.setData(t)} />
       <Card title={m.what}>
         <ol className="timeline">
           {timelineLines(c).map((line, i) => (

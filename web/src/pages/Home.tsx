@@ -56,7 +56,7 @@ const m = defineMessages({
   addFamilies: 'Add families',
   callNow: 'Call families now',
   callTitle: 'Call families now?',
-  callBody: 'JalSakshi will call every family that agreed and has not answered today. Each family gets at most one call a day.',
+  callBody: 'JalSakshi will call every family that agreed, now.',
   callHours: 'Each family gets one short call. Families who already answered today are not called again.',
   callYes: 'Call now',
   cancel: 'Cancel',

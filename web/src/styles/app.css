@@ -71,6 +71,7 @@ a.row:hover .row-main { text-decoration: underline; }
 .row-main { display: flex; flex-direction: column; min-width: 0; }
 .row-sub { color: var(--text-3); font-size: var(--fs-sm); }
 .row-end { color: var(--text-2); font-size: var(--fs-sm); text-align: right; flex-shrink: 0; }
+.row-actions { display: flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
 
 /* status words: colour + word, never colour alone */
 .word { font-weight: 600; }

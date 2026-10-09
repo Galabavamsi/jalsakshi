@@ -206,12 +206,14 @@ export const ORIGIN: Record<TicketOrigin, Bilingual> = {
   console: { en: 'Panchayat office', hi: 'पंचायत दफ़्तर' },
 };
 
-/** Why the operator says it is not fixed yet (operator keys 2-5). */
+/** Why the operator says it is not fixed yet (operator keys 2-7). */
 export const BLOCKER: Record<BlockerCode, Bilingual> = {
   PARTS_NEEDED: { en: 'Parts needed', hi: 'पुर्ज़े चाहिए' },
   NO_POWER: { en: 'No electricity', hi: 'बिजली नहीं' },
   PIPE_BROKEN: { en: 'Pipe broken or leaking', hi: 'पाइप टूटा या रिस रहा' },
   NOT_MINE: { en: 'Not their source', hi: 'उनका स्रोत नहीं' },
+  OTHER: { en: 'Another reason (spoken)', hi: 'कोई और कारण (बोलकर)' },
+  NEEDS_PANCHAYAT: { en: 'Cannot fix it alone: needs the Panchayat', hi: 'अकेले ठीक नहीं कर सकते: पंचायत की ज़रूरत' },
 };
 
 /** A blocker code from analytics (a plain string there), with a readable fallback. */
@@ -290,6 +292,7 @@ export const PURPOSE: Record<Purpose, Bilingual> = {
   REPORT: { en: 'Report a problem', hi: 'समस्या बताना' },
   BROADCAST: { en: 'Announcement call', hi: 'घोषणा कॉल' },
   SUMMARY: { en: 'Weekly summary call', hi: 'हफ़्ते का सारांश कॉल' },
+  ALERT: { en: 'Call to the Sarpanch', hi: 'सरपंच को कॉल' },
 };
 
 export const WATER: Record<WaterAnswer, Bilingual> = {

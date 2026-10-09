@@ -116,7 +116,7 @@ def load_roster(event: Any, context: Any) -> dict[str, Any]:
 
 @entrypoint
 def policy_check_call(event: Any, context: Any) -> dict[str, Any]:
-    """Cedar ``PlaceCall`` check for one Map item (consent, calling hours, one call a day)."""
+    """Cedar ``PlaceCall`` check for one Map item (consent, withdrawal)."""
     payload, _ = _unwrap(event)
     item = CallItem.model_validate(payload)
     repo = config.repository()
@@ -498,13 +498,19 @@ def _not_mine(ticket: Ticket) -> list[str]:
     ]
 
 
-def call_operator(repo: Repository, ticket: Ticket) -> None:
-    """Call the operator for a complaint that still waits for a fix (deferred night calls)."""
-    if ticket.state in (TicketState.ASSIGNED, TicketState.REOPENED, TicketState.ESCALATED):
-        _call_operator(repo, ticket)
+OPERATOR_CALL_STATES: Final = frozenset(
+    {TicketState.ASSIGNED, TicketState.REOPENED, TicketState.ESCALATED}
+)
 
 
-def _call_operator(repo: Repository, ticket: Ticket) -> None:
+def call_operator(repo: Repository, ticket: Ticket, requested_at: str = "") -> None:
+    """Call the operator for a complaint that still waits for a fix (deferred night calls, or the
+    secretary's "call again": ``requested_at`` makes that request its own call)."""
+    if ticket.state in OPERATOR_CALL_STATES:
+        _call_operator(repo, ticket, requested_at)
+
+
+def _call_operator(repo: Repository, ticket: Ticket, requested_at: str = "") -> None:
     """Call whoever the complaint is routed to, with the summary (best effort: the wait goes on)."""
     operator = residents.route_operator(
         repo, ticket.village_id, ticket.water_point_id, skip=_not_mine(ticket)
@@ -517,7 +523,8 @@ def _call_operator(repo: Repository, ticket: Ticket) -> None:
         record_denial(decision, ticket.village_id, f"operator call for {ticket.id}")
         return
     notice = sum(1 for e in ticket.events if e.kind == TicketEventKind.NOTIFIED)
-    call_id = operator_call_id(ticket.id, notice)
+    stamp = "".join(ch for ch in requested_at[:19] if ch.isdigit())
+    call_id = f"operator-{ticket.id}-c{stamp}" if stamp else operator_call_id(ticket.id, notice)
     existing = load_call(repo, call_id)
     record = existing.record if existing else _new_operator_call(repo, call_id, ticket, operator.id)
     if record.provider is VoiceProvider.SIMULATOR:

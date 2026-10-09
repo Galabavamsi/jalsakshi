@@ -13,13 +13,14 @@ import json
 import logging
 import os
 import re
+from collections.abc import Iterator
 from typing import Any, Final
 
 import boto3
 from botocore.config import Config
 from pydantic import BaseModel, Field
 
-from jalsakshi.agent.models import DEFAULT_REGION, MODEL_CHAIN, REGION_ENV
+from jalsakshi.agent.models import DEFAULT_REGION, REGION_ENV, inference_config, model_chain
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,19 @@ def read_register(image: bytes, media_type: str) -> tuple[list[RegisterRow], str
     return out, model_id
 
 
+def converse_text(
+    prompt: str, *, max_tokens: int = 400, read_timeout_s: int | None = None
+) -> tuple[str, str]:
+    """Plain text from the first model in the chain that answers; ``ReaderError`` if none.
+
+    ``read_timeout_s`` (one attempt per model) keeps an interactive caller inside its own limit.
+    """
+    for text, model_id in _converse(prompt, max_tokens=max_tokens, read_timeout_s=read_timeout_s):
+        if text.strip():
+            return text.strip(), model_id
+    raise ReaderError("no model answered")
+
+
 def _converse_json(
     prompt: str,
     *,
@@ -118,30 +132,52 @@ def _converse_json(
     image_format: str | None = None,
     max_tokens: int = 1000,
 ) -> tuple[Any, str]:
+    for text, model_id in _converse(
+        prompt, image=image, image_format=image_format, max_tokens=max_tokens
+    ):
+        match = _JSON.search(text)
+        if not match:
+            continue
+        try:
+            return json.loads(match.group(1)), model_id
+        except ValueError:
+            logger.warning("bedrock answer was not JSON", extra={"model_id": model_id})
+    raise ReaderError("no model returned JSON")
+
+
+def _converse(
+    prompt: str,
+    *,
+    image: bytes | None = None,
+    image_format: str | None = None,
+    max_tokens: int,
+    read_timeout_s: int | None = None,
+) -> Iterator[tuple[str, str]]:
+    """Each model's text answer in chain order (failures are logged and skipped)."""
     region = os.environ.get(REGION_ENV) or DEFAULT_REGION
-    client = boto3.client("bedrock-runtime", region_name=region, config=_BOTO)
+    boto = _BOTO
+    if read_timeout_s is not None:
+        boto = Config(connect_timeout=3, read_timeout=read_timeout_s, retries={"max_attempts": 1})
+    client = boto3.client("bedrock-runtime", region_name=region, config=boto)
     content: list[dict[str, Any]] = []
     if image is not None:
         content.append({"image": {"format": image_format, "source": {"bytes": image}}})
     content.append({"text": prompt})
-    for model_id in MODEL_CHAIN:
+    for model_id in model_chain():
         try:
             response = client.converse(
                 modelId=model_id,
                 messages=[{"role": "user", "content": content}],
-                inferenceConfig={"maxTokens": max_tokens, "temperature": 0},
+                inferenceConfig=inference_config(model_id, max_tokens),
             )
-            text = "".join(
-                part.get("text", "") for part in response["output"]["message"]["content"]
-            )
-            match = _JSON.search(text)
-            if match:
-                return json.loads(match.group(1)), model_id
         except Exception as exc:  # next model; the caller has a fallback
             logger.warning(
-                "bedrock read failed", extra={"model_id": model_id, "error": str(exc)[:200]}
+                "bedrock call failed", extra={"model_id": model_id, "error": str(exc)[:200]}
             )
-    raise ReaderError("no model returned JSON")
+            continue
+        # Newer models may put a reasoning block before the text: keep the text blocks only.
+        blocks = response["output"]["message"]["content"]
+        yield "".join(part.get("text", "") for part in blocks if "text" in part), model_id
 
 
 def _clean(value: object) -> str | None:

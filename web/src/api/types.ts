@@ -32,7 +32,8 @@ export type Purpose =
   | 'REGISTER'
   | 'REPORT'
   | 'BROADCAST'
-  | 'SUMMARY';
+  | 'SUMMARY'
+  | 'ALERT';
 export type CallOutcome = 'ANSWERED' | 'UNREACHABLE' | 'DECLINED';
 export type WaterAnswer = 'YES' | 'NO' | 'PARTIAL';
 export type CleanAnswer = 'YES' | 'NO';
@@ -59,8 +60,8 @@ export type TicketReason = (typeof TICKET_REASONS)[number];
 /** How a complaint reached the register (§15.5). */
 export type TicketOrigin = 'reconcile' | 'report' | 'voice_note' | 'console';
 
-/** Why the operator says a problem is not fixed yet (operator call keys 2-5, §15.7). */
-export type BlockerCode = 'PARTS_NEEDED' | 'NO_POWER' | 'PIPE_BROKEN' | 'NOT_MINE';
+/** Why the operator says a problem is not fixed yet (operator call keys 2-7, §15.7). */
+export type BlockerCode = 'PARTS_NEEDED' | 'NO_POWER' | 'PIPE_BROKEN' | 'NOT_MINE' | 'OTHER' | 'NEEDS_PANCHAYAT';
 
 export const TICKET_STATES = [
   'OPEN',
@@ -270,6 +271,29 @@ export interface NoteIssue {
   /** 0..1 */
   confidence: number;
   model_id?: string | null;
+}
+
+/** AI advice on a complaint (§15.14): suggestions only; the secretary decides. */
+export type NextStep = 'CALL_OPERATOR_AGAIN' | 'SEND_TO_SARPANCH' | 'RAISE_WITH_BLOCK_OFFICE' | 'WAIT_FOR_REPAIR';
+
+export interface AdviceSuggestion {
+  step: NextStep;
+  label: string;
+  /** "rules", or the decision model that answered (e.g. "jev-1.13.0"). */
+  source: string;
+  confidence: number | null;
+  probabilities: Record<string, number>;
+  urgent: number | null;
+  reasons: string[];
+}
+
+export interface TicketOverview {
+  text: string;
+  /** The model that wrote the text, or "template". */
+  text_source: string;
+  suggestion: AdviceSuggestion | null;
+  facts: Record<string, unknown>;
+  generated_at: IsoDateTime;
 }
 
 export interface Ticket {

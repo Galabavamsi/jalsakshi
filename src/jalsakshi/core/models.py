@@ -47,6 +47,7 @@ class Purpose(StrEnum):
     REPORT = "REPORT"
     BROADCAST = "BROADCAST"
     SUMMARY = "SUMMARY"
+    ALERT = "ALERT"
 
 
 CHECKIN_PURPOSES: frozenset[Purpose] = frozenset({Purpose.DAILY, Purpose.VERIFY, Purpose.REPORT})
@@ -152,12 +153,18 @@ class TicketOrigin(StrEnum):
 
 
 class BlockerCode(StrEnum):
-    """Why the operator says a problem is not fixed yet (operator call keys 2-5, §15.7)."""
+    """Why the operator says a problem is not fixed yet (operator call keys 2-7, §15.7).
+
+    ``OTHER``: the operator explains in their own words (a voice note). ``NEEDS_PANCHAYAT``: the
+    operator cannot solve it alone; the complaint goes to the Sarpanch (who gets a call).
+    """
 
     PARTS_NEEDED = "PARTS_NEEDED"
     NO_POWER = "NO_POWER"
     PIPE_BROKEN = "PIPE_BROKEN"
     NOT_MINE = "NOT_MINE"
+    OTHER = "OTHER"
+    NEEDS_PANCHAYAT = "NEEDS_PANCHAYAT"
 
 
 class TicketState(StrEnum):

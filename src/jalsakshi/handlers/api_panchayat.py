@@ -28,12 +28,13 @@ from jalsakshi.core.models import (
     QualityTest,
     TicketOrigin,
     TicketReason,
+    TicketState,
     WaterPoint,
     WaterPointKind,
 )
 from jalsakshi.core.summary import weekly_summary_text
 from jalsakshi.data.official import load_official, official_age_note
-from jalsakshi.handlers import broadcasts, config, residents
+from jalsakshi.handlers import advice, broadcasts, calls, config, residents, sfn_tasks, tickets
 from jalsakshi.handlers.api import (
     _actor,
     _dump,
@@ -146,7 +147,12 @@ def add_household(village_id: str) -> Any:
     call = "none"
     if wants_call:
         _invoke_outbound(
-            {"kind": "register", "village_id": village.id, "household_id": household_id}
+            {
+                "kind": "register",
+                "village_id": village.id,
+                "household_id": household_id,
+                "requested_at": config.now().isoformat(),
+            }
         )
         call = "queued"
     activity(
@@ -156,6 +162,94 @@ def add_household(village_id: str) -> Any:
         f"सचिव ने एक परिवार जोड़ा ({mask_phone(phone)}); सहमति कॉल: {call}",
     )
     return json_response(201, {"household": _masked_household(household), "call": call})
+
+
+@app.post("/api/villages/<village_id>/households/<household_id>/consent-call")
+def call_again(village_id: str, household_id: str) -> Any:
+    """Call a family that has not answered its consent call yet (Cedar still decides)."""
+    repo = config.repository()
+    village = _village(repo, village_id)
+    household = repo.get_household(village.id, household_id)
+    if household is None or not household.active:
+        raise ApiError(404, "not_found", "no such family in this village")
+    consent = household.effective_consent
+    if consent is ConsentStatus.GRANTED:
+        raise ApiError(409, "already_agreed", "this family has already agreed")
+    if consent is not ConsentStatus.NONE:
+        raise ApiError(409, "consent_declined", "this family said no; it can join by a missed call")
+    if not config.settings().outbound_fn:
+        raise ApiError(503, "not_configured", "outbound calls are not configured on this stage")
+    _invoke_outbound(
+        {
+            "kind": "register",
+            "village_id": village.id,
+            "household_id": household.id,
+            "requested_at": config.now().isoformat(),
+        }
+    )
+    activity(
+        "consent",
+        village.id,
+        f"Secretary asked for another consent call ({mask_phone(household.phone_e164)})",
+        f"सचिव ने फिर से सहमति कॉल माँगी ({mask_phone(household.phone_e164)})",
+    )
+    return json_response(202, {"call": "queued"})
+
+
+@app.get("/api/tickets/<ticket_id>/overview")
+def ticket_overview(ticket_id: str) -> Any:
+    """AI overview and suggested next step for a complaint (advice; the secretary decides)."""
+    repo = config.repository()
+    ticket = tickets.load_ticket(repo, ticket_id)
+    _village(repo, ticket.village_id)
+    return json_response(200, advice.overview(ticket).model_dump(mode="json"))
+
+
+@app.post("/api/tickets/<ticket_id>/send-to-sarpanch")
+def send_to_sarpanch(ticket_id: str) -> Any:
+    """The secretary sends a complaint to the Sarpanch, who gets a call about it now."""
+    repo = config.repository()
+    ticket = tickets.load_ticket(repo, ticket_id)
+    _village(repo, ticket.village_id)
+    if ticket.state is TicketState.CLOSED_VERIFIED:
+        raise ApiError(409, "closed", "this complaint is already closed")
+    if not config.settings().outbound_fn:
+        raise ApiError(503, "not_configured", "outbound calls are not configured on this stage")
+    calls.escalate_to_panchayat(repo, ticket.id, _actor(), None, delay_s=0)
+    return json_response(200, _dump(tickets.load_ticket(repo, ticket.id)))
+
+
+@app.post("/api/tickets/<ticket_id>/call-operator")
+def call_operator_again(ticket_id: str) -> Any:
+    """Call the pump operator about this complaint again (Cedar and the dialer still decide)."""
+    repo = config.repository()
+    ticket = tickets.load_ticket(repo, ticket_id)
+    _village(repo, ticket.village_id)
+    if ticket.state is TicketState.CLOSED_VERIFIED:
+        raise ApiError(409, "closed", "this complaint is already closed")
+    if ticket.state not in sfn_tasks.OPERATOR_CALL_STATES:
+        raise ApiError(
+            409,
+            "not_waiting_for_operator",
+            "the pump operator's first call is still on its way"
+            if ticket.state is TicketState.OPEN
+            else "the operator said it is fixed; families are being asked",
+        )
+    _invoke_outbound(
+        {
+            "kind": "operator_call",
+            "ticket_id": ticket.id,
+            "requested_at": config.now().isoformat(),
+        }
+    )
+    activity(
+        "ticket",
+        ticket.village_id,
+        f"Secretary asked JalSakshi to call the pump operator again about complaint "
+        f"#{ticket.number}",
+        f"सचिव ने शिकायत क्रमांक {ticket.number} के लिए नल जल मित्र को फिर कॉल करवाई",
+    )
+    return json_response(202, {"call": "queued"})
 
 
 @app.get("/api/villages/<village_id>/consents")

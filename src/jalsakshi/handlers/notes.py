@@ -14,10 +14,18 @@ import time
 from typing import Any, Final
 
 from jalsakshi.agent.notes import NoteIssueKind, extract_note_details
+from jalsakshi.agent.overview import NextStep
 from jalsakshi.agent.reader import read_intro
-from jalsakshi.core.models import NoteIssue, Purpose, TicketOrigin, TicketReason
+from jalsakshi.core.models import (
+    BlockerCode,
+    NoteIssue,
+    Purpose,
+    Ticket,
+    TicketOrigin,
+    TicketReason,
+)
 from jalsakshi.core.tickets import Denied
-from jalsakshi.handlers import config, residents, speech
+from jalsakshi.handlers import advice, config, residents, speech
 from jalsakshi.handlers.calls import CallRecord, load_call
 from jalsakshi.handlers.common import activity, count, entrypoint, logger
 from jalsakshi.store import Repository
@@ -53,8 +61,9 @@ def handler(event: Any, context: Any) -> dict[str, Any]:
         return {"status": "ignored", "reason": "unknown call"}
     record = loaded.record
     flow = record.flow
-    if not (flow.village_id and flow.household_id):
-        return {"status": "ignored", "reason": "not a household call"}
+    operator_note = flow.purpose is Purpose.OPERATOR and bool(flow.ticket_id)
+    if not (flow.village_id and (flow.household_id or operator_note)):
+        return {"status": "ignored", "reason": "not a household or operator call"}
     try:
         audio = fetch_recording(
             str(payload.get("recording_url", "")), speech.vobiz_auth(), config.http_client()
@@ -150,6 +159,8 @@ def _apply(
     flow = record.flow
     if flow.purpose is Purpose.REGISTER:
         return _apply_intro(repo, record, transcript)
+    if flow.purpose is Purpose.OPERATOR:
+        return _apply_operator_note(repo, record, transcript, issue)
     village = repo.get_village(flow.village_id or "")
     household = repo.get_household(flow.village_id or "", flow.household_id or "")
     if village is None or household is None:
@@ -191,6 +202,58 @@ def _apply(
         if isinstance(result, Denied):
             logger.warning("note not attached", extra={"reason": result.reason})
     return "attached"
+
+
+def _apply_operator_note(
+    repo: Repository, record: CallRecord, transcript: str | None, issue: NoteIssue | None
+) -> str:
+    """The operator's own words (keys 6 and 7) go onto the complaint, labelled AI-transcribed."""
+    flow = record.flow
+    blocker = flow.answers.blocker
+    summary = issue.summary_en if issue and transcript else None
+    detail = {
+        "note": "operator_voice",
+        "operator_id": flow.operator_id,
+        "code": blocker.value if blocker else None,
+        "transcript": transcript[:500] if transcript else None,
+        "summary_en": summary,
+    }
+    actor = f"operator:{flow.operator_id}"
+    result = residents.update_ticket(repo, flow.ticket_id or "", lambda t: t, detail, actor)
+    if isinstance(result, Denied):
+        logger.warning("operator note not attached", extra={"reason": result.reason})
+        return "not_attached"
+    said = summary or ("voice note" if transcript else "voice note (not transcribed)")
+    activity(
+        "ticket",
+        result.village_id,
+        f"Pump operator on complaint #{result.number}: {said} (AI-transcribed, unconfirmed)",
+        f"नल जल मित्र, शिकायत क्रमांक {result.number}: {(transcript or 'आवाज़ संदेश')[:120]}",
+    )
+    _suggest_escalation(result)
+    return "operator_note"
+
+
+def _suggest_escalation(ticket: Ticket) -> None:
+    """After the operator's words: if the advice is "send it to the Sarpanch", say so in the
+    feed. Only a suggestion; the secretary decides on the complaint page."""
+    if ticket.blocker is BlockerCode.NEEDS_PANCHAYAT:
+        return  # the operator already sent it
+    try:
+        hint = advice.suggestion_for(ticket)
+    except Exception:
+        logger.exception("advice failed")
+        return
+    if hint.step is not NextStep.SEND_TO_SARPANCH:
+        return
+    sure = f", {round(hint.confidence * 100)}% sure" if hint.confidence is not None else ""
+    activity(
+        "ticket",
+        ticket.village_id,
+        f"AI suggests sending complaint #{ticket.number} to the Sarpanch ({hint.source}{sure}). "
+        "You decide on the complaint page.",
+        f"AI का सुझाव: शिकायत क्रमांक {ticket.number} सरपंच को भेजें। फ़ैसला आपका।",
+    )
 
 
 def _attach_to_checkin(

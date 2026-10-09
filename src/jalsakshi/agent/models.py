@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-HAIKU_MODEL_ID: Final = "in.anthropic.claude-haiku-4-5-20251001-v1:0"
+# Claude Haiku 5.5 first (about a tenth of Haiku 4.5's price per token; global routing), then
+# Haiku 4.5 in India, then Nova 2 Lite; callers fall back to a template after the last.
+HAIKU_MODEL_ID: Final = "global.anthropic.claude-haiku-5-5"
+HAIKU_45_MODEL_ID: Final = "in.anthropic.claude-haiku-4-5-20251001-v1:0"
 NOVA_MODEL_ID: Final = "global.amazon.nova-2-lite-v1:0"
-MODEL_CHAIN: Final[tuple[str, ...]] = (HAIKU_MODEL_ID, NOVA_MODEL_ID)
+MODEL_CHAIN: Final[tuple[str, ...]] = (HAIKU_MODEL_ID, HAIKU_45_MODEL_ID, NOVA_MODEL_ID)
 
 DEFAULT_REGION: Final = "ap-south-1"
 REGION_ENV: Final = "JALSAKSHI_REGION"
@@ -59,6 +62,25 @@ def model_chain() -> tuple[str, ...]:
     return ids or MODEL_CHAIN
 
 
+# Models that reject a ``temperature`` (they choose their own sampling, e.g. Claude Haiku 5.5).
+NO_TEMPERATURE_MARKERS: Final = ("claude-haiku-5", "claude-sonnet-5", "claude-opus-5")
+# Those models reason before answering; the reasoning uses output tokens.
+THINKING_HEADROOM: Final = 1024
+
+
+def accepts_temperature(model_id: str) -> bool:
+    """False for models that refuse a ``temperature`` setting."""
+    return not any(marker in model_id for marker in NO_TEMPERATURE_MARKERS)
+
+
+def inference_config(model_id: str, max_tokens: int) -> dict[str, Any]:
+    """Converse ``inferenceConfig``: temperature 0 where the model allows it, and room for the
+    hidden reasoning of models that think first (it counts against ``maxTokens``)."""
+    if accepts_temperature(model_id):
+        return {"maxTokens": max_tokens, "temperature": 0}
+    return {"maxTokens": max_tokens + THINKING_HEADROOM}
+
+
 def make_model(
     model_id: str,
     region: str | None = None,
@@ -75,12 +97,14 @@ def make_model(
         read_timeout=read_timeout_s,
         retries={"total_max_attempts": BOTO_MAX_ATTEMPTS, "mode": "standard"},
     )
+    thinks = not accepts_temperature(model_id)
+    sampling: dict[str, Any] = {} if thinks else {"temperature": 0.0}
     return BedrockModel(
         model_id=model_id,
         region_name=region or agent_region(),
         boto_client_config=client_config,
-        temperature=0.0,
-        max_tokens=max_tokens,
+        max_tokens=max_tokens + (THINKING_HEADROOM if thinks else 0),
+        **sampling,
     )
 
 

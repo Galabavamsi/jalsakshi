@@ -26,8 +26,9 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AWS_REGION", "us-east-1")  # the shell default we must ignore
 
 
-def test_model_chain_is_haiku_then_nova() -> None:
+def test_model_chain_is_haiku_55_then_haiku_45_then_nova() -> None:
     assert MODEL_CHAIN == (
+        "global.anthropic.claude-haiku-5-5",
         "in.anthropic.claude-haiku-4-5-20251001-v1:0",
         "global.amazon.nova-2-lite-v1:0",
     )
@@ -46,9 +47,9 @@ def test_region_defaults_to_mumbai_not_aws_region(monkeypatch: pytest.MonkeyPatc
 
 
 def test_make_model_is_explicit_and_deterministic() -> None:
-    model = make_model(MODEL_CHAIN[0], max_tokens=777)
+    model = make_model(MODEL_CHAIN[1], max_tokens=777)  # Haiku 4.5 accepts a temperature
     config = model.get_config()
-    assert config["model_id"] == MODEL_CHAIN[0]
+    assert config["model_id"] == MODEL_CHAIN[1]
     assert config["temperature"] == 0
     assert config["max_tokens"] == 777
     assert model.client.meta.region_name == "ap-south-1"
@@ -88,7 +89,7 @@ def test_falls_back_to_next_model_on_error() -> None:
         lambda m: new_agent(m, name="t", system_prompt="s"), _echo_call, model_factory=factory
     )
     assert result == ("second", MODEL_CHAIN[1])
-    assert [mid for mid, _ in factory.calls] == list(MODEL_CHAIN)
+    assert [mid for mid, _ in factory.calls] == list(MODEL_CHAIN[:2])
 
 
 def test_call_can_reject_an_answer_to_move_on() -> None:
@@ -106,7 +107,7 @@ def test_call_can_reject_an_answer_to_move_on() -> None:
 
 
 def test_all_models_failed_lists_every_error() -> None:
-    factory = ScriptedFactory([RuntimeError("a")], [TimeoutError("b")])
+    factory = ScriptedFactory([RuntimeError("a")], [TimeoutError("b")], [ValueError("c")])
     with pytest.raises(AllModelsFailed) as info:
         run_with_fallback(
             lambda m: new_agent(m, name="t", system_prompt="s"), _echo_call, model_factory=factory
@@ -114,6 +115,7 @@ def test_all_models_failed_lists_every_error() -> None:
     assert [(mid, type(exc)) for mid, exc in info.value.errors] == [
         (MODEL_CHAIN[0], RuntimeError),
         (MODEL_CHAIN[1], TimeoutError),
+        (MODEL_CHAIN[2], ValueError),
     ]
 
 
@@ -136,3 +138,9 @@ def test_explicit_model_ids_and_region() -> None:
     )
     assert model_id == "only-this"
     assert factory.calls == [("only-this", "ap-south-1")]
+
+
+def test_a_thinking_model_gets_no_temperature_and_room_to_think() -> None:
+    config = make_model(MODEL_CHAIN[0], max_tokens=300).get_config()
+    assert "temperature" not in config or config["temperature"] is None
+    assert config["max_tokens"] == 300 + agent_models.THINKING_HEADROOM

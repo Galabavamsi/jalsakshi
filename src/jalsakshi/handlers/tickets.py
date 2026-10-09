@@ -196,6 +196,9 @@ def _reported(checkin: CheckIn, reason: TicketReason) -> bool:
 
 
 def _feed(ticket: Ticket, kind: TicketEventKind) -> None:
+    last = ticket.events[-1] if ticket.events else None
+    if kind is TicketEventKind.ESCALATED and last and last.detail.get("to") == "SARPANCH":
+        return  # calls.escalate_to_panchayat writes its own line ("sent to the Sarpanch")
     texts = _FEED.get(kind)
     if texts is not None:
         text_en, text_hi = (text.format(tid=ticket.id) for text in texts)

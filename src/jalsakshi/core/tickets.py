@@ -139,8 +139,10 @@ BLOCKER_KEYS: dict[str, BlockerCode] = {
     "3": BlockerCode.NO_POWER,
     "4": BlockerCode.PIPE_BROKEN,
     "5": BlockerCode.NOT_MINE,
+    "6": BlockerCode.OTHER,
+    "7": BlockerCode.NEEDS_PANCHAYAT,
 }
-"""Operator call keys 2-5 (§15.7); 1 means fixed."""
+"""Operator call keys 2-7 (§15.7); 1 means fixed. 6 and 7 are followed by a voice note."""
 
 
 def allowed_events(state: TicketState) -> frozenset[TicketEventKind]:

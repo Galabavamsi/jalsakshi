@@ -32,11 +32,14 @@ operator:
   summary_other: "Paani se judi ek shikayat hai. Shikayat karne wale gharon ki sankhya: {households}."
   number: "Yeh shikayat kramank {number} hai."
   where: "Yeh shikayat kramank {number} hai. Jagah: {place}."
-  q_fixed: "Samasya theek ho gayi hai to ek dabaiye. Saamaan chahiye to do. Bijli nahi hai to teen. Pipe toota hai to chaar. Yeh aapki zimmedari nahi hai to paanch dabaiye."
+  q_fixed: "Samasya theek ho gayi hai to ek dabaiye. Saamaan chahiye to do. Bijli nahi hai to teen. Pipe toota hai to chaar. Yeh aapki zimmedari nahi hai to paanch. Koi aur baat bolkar batani ho to chhah. Aapke bas mein nahi hai aur Sarpanch ki madad chahiye to saat dabaiye."
   ack_fixed: "Dhanyavaad. Hum gharon se pushti karenge, phir shikayat band hogi."
   ack_pending: "Theek hai. Marammat ho jaane par Panchayat ko batayein, phir gharon se pushti hogi."
   ack_reason: "Theek hai, kaaran darj kar liya hai. Panchayat ko bataya jayega."
   ack_not_mine: "Theek hai. Shikayat Panchayat mein sahi vyakti ko bheji jayegi."
+  q_note: "Beep ke baad tees second mein apni baat batayein. Khatm hone par hash dabaiye."
+  ack_note: "Dhanyavaad. Aapki baat record ho gayi hai. Ise shikayat mein likh kar Panchayat ko bataya jayega."
+  ack_panchayat: "Theek hai. Yeh shikayat Sarpanch ko bheji ja rahi hai. Unhe abhi JalSakshi se call jayegi."
 register:
   greet: "Namaste. Yeh JalSakshi hai, IIT Bhilai ke chhatron ka ek pilot. Yeh aapke gaon mein peene ke paani ki jaankari Gram Panchayat tak pahunchata hai."
   notice: "Kripya dhyaan se sunein. Hum aapka mobile number, aapka naam, mohalla aur gaon ka naam, aur aapke jawab rakhenge, jaise paani aaya ya nahi, aur saaf tha ya nahi. Agar aap bolkar kuch batayenge, to woh recording Sarvam AI se likhai mein badli jayegi. Yeh jaankari sirf marammat ke liye Nal Jal Mitra aur Gram Panchayat ko di jayegi, aur gaon ki report mein bina naam ke dikhegi. Aap kabhi bhi calls band kar sakte hain. Kisi bhi call mein nau dabaiye, ya isi number par missed call dekar nau dabaiye. Tab aapki jaankari hata di jayegi."
@@ -68,6 +71,9 @@ broadcast:
   bye: "Dhanyavaad."
 summary:
   greet: "Namaste. JalSakshi ki saaptahik report, Gram Panchayat ke liye."
+alert:
+  greet: "Namaste. JalSakshi se Gram Panchayat ke liye ek zaroori soochna hai. Ek paani ki shikayat Nal Jal Mitra ke bas mein nahi hai."
+  bye: "Dhanyavaad. Poori jaankari JalSakshi console mein hai."
 lang:
   hi: "Hindi"
   hne: "Chhattisgarhi"

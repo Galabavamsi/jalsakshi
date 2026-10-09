@@ -8,6 +8,7 @@ and Lambda retries are harmless.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -26,13 +27,16 @@ from jalsakshi.core.models import (
     DayStatus,
     Household,
     Operator,
+    OperatorRole,
     Purpose,
+    Ticket,
     TicketOrigin,
     TicketReason,
+    TicketState,
     WaterAnswer,
 )
 from jalsakshi.core.reconcile import reconcile_day
-from jalsakshi.core.tickets import Denied
+from jalsakshi.core.tickets import Denied, TicketEventKind
 from jalsakshi.handlers import config, residents, sfn, tickets
 from jalsakshi.handlers.common import activity, count, logger
 from jalsakshi.handlers.config import VoiceProvider
@@ -61,6 +65,12 @@ _REPORT_REASONS: Final = {
     ReportChoice.DIRTY: TicketReason.DIRTY,
 }
 CALLBACK_WINDOW: Final = timedelta(hours=24)
+PANCHAYAT_ALERT_DELAY_S: Final = 45
+# States where sending a complaint to the Sarpanch must not change the state: an ESCALATED
+# there would stop the families' confirmation (or it is escalated already).
+KEEP_STATE_ON_ESCALATION: Final = frozenset(
+    {TicketState.OPERATOR_REPORTED_FIXED, TicketState.VERIFYING, TicketState.ESCALATED}
+)
 
 
 class CallRecord(BaseModel):
@@ -70,7 +80,7 @@ class CallRecord(BaseModel):
     provider: VoiceProvider
     day: date
     attempt: int = Field(default=1, ge=1)
-    origin: Literal["workflow", "console", "callback", "broadcast", "summary"] = "console"
+    origin: Literal["workflow", "console", "callback", "broadcast", "summary", "alert"] = "console"
     finished: bool = False
     provider_call_uuid: str | None = None
     caller_initiated: bool = False
@@ -165,7 +175,7 @@ def household_decision(
         calls,
         caller_initiated=caller_initiated,
         callbacks_today=callbacks_today,
-        test_phone=household.phone_e164 in config.allowed_numbers(),
+        test_phone=is_test_phone(household.phone_e164),
     )
 
 
@@ -186,7 +196,7 @@ def operator_decision(
     caller_initiated: bool = False,
     callbacks_today: int = 0,
 ) -> Decision:
-    """Cedar ``PlaceCall`` check for an operator call (calling hours apply to everyone).
+    """Cedar ``PlaceCall`` check for an operator call.
 
     Operators agree to be called when they take the role, so the role itself is the consent.
     A call-back after the operator's own missed call is limited like anyone else's.
@@ -202,8 +212,21 @@ def operator_decision(
         0,
         caller_initiated=caller_initiated,
         callbacks_today=callbacks_today,
-        test_phone=operator.phone_e164 in config.allowed_numbers(),
+        test_phone=is_test_phone(operator.phone_e164),
     )
+
+
+def is_test_phone(phone: str) -> bool:
+    """Is this one of the team's own test phones (the stage allowlist)?
+
+    Only ever loosens a limit, so an unreadable allowlist counts as "no" instead of failing the
+    call run (a missing SSM grant once stopped a whole check-in run).
+    """
+    try:
+        return phone in config.allowed_numbers()
+    except Exception:
+        logger.warning("allowlist unreadable; treating the number as a resident's")
+        return False
 
 
 # --- simulator hand-off -----------------------------------------------------------------------
@@ -256,6 +279,8 @@ def finish_call(repo: Repository, loaded: LoadedCall, captured_via: CapturedVia)
             _finish_broadcast(repo, record)
         case Purpose.SUMMARY:
             logger.info("summary call ended", extra={"call_id": record.call_id})
+        case Purpose.ALERT:
+            _finish_alert(repo, record)
         case _:
             record = _finish_household(repo, record, loaded.task_token, captured_via)
     done = record.model_copy(update={"finished": True})
@@ -437,6 +462,8 @@ def _finish_operator(repo: Repository, record: CallRecord) -> None:
         return
     if blocker is not None and flow.ticket_id:
         _record_blocker(repo, flow.ticket_id, blocker, actor, flow.operator_id)
+        if blocker is BlockerCode.NEEDS_PANCHAYAT:
+            escalate_to_panchayat(repo, flow.ticket_id, actor, flow.operator_id)
         return
     activity(
         "call",
@@ -471,10 +498,93 @@ def _record_blocker(
     )
 
 
+def escalate_to_panchayat(
+    repo: Repository,
+    ticket_id: str,
+    actor: str,
+    operator_id: str | None,
+    delay_s: int = PANCHAYAT_ALERT_DELAY_S,
+) -> None:
+    """The operator cannot fix it alone: the complaint goes to the Sarpanch, who gets a call.
+
+    After the operator's key 7 the call waits ``PANCHAYAT_ALERT_DELAY_S`` so their spoken reason
+    is usually transcribed by then and read out to the Sarpanch (the console sends at once).
+    An already escalated complaint (e.g. after 48 hours) keeps its state; the Sarpanch is still
+    called.
+    """
+    detail = {"to": OperatorRole.SARPANCH.value, "by": operator_id, "simulated": False}
+    current = repo.get_ticket_by_id(ticket_id)
+    if current is None:
+        return
+    result: Ticket | Denied = Denied("kept state")
+    if current.state not in KEEP_STATE_ON_ESCALATION:
+        result = tickets.apply_event(repo, ticket_id, TicketEventKind.ESCALATED, actor, detail)
+    if isinstance(result, Denied):
+        # A repair being confirmed by families, or an already escalated complaint, keeps its
+        # state (an ESCALATED here would stop the verification); a NOTE records the hand-over.
+        result = residents.update_ticket(
+            repo, ticket_id, lambda t: t, {"note": "sent_to_sarpanch", **detail}, actor
+        )
+    if isinstance(result, Denied):
+        logger.warning("escalation not recorded", extra={"reason": result.reason})
+        return
+    ticket = result
+    activity(
+        "ticket",
+        ticket.village_id,
+        f"Complaint #{ticket.number} sent to the Sarpanch: the pump operator cannot fix it alone",
+        f"शिकायत क्रमांक {ticket.number} सरपंच को भेजी: नल जल मित्र अकेले ठीक नहीं कर सकते",
+    )
+    queue_outbound(
+        {
+            "kind": "panchayat_alert",
+            "ticket_id": ticket_id,
+            "delay_s": delay_s,
+            "requested_at": config.now().isoformat(),
+        }
+    )
+
+
+def queue_outbound(job: dict[str, Any]) -> bool:
+    """Hand a job to the outbound Lambda (best effort: a failure is logged, never raised)."""
+    function = config.settings().outbound_fn
+    if not function:
+        logger.warning("outbound not configured", extra={"kind": job.get("kind")})
+        return False
+    try:
+        config.client("lambda").invoke(
+            FunctionName=function, InvocationType="Event", Payload=json.dumps(job).encode()
+        )
+    except Exception:
+        logger.exception("outbound job not queued", extra={"kind": job.get("kind")})
+        return False
+    return True
+
+
+def _finish_alert(repo: Repository, record: CallRecord) -> None:
+    """The Sarpanch pressed 1: note on the complaint that the Panchayat was told."""
+    flow = record.flow
+    if flow.answers.heard is not True or not flow.ticket_id:
+        return
+    detail = {"note": "sarpanch_told", "operator_id": flow.operator_id}
+    result = residents.update_ticket(
+        repo, flow.ticket_id, lambda t: t, detail, f"operator:{flow.operator_id}"
+    )
+    if isinstance(result, Denied):
+        logger.warning("sarpanch ack not recorded", extra={"reason": result.reason})
+        return
+    activity(
+        "ticket",
+        result.village_id,
+        f"The Sarpanch heard complaint #{result.number} on the phone (pressed 1)",
+        f"सरपंच ने फ़ोन पर शिकायत क्रमांक {result.number} सुनी (1 दबाया)",
+    )
+
+
 def callbacks_today(repo: Repository, phone: str) -> int:
     """Call-backs queued for this number's missed calls in the last 24 hours.
 
-    Rings inside the 10-minute cooldown are logged but queue nothing, so they do not count.
+    Rings inside the 2-minute cooldown are logged but queue nothing, so they do not count.
     """
     since = config.now() - CALLBACK_WINDOW
     return sum(1 for m in repo.list_missed_calls(phone, since) if callback_queued(m))

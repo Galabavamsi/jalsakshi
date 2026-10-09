@@ -28,8 +28,10 @@ import type {
   Purpose,
   SimInputRequest,
   SimStartRequest,
+  NextStep,
   Ticket,
   TicketEvent,
+  TicketOverview,
   TicketState,
   Village,
   VillageSummary,
@@ -522,6 +524,60 @@ export function createMockApi(options: MockApiOptions = {}): JalApi {
       ),
 
     getTicket: (tid) => reply(() => findTicket(state, tid)),
+
+    getOverview: (tid) =>
+      reply((): TicketOverview => {
+        const ticket = findTicket(state, tid);
+        const at = now();
+        const hours = Math.max(0, Math.floor((at.getTime() - Date.parse(ticket.opened_at)) / 3_600_000));
+        const families = Math.max(1, ticket.reporters?.length ?? 0);
+        const told = ticket.events.some((e) => e.kind.toUpperCase() === 'NOTIFIED');
+        const step: NextStep =
+          ticket.state === 'ESCALATED' ? 'RAISE_WITH_BLOCK_OFFICE' : !told ? 'CALL_OPERATOR_AGAIN' : hours >= 72 ? 'SEND_TO_SARPANCH' : 'WAIT_FOR_REPAIR';
+        const labels: Record<NextStep, string> = {
+          CALL_OPERATOR_AGAIN: 'Call the pump operator again',
+          SEND_TO_SARPANCH: 'Send it to the Sarpanch',
+          RAISE_WITH_BLOCK_OFFICE: 'Raise it with the PHED block office',
+          WAIT_FOR_REPAIR: 'Wait: the repair is in progress',
+        };
+        return {
+          text: `Complaint #${ticket.number ?? '?'}: ${families === 1 ? '1 family' : `${families} families`} reported it, open for ${hours} hours.`,
+          text_source: 'template',
+          suggestion:
+            ticket.state === 'CLOSED_VERIFIED'
+              ? null
+              : { step, label: labels[step], source: 'rules', confidence: null, probabilities: {}, urgent: null, reasons: ['Mock rules'] },
+          facts: { number: ticket.number, hours_open: hours },
+          generated_at: at.toISOString(),
+        };
+      }),
+
+    sendToSarpanch: (tid) =>
+      reply(() => {
+        const ticket = findTicket(state, tid);
+        if (ticket.state === 'CLOSED_VERIFIED') throw new ApiError(409, 'closed', 'this complaint is already closed');
+        if (ticket.state !== 'ESCALATED') {
+          addEvent(ticket, {
+            at: now().toISOString(),
+            actor,
+            kind: 'ESCALATED',
+            from_state: ticket.state,
+            to_state: 'ESCALATED',
+            detail: { to: 'SARPANCH', by: null, simulated: false },
+          });
+        }
+        return ticket;
+      }),
+
+    callOperatorAgain: (tid) =>
+      reply((): { call: 'queued' } => {
+        const ticket = findTicket(state, tid);
+        if (ticket.state === 'CLOSED_VERIFIED') throw new ApiError(409, 'closed', 'this complaint is already closed');
+        if (!['ASSIGNED', 'REOPENED', 'ESCALATED'].includes(ticket.state)) {
+          throw new ApiError(409, 'not_waiting_for_operator', 'the pump operator is not waiting for a call now');
+        }
+        return { call: 'queued' };
+      }),
 
     operatorFixed: (tid, operatorId) =>
       reply(() => {

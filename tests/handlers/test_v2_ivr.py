@@ -103,7 +103,7 @@ def test_missed_call_in_hours_is_rejected_and_queues_one_callback(
     assert datetime.fromisoformat(job["missed_at"]) >= MORNING
     assert v2.scheduler.schedules == {}
 
-    clock.advance(minutes=5)
+    clock.advance(minutes=1)
     _, again = missed(PHONES[0])
     assert again == REJECT_XML
     assert len(v2.lambdas.events("callback")) == 1  # cooldown: logged, not called back
@@ -117,9 +117,11 @@ def test_rings_inside_the_cooldown_do_not_delay_the_next_callback(
 ) -> None:
     clock.now = MORNING
     missed(PHONES[0])
-    clock.advance(minutes=6)
-    missed(PHONES[0])  # suppressed
-    clock.advance(minutes=5)  # 11 min after the first call-back, 5 after the suppressed ring
+    clock.advance(minutes=1)
+    missed(PHONES[0])  # suppressed, but shown in the console feed
+    feed = seeded.list_activity(MORNING - timedelta(hours=1))
+    assert any("already on its way" in e.text_en for e in feed)
+    clock.advance(minutes=1.5)  # 2.5 min after the first call-back, 1.5 after the suppressed ring
     missed(PHONES[0])
     assert len(v2.lambdas.events("callback")) == 2
     assert calls.callbacks_today(seeded, PHONES[0]) == 2
@@ -545,6 +547,104 @@ def test_operator_reason_keys_note_the_blocker(
     assert note.detail == expected
     assert ticket.state.value == "ASSIGNED"  # a reason never moves the ticket
     assert v2.sfn.outputs_for("fix-1") == []  # the workflow keeps waiting for a fix
+
+
+def finish_note(call_id: str, last_reply: str) -> str:
+    """The operator ends the spoken note with # (no recording): the closing prompt."""
+    _, xml = vobiz_post("digits", {"call_id": call_id, "turn": str(next_turn(last_reply))})
+    return xml
+
+
+def test_key_6_asks_for_the_operators_own_words(v2: V2Fakes, seeded: Repository) -> None:
+    tid, call_id = operator_call(seeded)
+    replies = run_call(call_id, ["6"])
+    assert plays(replies[-1]) == [f"{CDN}/operator.q_note.mp3"]
+    assert xml_root(replies[-1]).find("Record") is not None
+    assert plays(finish_note(call_id, replies[-1])) == [f"{CDN}/operator.ack_note.mp3"]
+    ticket = seeded.get_ticket_by_id(tid)
+    assert ticket is not None and ticket.blocker is BlockerCode.OTHER
+    assert ticket.state.value == "ASSIGNED"
+    assert v2.lambdas.events("panchayat_alert") == []
+
+
+def test_key_7_sends_the_complaint_to_the_sarpanch(v2: V2Fakes, seeded: Repository) -> None:
+    tid, call_id = operator_call(seeded)
+    replies = run_call(call_id, ["7"])
+    assert plays(replies[-1]) == [f"{CDN}/operator.q_note.mp3"]
+    closing = finish_note(call_id, replies[-1])
+    assert plays(closing) == [f"{CDN}/operator.ack_panchayat.mp3"]
+    ticket = seeded.get_ticket_by_id(tid)
+    assert ticket is not None and ticket.blocker is BlockerCode.NEEDS_PANCHAYAT
+    assert ticket.state.value == "ESCALATED"
+    escalated = ticket.events[-1]
+    assert escalated.kind == "ESCALATED" and escalated.actor == "operator:op-1"
+    assert escalated.detail == {"to": "SARPANCH", "by": "op-1", "simulated": False}
+    [job] = v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)
+    assert job["ticket_id"] == tid and job["delay_s"] == calls.PANCHAYAT_ALERT_DELAY_S
+    assert v2.sfn.outputs_for("fix-1") == []  # still waiting for a fix
+    feed = seeded.list_activity(MORNING - timedelta(hours=1))
+    assert any("sent to the Sarpanch" in e.text_en for e in feed)
+
+
+def test_the_sarpanch_hears_the_complaint_and_the_operators_words(
+    v2: V2Fakes, seeded: Repository
+) -> None:
+    sarpanch = operator("op-s", phone="+919800000055").model_copy(
+        update={"role": OperatorRole.SARPANCH}
+    )
+    seeded.put_operator(sarpanch)
+    tid, call_id = operator_call(seeded)
+    replies = run_call(call_id, ["7"])
+    finish_note(call_id, replies[-1])
+    words = {"note": "operator_voice", "transcript": "मोटर जल गई है, ब्लॉक से नई चाहिए"}
+    residents.update_ticket(seeded, tid, lambda t: t, words, "operator:op-1")
+    [job] = v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)
+    out = outbound.handler({**job, "delay_s": 0}, LambdaContext())
+    assert out["status"] == "pending"
+    loaded = calls.load_call(seeded, out["call_id"])
+    assert loaded is not None
+    flow = loaded.record.flow
+    assert flow.purpose is Purpose.ALERT and flow.operator_id == "op-s"
+    assert flow.ticket_id == tid and loaded.record.origin == "alert"
+    message = flow.message_text_hi or ""
+    assert message.startswith("Shikayat kramank 7: paani nahi aaya.")
+    assert "मोटर जल गई है" in message
+    alert = run_call(out["call_id"], ["1"])
+    assert plays(alert[-1]) == [f"{CDN}/alert.bye.mp3"]
+    ticket = seeded.get_ticket_by_id(tid)
+    assert ticket is not None and ticket.events[-1].detail["note"] == "sarpanch_told"
+
+
+def test_operator_called_again_on_request_gets_a_new_call(v2: V2Fakes, seeded: Repository) -> None:
+    tid, first = operator_call(seeded)
+    ticket = seeded.get_ticket_by_id(tid)
+    assert ticket is not None
+    sfn_tasks.call_operator(seeded, ticket)  # a repeat of the workflow's own call: deduped
+    assert calls.find_pending(seeded, "op-1", Purpose.OPERATOR) is not None
+    again = {"kind": "operator_call", "ticket_id": tid, "requested_at": "2026-10-08T06:00:00+00:00"}
+    outbound.handler(again, LambdaContext())
+    loaded = calls.load_call(seeded, f"operator-{tid}-c20261008060000")
+    assert loaded is not None and loaded.record.flow.operator_id == "op-1"
+    assert loaded.record.call_id != first
+
+
+def test_without_a_sarpanch_the_secretary_is_called_and_without_either_it_is_logged(
+    v2: V2Fakes, seeded: Repository
+) -> None:
+    tid, call_id = operator_call(seeded)
+    replies = run_call(call_id, ["7"])
+    finish_note(call_id, replies[-1])
+    assert outbound.panchayat_alert(seeded, tid)["status"] == "ignored"
+    feed = seeded.list_activity(MORNING - timedelta(hours=1))
+    assert any("no Sarpanch or Secretary" in e.text_en for e in feed)
+    secretary = operator("op-sec", phone="+919800000066").model_copy(
+        update={"role": OperatorRole.PANCHAYAT_SECRETARY}
+    )
+    seeded.put_operator(secretary)
+    out = outbound.panchayat_alert(seeded, tid, requested_at="2026-10-08T05:00:00+00:00")
+    assert out["status"] == "pending"
+    loaded = calls.load_call(seeded, out["call_id"])
+    assert loaded is not None and loaded.record.flow.operator_id == "op-sec"
 
 
 def test_not_mine_routes_the_next_notice_and_callbacks_to_the_next_person(

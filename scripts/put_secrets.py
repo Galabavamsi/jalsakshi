@@ -2,7 +2,9 @@
 
 Usage:  uv run python scripts/put_secrets.py --stage dev-<name> [--profile aws-main]
 
-Writes /jalsakshi/<stage>/{vobiz_auth_id, vobiz_auth_token, vobiz_did, sarvam_api_key}.
+Writes /jalsakshi/<stage>/{vobiz_auth_id, vobiz_auth_token, vobiz_did, sarvam_api_key}, plus
+jev_api_key and openai_api_key when TYPESAFEAI_JEV_API_KEY / OPENAI_API_KEY are set (optional:
+the console's next-step suggestion then falls back to fixed rules).
 Prints parameter names only; values never reach stdout or logs.
 """
 
@@ -22,6 +24,10 @@ ENV_TO_PARAM = {
     "VOBIZ_DID": "vobiz_did",
     "SARVAM_API_KEY": "sarvam_api_key",
 }
+OPTIONAL_ENV_TO_PARAM = {
+    "TYPESAFEAI_JEV_API_KEY": "jev_api_key",
+    "OPENAI_API_KEY": "openai_api_key",
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,7 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print("missing in .env: " + ", ".join(missing), file=sys.stderr)
         return 1
-    for env_key, param in ENV_TO_PARAM.items():
+    present = {k: v for k, v in OPTIONAL_ENV_TO_PARAM.items() if os.environ.get(k, "").strip()}
+    for env_key, param in {**ENV_TO_PARAM, **present}.items():
         name = f"/jalsakshi/{args.stage}/{param}"
         ssm.put_parameter(
             Name=name, Value=os.environ[env_key].strip(), Type="SecureString", Overwrite=True

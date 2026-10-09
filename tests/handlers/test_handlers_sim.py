@@ -59,15 +59,13 @@ def test_daily_call_end_to_end(seeded: Repository) -> None:
     assert status == 200 and again == {"actions": [{"type": "hangup"}], "done": True}
 
 
-def test_second_daily_call_same_day_is_denied(seeded: Repository) -> None:
+def test_second_daily_call_same_day_is_allowed(seeded: Repository) -> None:
     _, body = start({"household_id": "h1", "purpose": "DAILY"})
     press(body["call_id"], {"digits": "2"})
     press(body["call_id"], {"digits": "3"})
     press(body["call_id"], {"digits": "#"})
-    status, denied = start({"household_id": "h1", "purpose": "DAILY"})
-    assert status == 403
-    assert denied["denied"] is True and denied["policy_id"] == "one-call-per-day"
-    assert denied["reason_hi"] and denied["reason_en"]
+    status, again = start({"household_id": "h1", "purpose": "DAILY"})
+    assert status == 200 and again["call_id"] != body["call_id"]
 
 
 def test_household_without_consent_is_denied(seeded: Repository) -> None:

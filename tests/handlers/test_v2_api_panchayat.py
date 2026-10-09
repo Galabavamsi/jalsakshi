@@ -5,16 +5,18 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 
+from jalsakshi.agent import overview
 from jalsakshi.core.models import (
     ConsentAction,
     ConsentStatus,
     TicketOrigin,
     TicketReason,
+    TicketState,
     WaterPointKind,
 )
 from jalsakshi.core.tickets import new_ticket
@@ -152,7 +154,8 @@ def test_adding_a_family_queues_its_consent_call(v2: V2Fakes, seeded: Repository
     hid = residents.new_household_id(NEW_PHONE)
     assert household["id"] == hid and household["consent_status"] == "NONE"
     [job] = v2.lambdas.events("register", function=OUTBOUND_FN)
-    assert job == {"kind": "register", "village_id": VID, "household_id": hid}
+    assert job == {**job, "kind": "register", "village_id": VID, "household_id": hid}
+    assert job["requested_at"].startswith("20")  # one call per request, not per day
     stored = seeded.get_household(VID, hid)
     assert stored is not None and stored.registered_via == "console"
     assert stored.display_name == "Ramesh" and stored.access is not None
@@ -192,6 +195,32 @@ def test_a_family_that_declined_is_not_reset(v2: V2Fakes, seeded: Repository) ->
     assert status == 409 and out["error"]["code"] == "consent_declined"
     stored = seeded.get_household(VID, "hh-no")
     assert stored is not None and stored.consent_status is ConsentStatus.DECLINED
+    assert v2.lambdas.invocations == []
+
+
+def test_call_again_for_a_family_still_waiting(v2: V2Fakes, seeded: Repository) -> None:
+    status, out, _ = post(f"/api/villages/{VID}/households/h3/consent-call")
+    assert status == 202 and out == {"call": "queued"}
+    [job] = v2.lambdas.events("register", function=OUTBOUND_FN)
+    assert job["household_id"] == "h3" and job["requested_at"]
+    feed = seeded.list_activity(NOW.replace(hour=0))
+    assert any("another consent call" in e.text_en and PHONES[3] not in e.text_en for e in feed)
+
+
+@pytest.mark.parametrize(
+    ("hid", "status", "code"),
+    [
+        ("h1", 409, "already_agreed"),
+        ("hh-no", 409, "consent_declined"),
+        ("ghost", 404, "not_found"),
+    ],
+)
+def test_call_again_only_for_families_still_waiting(
+    v2: V2Fakes, seeded: Repository, hid: str, status: int, code: str
+) -> None:
+    seeded.put_household(resident("hh-no", NEW_PHONE, status=ConsentStatus.DECLINED))
+    got, out, _ = post(f"/api/villages/{VID}/households/{hid}/consent-call")
+    assert got == status and out["error"]["code"] == code
     assert v2.lambdas.invocations == []
 
 
@@ -340,3 +369,96 @@ def test_analytics_and_summary(v2: V2Fakes, seeded: Repository) -> None:
     assert summary["start"] == "2026-10-02" and summary["end"] == "2026-10-08"
     assert summary["text_hi"] and summary["text_en"]
     assert PHONES[0] not in json.dumps(summary)
+
+
+# --- AI advice on a complaint (§15.14) -----------------------------------------------------------
+
+
+def open_complaint(repo: Repository) -> str:
+    ticket = repo.open_ticket_if_none(new_ticket(VID, TicketReason.NO_SUPPLY, NOW, number=9))
+    assert ticket is not None
+    return ticket.id
+
+
+def test_overview_without_models_or_jev_uses_template_and_rules(
+    v2: V2Fakes, seeded: Repository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_model(prompt: str, **_: Any) -> tuple[str, str]:
+        raise overview.ReaderError("no bedrock in tests")
+
+    monkeypatch.setattr(overview, "converse_text", no_model)
+    tid = open_complaint(seeded)
+    status, out, _ = get(f"/api/tickets/{tid}/overview")
+    assert status == 200 and out["text_source"] == "template"
+    assert out["text"].startswith("Complaint #9: 1 family reported no water")
+    suggestion = out["suggestion"]
+    assert suggestion["source"] == "rules" and suggestion["step"] == "CALL_OPERATOR_AGAIN"
+    assert out["facts"]["number"] == 9 and "reporters" not in out["facts"]
+    assert PHONES[0] not in json.dumps(out)
+
+
+def test_send_to_sarpanch_from_the_console(v2: V2Fakes, seeded: Repository) -> None:
+    tid = open_complaint(seeded)
+    status, out, _ = post(f"/api/tickets/{tid}/send-to-sarpanch")
+    assert status == 200 and out["state"] == "ESCALATED"
+    escalated = out["events"][-1]
+    assert escalated["kind"] == "ESCALATED" and escalated["actor"] == "console:alice"
+    assert escalated["detail"]["to"] == "SARPANCH"
+    [job] = v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)
+    assert job["ticket_id"] == tid and job["delay_s"] == 0
+
+
+def with_state(repo: Repository, tid: str, state: TicketState) -> None:
+    stored = repo.get_ticket_by_id(tid)
+    assert stored is not None
+    repo.save_ticket(
+        stored.model_copy(
+            update={"state": state, "updated_at": stored.updated_at + timedelta(minutes=1)}
+        ),
+        expected_updated_at=stored.updated_at,
+    )
+
+
+def test_call_the_operator_again_from_the_console(v2: V2Fakes, seeded: Repository) -> None:
+    tid = open_complaint(seeded)
+    status, out, _ = post(f"/api/tickets/{tid}/call-operator")
+    assert status == 409 and out["error"]["code"] == "not_waiting_for_operator"  # still OPEN
+    with_state(seeded, tid, TicketState.ASSIGNED)
+    status, out, _ = post(f"/api/tickets/{tid}/call-operator")
+    assert status == 202 and out == {"call": "queued"}
+    [job] = v2.lambdas.events("operator_call", function=OUTBOUND_FN)
+    assert job["ticket_id"] == tid and job["requested_at"]  # its own call, not a repeat
+
+
+def test_sending_a_repair_under_confirmation_keeps_its_state(
+    v2: V2Fakes, seeded: Repository
+) -> None:
+    tid = open_complaint(seeded)
+    with_state(seeded, tid, TicketState.VERIFYING)
+    status, out, _ = post(f"/api/tickets/{tid}/send-to-sarpanch")
+    assert status == 200 and out["state"] == "VERIFYING"  # the families' calls go on
+    note = out["events"][-1]
+    assert note["kind"] == "NOTE" and note["detail"]["note"] == "sent_to_sarpanch"
+    assert note["detail"]["to"] == "SARPANCH"
+    assert len(v2.lambdas.events("panchayat_alert", function=OUTBOUND_FN)) == 1
+    feed = seeded.list_activity(NOW.replace(hour=0))
+    assert not any("PHED (simulated)" in e.text_en for e in feed)
+
+
+def test_advice_actions_refuse_a_closed_complaint(v2: V2Fakes, seeded: Repository) -> None:
+    tid = open_complaint(seeded)
+    stored = seeded.get_ticket_by_id(tid)
+    assert stored is not None
+    seeded.save_ticket(
+        stored.model_copy(
+            update={
+                "state": TicketState.CLOSED_VERIFIED,
+                "updated_at": stored.updated_at + timedelta(minutes=1),
+            }
+        ),
+        expected_updated_at=stored.updated_at,
+    )
+    for action in ("send-to-sarpanch", "call-operator"):
+        status, out, _ = post(f"/api/tickets/{tid}/{action}")
+        assert status == 409 and out["error"]["code"] == "closed"
+    assert v2.lambdas.invocations == []

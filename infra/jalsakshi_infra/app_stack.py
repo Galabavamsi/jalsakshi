@@ -49,7 +49,8 @@ TASKS = (
     "evaluate_verification",
     "escalate",
 )
-DIALLING_TASKS = frozenset({"place_call", "notify_operator"})
+# Tasks that read the stage allowlist from SSM (dialling, and the Cedar check of a call).
+DIALLING_TASKS = frozenset({"place_call", "notify_operator", "policy_check_call"})
 OUTBOUND_SLUG = "outbound"
 NOTES_SLUG = "notes"
 DYN_AUDIO = "prompts/hi/dyn/*"
@@ -233,11 +234,11 @@ class AppStack(cdk.Stack):
             self._grant_task_response(fn)
         for fn in (api_fn, sim_fn, ivr_fn, outbound_fn, notes_fn):
             self._grant_start_ticket_flow(fn)
-        for fn in (ivr_fn, api_fn, outbound_fn, notes_fn):
+        for fn in (ivr_fn, api_fn, outbound_fn, notes_fn, sim_fn):
             self._grant_secrets(fn)
         for fn in (ivr_fn, api_fn, sim_fn):
             self._grant_dynamic_audio(fn)
-        for fn in (ivr_fn, api_fn):
+        for fn in (ivr_fn, api_fn, sim_fn):
             fn.add_to_role_policy(
                 iam.PolicyStatement(
                     actions=["lambda:InvokeFunction"],

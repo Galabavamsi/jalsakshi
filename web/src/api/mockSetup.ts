@@ -338,6 +338,15 @@ export function createSetupMock(ctx: SetupMockContext) {
 
     addFamilies: (vid: string, families: FamilyRow[]) => reply(() => addRows(vid, families)),
 
+    callAgain: (vid: string, hid: string) =>
+      reply((): { call: 'queued' } => {
+        findVillage(vid);
+        const h = state.households.find((x) => x.village_id === vid && x.id === hid);
+        if (!h) throw invalid('no such family in this village');
+        if ((h.consent_status ?? 'NONE') !== 'NONE') throw invalid('this family is not waiting for a call');
+        return { call: 'queued' };
+      }),
+
     readRegisterPhoto: (vid: string, imageBase64: string) =>
       reply((): RegisterPhotoResponse => {
         findVillage(vid);

@@ -7,14 +7,15 @@ stop all calls):
   q_hours (piped water only) and q_clean after 1 or 3, q_fallback after 2 (where did you get
   water instead), an optional spoken note (``#`` skips), bye.
 - VERIFY household: greet, q_water (1 yes / 2 no), bye.
-- OPERATOR: greet, ticket summary (and where / which complaint), q_fixed (1 fixed, or 2-5 the
-  reason it is not: parts, no electricity, broken pipe, not my job), acknowledgement.
+- OPERATOR: greet, ticket summary (and where / which complaint), q_fixed (1 fixed, or 2-7 the
+  reason it is not: parts, no electricity, broken pipe, not my job, 6 something else, 7 needs
+  the Panchayat); after 6 or 7 a spoken note (``#`` ends it), acknowledgement.
 - REGISTER: greet, the consent notice, q_age (18+), q_consent (1 agree / 2 hear again / 3 no),
   q_access (which source the family uses), confirmation. Silence never counts as consent.
 - REPORT (call-back after a missed call): q_menu (1 no water / 2 dirty / 3 speak a complaint /
   4 hear today's status / 9 stop calls), acknowledgement.
-- BROADCAST and SUMMARY: intro, the message (text given by the caller), q_heard (1 heard /
-  2 repeat once), bye.
+- BROADCAST, SUMMARY and ALERT (a complaint sent to the Sarpanch): intro, the message (text
+  given by the caller), q_heard (1 heard / 2 repeat once), bye.
 
 A question is re-prompted once on an invalid key or a timeout; after that the answer is ``None``
 and the flow moves on. A missing answer is never guessed. ``turn`` grows by one on every step the
@@ -51,6 +52,7 @@ MAX_RETRIES = 1
 QUESTION_TIMEOUT_S = 15
 NOTE_MAX_S = 15
 REPORT_NOTE_MAX_S = 25
+OPERATOR_NOTE_MAX_S = 30
 MAX_NOTICE_PLAYS = 3
 MAX_MENU_LOOPS = 2
 MAX_MESSAGE_REPLAYS = 1
@@ -152,7 +154,7 @@ class FlowSession(BaseModel):
             self.ticket_reason is None or self.reported_households is None
         ):
             raise ValueError("an OPERATOR call needs ticket_reason and reported_households")
-        if self.purpose in (Purpose.BROADCAST, Purpose.SUMMARY) and not self.message_text_hi:
+        if self.purpose in _MESSAGE_PURPOSES and not self.message_text_hi:
             raise ValueError(f"a {self.purpose} call needs message_text_hi")
         return self
 
@@ -183,13 +185,17 @@ _WATER_VERIFY = {"1": WaterAnswer.YES, "2": WaterAnswer.NO}
 _HOURS = {str(hours): hours for hours in range(10)}
 _CLEAN = {"1": CleanAnswer.YES, "2": CleanAnswer.NO}
 _FALLBACK = {"1": Fallback.OTHER_SOURCE, "2": Fallback.BOUGHT, "3": Fallback.NONE}
-_FIXED = {"1": True, "2": False, "3": False, "4": False, "5": False}
+_FIXED = {"1": True, "2": False, "3": False, "4": False, "5": False, "6": False, "7": False}
 _BLOCKERS = {
     "2": BlockerCode.PARTS_NEEDED,
     "3": BlockerCode.NO_POWER,
     "4": BlockerCode.PIPE_BROKEN,
     "5": BlockerCode.NOT_MINE,
+    "6": BlockerCode.OTHER,
+    "7": BlockerCode.NEEDS_PANCHAYAT,
 }
+_SPOKEN_BLOCKERS = frozenset({BlockerCode.OTHER, BlockerCode.NEEDS_PANCHAYAT})
+_MESSAGE_PURPOSES = frozenset({Purpose.BROADCAST, Purpose.SUMMARY, Purpose.ALERT})
 _AGE = {"1": True, "2": False}
 _ACCESS = {
     "1": AccessKind.HOUSE_TAP,
@@ -224,6 +230,7 @@ _FIXED_QUESTIONS: dict[tuple[Purpose, FlowStep], _Question] = {
     (Purpose.REPORT, FlowStep.Q_MENU): _Question("report.menu", "report", _MENU),
     (Purpose.BROADCAST, FlowStep.Q_HEARD): _Question("broadcast.q_heard", "heard", _HEARD),
     (Purpose.SUMMARY, FlowStep.Q_HEARD): _Question("broadcast.q_heard", "heard", _HEARD),
+    (Purpose.ALERT, FlowStep.Q_HEARD): _Question("broadcast.q_heard", "heard", _HEARD),
 }
 _STOP_QUESTION = _Question("stop.q_confirm", "stop", _STOP)
 _FIRST_STEP = {
@@ -234,6 +241,7 @@ _FIRST_STEP = {
     Purpose.REPORT: FlowStep.Q_MENU,
     Purpose.BROADCAST: FlowStep.Q_HEARD,
     Purpose.SUMMARY: FlowStep.Q_HEARD,
+    Purpose.ALERT: FlowStep.Q_HEARD,
 }
 _STOPPABLE = frozenset(
     {
@@ -256,6 +264,7 @@ _INTRO = {
     Purpose.REPORT: "report.greet",
     Purpose.BROADCAST: "broadcast.greet",
     Purpose.SUMMARY: "summary.greet",
+    Purpose.ALERT: "alert.greet",
 }
 _WATER_CAME = frozenset({WaterAnswer.YES, WaterAnswer.PARTIAL})
 
@@ -532,6 +541,8 @@ def _next_step(session: FlowSession) -> FlowStep:
             return FlowStep.Q_NOTE
         case (Purpose.REPORT, FlowStep.Q_MENU):
             return FlowStep.Q_NOTE if answers.report is ReportChoice.NOTE else FlowStep.DONE
+        case (Purpose.OPERATOR, FlowStep.Q_FIXED):
+            return FlowStep.Q_NOTE if answers.blocker in _SPOKEN_BLOCKERS else FlowStep.DONE
         case _:
             return FlowStep.DONE
 
@@ -568,6 +579,8 @@ def _step_actions(session: FlowSession, cat: PromptCatalog) -> list[Action]:
             return [_play(cat, "register.q_intro"), Record(max_s=INTRO_MAX_S)]
         if session.purpose is Purpose.REPORT:
             return [_play(cat, "report.q_note"), Record(max_s=REPORT_NOTE_MAX_S)]
+        if session.purpose is Purpose.OPERATOR:
+            return [_play(cat, "operator.q_note"), Record(max_s=OPERATOR_NOTE_MAX_S)]
         return [_play(cat, NOTE_PROMPT), Record(max_s=NOTE_MAX_S)]
     if session.step is FlowStep.DONE:
         return [_play(cat, _closing_prompt(session)), Hangup()]
@@ -593,7 +606,7 @@ def _intro(session: FlowSession, cat: PromptCatalog) -> list[Action]:
             if session.step is FlowStep.Q_LANG:
                 return [_play(cat, "register.greet")]
             return [_play(cat, "register.greet"), _play(cat, "register.notice")]
-        case Purpose.BROADCAST | Purpose.SUMMARY:
+        case Purpose.BROADCAST | Purpose.SUMMARY | Purpose.ALERT:
             return [_play(cat, _INTRO[session.purpose]), _message(session)]
         case _:
             return [_play(cat, _INTRO[session.purpose])]
@@ -623,7 +636,9 @@ def _operator_intro(session: FlowSession, cat: PromptCatalog) -> list[Action]:
 
 def _message(session: FlowSession) -> Play:
     """The announcement or summary itself (rendered by runtime TTS)."""
-    key = "dyn.broadcast" if session.purpose is Purpose.BROADCAST else "dyn.summary"
+    key = {Purpose.BROADCAST: "dyn.broadcast", Purpose.ALERT: "dyn.alert"}.get(
+        session.purpose, "dyn.summary"
+    )
     return Play(prompt_key=key, text_hi=session.message_text_hi or "")
 
 
@@ -635,6 +650,10 @@ _CLOSINGS: dict[Purpose, Callable[[FlowAnswers], str]] = {
         if a.fixed is True
         else "operator.ack_not_mine"
         if a.blocker is BlockerCode.NOT_MINE
+        else "operator.ack_panchayat"
+        if a.blocker is BlockerCode.NEEDS_PANCHAYAT
+        else "operator.ack_note"
+        if a.blocker is BlockerCode.OTHER
         else "operator.ack_reason"
         if a.blocker is not None
         else "operator.ack_pending"
@@ -657,6 +676,7 @@ _CLOSINGS: dict[Purpose, Callable[[FlowAnswers], str]] = {
     ),
     Purpose.BROADCAST: lambda a: "broadcast.bye",
     Purpose.SUMMARY: lambda a: "broadcast.bye",
+    Purpose.ALERT: lambda a: "alert.bye",
 }
 
 

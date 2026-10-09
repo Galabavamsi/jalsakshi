@@ -11,9 +11,9 @@ import httpx
 import pytest
 
 from jalsakshi.agent.notes import NoteExtraction, NoteIssueKind
-from jalsakshi.core.models import Purpose, TicketOrigin, TicketReason
+from jalsakshi.core.models import BlockerCode, Purpose, TicketOrigin, TicketReason
 from jalsakshi.core.tickets import new_ticket
-from jalsakshi.handlers import config, notes, outbound, sfn_tasks
+from jalsakshi.handlers import calls, config, notes, outbound, sfn_tasks
 from jalsakshi.store import Repository
 
 from .fakes import (
@@ -258,21 +258,39 @@ def test_unfetchable_recording_fails_without_a_ticket(
     assert http.sent("DELETE", DELETE_URL) == []
 
 
-def test_unknown_call_or_operator_call_is_ignored(
-    v2: V2Fakes, http: Vobiz, seeded: Repository
-) -> None:
+def test_unknown_call_is_ignored(v2: V2Fakes, http: Vobiz, seeded: Repository) -> None:
     assert run_notes({"call_id": "nope", "recording_url": REC_URL}) == {
         "status": "ignored",
         "reason": "unknown call",
     }
-    ticket = seeded.open_ticket_if_none(new_ticket(VID, TicketReason.NO_SUPPLY, NOW))
+
+
+def test_operators_own_words_are_written_on_the_complaint(
+    v2: V2Fakes, http: Vobiz, seeded: Repository, monkeypatch: Any
+) -> None:
+    agent_says(monkeypatch)
+    ticket = seeded.open_ticket_if_none(new_ticket(VID, TicketReason.NO_SUPPLY, NOW, number=4))
     assert ticket is not None
     sfn_tasks.notify_operator(
         {"task_token": "t", "input": {"ticket_id": ticket.id}}, LambdaContext()
     )
-    call_id = f"operator-{ticket.id}-n1"
-    out = run_notes({"call_id": call_id, "recording_url": REC_URL})
-    assert out == {"status": "ignored", "reason": "not a household call"}
+    pending = calls.find_pending(seeded, "op-1", Purpose.OPERATOR)
+    assert pending is not None
+    call_id = pending.record.call_id
+    replies = run_call(call_id, ["6"])
+    form = {"RecordUrl": REC_URL, "RecordingDuration": "9", "RecordingID": "rec-1"}
+    vobiz_post("recording", {"call_id": call_id}, form)
+    vobiz_post("digits", {"call_id": call_id, "turn": str(next_turn(replies[-1]))})
+    out = run_notes(v2.lambdas.events(function=NOTES_FN)[-1])
+    assert out["status"] == "operator_note"
+    stored = seeded.get_ticket_by_id(ticket.id)
+    assert stored is not None and stored.blocker is BlockerCode.OTHER
+    note = stored.events[-1]
+    assert note.actor == "operator:op-1" and note.detail["note"] == "operator_voice"
+    assert note.detail["transcript"] == TRANSCRIPT and note.detail["code"] == "OTHER"
+    assert str(note.detail["summary_en"]).startswith("Pipe burst")
+    feed = seeded.list_activity(NOW.replace(hour=0))
+    assert any("Pump operator on complaint #4" in e.text_en for e in feed)
 
 
 def test_daily_note_is_attached_to_the_answer_and_the_open_ticket(

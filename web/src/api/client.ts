@@ -45,6 +45,7 @@ import type {
   SimStartRequest,
   SimStartResponse,
   Ticket,
+  TicketOverview,
   TicketQuery,
   VillageAnalytics,
   VillageDetail,
@@ -88,6 +89,11 @@ export interface JalApi {
   listTickets(query?: TicketQuery): Promise<Ticket[]>;
   getTicket(tid: string): Promise<Ticket>;
   operatorFixed(tid: string, operatorId: string): Promise<Ticket>;
+  /** AI overview and suggested next step (advice only). */
+  getOverview(tid: string): Promise<TicketOverview>;
+  /** The secretary sends the complaint to the Sarpanch, who gets a call about it. */
+  sendToSarpanch(tid: string): Promise<Ticket>;
+  callOperatorAgain(tid: string): Promise<{ call: 'queued' }>;
   /** A Cedar deny (403) is a normal outcome here, not an exception. */
   closeTicket(tid: string): Promise<CloseResult>;
   getBrief(vid: string, from?: IsoDate, to?: IsoDate): Promise<Brief>;
@@ -106,6 +112,8 @@ export interface JalApi {
   addHouseholdsBulk(vid: string, phones: string | string[]): Promise<BulkAddResponse>;
   /** Families with names and areas (e.g. read from a register photo). */
   addFamilies(vid: string, families: FamilyRow[]): Promise<BulkAddResponse>;
+  /** Another consent call to a family that has not answered yet. */
+  callAgain(vid: string, hid: string): Promise<{ call: 'queued' }>;
   /** Reads names, mobiles and areas from a photo; adds nothing. */
   readRegisterPhoto(vid: string, imageBase64: string, mediaType: string): Promise<RegisterPhotoResponse>;
   listLanguages(): Promise<CallLanguage[]>;
@@ -308,6 +316,9 @@ export function createHttpApi(options: HttpApiOptions): JalApi {
         query: { state: query?.state, village_id: query?.village_id },
       }),
     getTicket: (tid) => call({ method: 'GET', path: `/api/tickets/${seg(tid)}` }),
+    getOverview: (tid) => call({ method: 'GET', path: `/api/tickets/${seg(tid)}/overview` }),
+    sendToSarpanch: (tid) => call({ method: 'POST', path: `/api/tickets/${seg(tid)}/send-to-sarpanch` }),
+    callOperatorAgain: (tid) => call({ method: 'POST', path: `/api/tickets/${seg(tid)}/call-operator` }),
     operatorFixed: (tid, operatorId) =>
       call({
         method: 'POST',
@@ -343,6 +354,8 @@ export function createHttpApi(options: HttpApiOptions): JalApi {
       call({ method: 'POST', path: village(vid, '/households/bulk'), body: { phones } }),
     addFamilies: (vid, families) =>
       call({ method: 'POST', path: village(vid, '/households/bulk'), body: { families } }),
+    callAgain: (vid, hid) =>
+      call({ method: 'POST', path: village(vid, `/households/${encodeURIComponent(hid)}/consent-call`) }),
     readRegisterPhoto: (vid, image_base64, media_type) =>
       call({ method: 'POST', path: village(vid, '/register-photo'), body: { image_base64, media_type } }),
     listLanguages: () => call({ method: 'GET', path: '/api/languages' }),

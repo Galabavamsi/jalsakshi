@@ -528,8 +528,8 @@ function seedActivity(today: IsoDate, now: Date): ActivityItem[] {
       at: istInstant(y, '11:00').toISOString(),
       kind: 'policy_denied',
       village_id: 'v-amlidih',
-      text_en: 'Amlidih: call to household 3 skipped, it was already called today (one-call-per-day).',
-      text_hi: 'अमलीडीह: घर 3 को कॉल नहीं किया, आज पहले ही कॉल हो चुका था।',
+      text_en: 'Amlidih: call to household 3 skipped, no consent on file (consent-required).',
+      text_hi: 'अमलीडीह: घर 3 को कॉल नहीं किया, सहमति दर्ज नहीं है।',
     },
     {
       at: istInstant(y, '11:14').toISOString(),

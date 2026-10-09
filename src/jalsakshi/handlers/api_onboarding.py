@@ -203,7 +203,12 @@ def add_households_bulk(village_id: str) -> Any:
         )
         repo.put_household(household)
         _invoke_outbound(
-            {"kind": "register", "village_id": village.id, "household_id": household.id}
+            {
+                "kind": "register",
+                "village_id": village.id,
+                "household_id": household.id,
+                "requested_at": config.now().isoformat(),
+            }
         )
         added.append(_masked_household(household))
         budget -= 1

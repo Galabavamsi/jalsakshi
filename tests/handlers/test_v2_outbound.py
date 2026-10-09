@@ -283,8 +283,19 @@ def test_register_job_once_the_family_has_answered_today(v2: V2Fakes, seeded: Re
         call_id="earlier",
         digits="2",
     )
-    out = outbound.register(seeded, VID, "hh-c")
-    assert out == {"status": "denied", "policy_id": "one-call-per-day"}
+    out = outbound.register(seeded, VID, "hh-c", "2026-10-08T05:00:00+00:00")
+    assert out["status"] == "pending"
+
+
+def test_each_console_request_is_its_own_registration_call(v2: V2Fakes, seeded: Repository) -> None:
+    added(seeded)
+    first = {"kind": "register", "village_id": VID, "household_id": "hh-c"}
+    first["requested_at"] = "2026-10-08T05:00:00+00:00"
+    out = outbound.handler(first, LambdaContext())
+    assert out["status"] == "pending" and out["call_id"] == "reg-v-test-hh-c-20261008050000"
+    assert outbound.handler(first, LambdaContext())["status"] == "already_dialled"  # a retry
+    later = {**first, "requested_at": "2026-10-08T07:30:00+00:00"}
+    assert outbound.handler(later, LambdaContext())["status"] == "pending"
 
 
 # --- weekly summary ---------------------------------------------------------------------------

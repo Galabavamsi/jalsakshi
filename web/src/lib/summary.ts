@@ -9,11 +9,13 @@ import type {
   HouseholdMasked,
   IsoDateTime,
   Operator,
+  BlockerCode,
   Ticket,
   TicketState,
   WaterPoint,
 } from '../api/types';
 import type { Bilingual } from './format';
+import { BLOCKER } from './labels';
 import { effectiveConsent } from './households';
 import { IST, ageMs, istDate } from './time';
 
@@ -96,7 +98,7 @@ export function isClosed(t: Pick<Ticket, 'state'>): boolean {
 export const COMPLAINT_WORD: Record<TicketState, Bilingual> = {
   OPEN: { en: 'New', hi: 'नई' },
   REOPENED: { en: 'Still not fixed', hi: 'अब भी ठीक नहीं' },
-  ESCALATED: { en: 'Needs PHED help', hi: 'PHED की मदद चाहिए' },
+  ESCALATED: { en: 'Escalated', hi: 'आगे भेजी गई' },
   ASSIGNED: { en: 'Pump operator told', hi: 'पंप ऑपरेटर को बताया' },
   OPERATOR_REPORTED_FIXED: { en: 'Operator says fixed', hi: 'ऑपरेटर कहता है ठीक' },
   VERIFYING: { en: 'Asking families', hi: 'परिवारों से पूछ रहे हैं' },
@@ -193,6 +195,9 @@ const EVENT_TEXT: Record<string, Bilingual> = {
   day_still_bad: { en: 'Still a problem the next day', hi: 'अगले दिन भी समस्या' },
   another_report: { en: 'Another family reported the same problem', hi: 'एक और परिवार ने यही समस्या बताई' },
   operator_reason: { en: 'Pump operator said why it is not fixed yet', hi: 'पंप ऑपरेटर ने बताया अभी क्यों ठीक नहीं हुआ' },
+  operator_voice: { en: 'Pump operator left a voice message', hi: 'पंप ऑपरेटर ने आवाज़ संदेश छोड़ा' },
+  sarpanch_told: { en: 'The Sarpanch heard it on the phone (pressed 1)', hi: 'सरपंच ने फ़ोन पर सुना (1 दबाया)' },
+  sent_to_sarpanch: { en: 'Sent to the Sarpanch', hi: 'सरपंच को भेजी' },
   voice_note: { en: 'A family left a voice message', hi: 'एक परिवार ने आवाज़ संदेश छोड़ा' },
 };
 
@@ -218,12 +223,36 @@ export function timelineLines(ticket: Ticket): TimelineLine[] {
       const said = REASON_SAID[ticket.reason] ?? (REASON_SAID.OTHER as Bilingual);
       return { at: e.at, text: { en: `${who.en} ${said.en}`, hi: `${who.hi} ${said.hi}` } };
     }
+    const detailed = detailText(key, e.detail);
+    if (detailed) return { at: e.at, text: detailed };
     const known = EVENT_TEXT[key];
     if (known) return { at: e.at, text: known };
     if (e.to_state) return { at: e.at, text: COMPLAINT_WORD[e.to_state] };
     const words = key.replace(/[_-]+/g, ' ').toLowerCase();
     return { at: e.at, text: { en: words.charAt(0).toUpperCase() + words.slice(1), hi: words } };
   });
+}
+
+/** Event lines whose wording depends on the event's detail (who it went to, what was said). */
+function detailText(key: string, detail: Record<string, unknown>): Bilingual | null {
+  if (key === 'escalated' && detail.to === 'SARPANCH') {
+    return { en: 'Pump operator cannot fix it alone: sent to the Sarpanch', hi: 'पंप ऑपरेटर अकेले ठीक नहीं कर सकते: सरपंच को भेजी' };
+  }
+  if (key === 'escalated') {
+    return { en: 'No fix for 48 hours: marked as needing PHED help (simulated)', hi: '48 घंटे में ठीक नहीं: PHED की मदद के लिए चिह्नित (सिम्युलेटेड)' };
+  }
+  if (key === 'operator_reason' && typeof detail.code === 'string') {
+    const label = BLOCKER[detail.code as BlockerCode];
+    if (label) return { en: `Pump operator: not fixed yet. ${label.en}`, hi: `पंप ऑपरेटर: अभी ठीक नहीं। ${label.hi}` };
+  }
+  if (key === 'operator_voice') {
+    const words = typeof detail.transcript === 'string' ? detail.transcript : null;
+    const gist = typeof detail.summary_en === 'string' ? detail.summary_en : null;
+    if (!words) return { en: 'Pump operator left a voice message (not transcribed)', hi: 'पंप ऑपरेटर का आवाज़ संदेश (लिखा नहीं जा सका)' };
+    const en = gist ? `Pump operator said: "${words}" (${gist}; AI-transcribed)` : `Pump operator said: "${words}" (AI-transcribed)`;
+    return { en, hi: `पंप ऑपरेटर ने कहा: "${words}" (AI से लिखा गया)` };
+  }
+  return null;
 }
 
 // ------------------------------------------------------------------ what to do now

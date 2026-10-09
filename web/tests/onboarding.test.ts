@@ -58,6 +58,14 @@ describe('Photo of a register', () => {
     expect(res.added[0]?.display_name).toBe('Ramesh Sahu');
   });
 
+  it('calls a waiting family again, but not one that already agreed (mock)', async () => {
+    const api = createMockApi();
+    const rows = (await api.readRegisterPhoto('sample-village', 'abc', 'image/jpeg')).rows;
+    const [first] = (await api.addFamilies('sample-village', reviewToFamilies(toReview(rows)))).added;
+    await expect(api.callAgain('sample-village', first!.id)).resolves.toEqual({ call: 'queued' });
+    await expect(api.callAgain('sample-village', 'ghost')).rejects.toThrow();
+  });
+
   it('shrinks big photos to 1600 px on the longest side', () => {
     expect(fitSize(4000, 3000)).toEqual({ width: 1600, height: 1200 });
     expect(fitSize(800, 600)).toEqual({ width: 800, height: 600 });

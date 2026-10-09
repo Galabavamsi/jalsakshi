@@ -95,14 +95,21 @@ def test_policy_check_denies_without_consent(seeded: Repository) -> None:
     assert out["reason_hi"]
 
 
-def test_policy_check_allows_retry_after_unreachable_but_not_after_answer(
-    seeded: Repository,
-) -> None:
+def test_policy_check_allows_another_call_the_same_day(seeded: Repository) -> None:
     seeded.put_checkin(checkin("h1", water=None))
     assert run(sfn_tasks.policy_check_call, item("h1", attempt=2))["allowed"] is True
     seeded.put_checkin(checkin("h1", water=WaterAnswer.YES, attempt=2))
-    out = run(sfn_tasks.policy_check_call, item("h1", attempt=3))
-    assert out["policy_id"] == "one-call-per-day"
+    assert run(sfn_tasks.policy_check_call, item("h1", attempt=3))["allowed"] is True
+
+
+def test_policy_check_survives_an_unreadable_allowlist(
+    seeded: Repository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def denied() -> frozenset[str]:
+        raise PermissionError("ssm:GetParameter denied")
+
+    monkeypatch.setattr(config, "allowed_numbers", denied)
+    assert run(sfn_tasks.policy_check_call, item("h1"))["allowed"] is True
 
 
 def test_policy_check_missing_household(seeded: Repository) -> None:
