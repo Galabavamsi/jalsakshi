@@ -40,6 +40,8 @@ class StageSettings:
     web_dist: Path = DEFAULT_WEB_DIST
     web_domain: str | None = None
     web_cert_arn: str | None = None
+    missed_call_number: str = ""
+    open_dialing: bool = False
     tags: dict[str, str] = field(default_factory=dict)
 
     @property
@@ -114,5 +116,7 @@ class StageSettings:
             web_dist=Path(ctx("web_dist", str(DEFAULT_WEB_DIST))),
             web_domain=ctx("web_domain"),
             web_cert_arn=ctx("web_cert_arn"),
+            missed_call_number=str(ctx("missed_call_number", "")),
+            open_dialing=str(ctx("open_dialing", "false")).lower() == "true",
             tags={"project": "jalsakshi", "stage": stage},
         )

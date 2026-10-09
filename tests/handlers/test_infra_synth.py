@@ -10,6 +10,8 @@ from typing import Any
 
 import pytest
 
+from jalsakshi.core.models import OperatorRole
+
 cdk = pytest.importorskip("aws_cdk")
 from aws_cdk.assertions import Match, Template  # noqa: E402
 
@@ -69,7 +71,9 @@ def test_http_api_routes_and_auth(stacks: dict[str, Any]) -> None:
         "POST /api/{proxy+}",
         "POST /sim/{proxy+}",
         "POST /ivr/vobiz/{token}/{action}",
+        "GET /public/{proxy+}",
     }
+    assert keys["GET /public/{proxy+}"].get("AuthorizationType", "NONE") == "NONE"
     assert keys["GET /api/{proxy+}"]["AuthorizationType"] == "JWT"
     assert keys["POST /sim/{proxy+}"]["AuthorizationType"] == "JWT"
     assert keys["POST /ivr/vobiz/{token}/{action}"].get("AuthorizationType", "NONE") == "NONE"
@@ -82,7 +86,12 @@ def test_lambdas_are_python312_traced_with_stage_env(stacks: dict[str, Any]) -> 
     handlers = {p["Handler"] for p in ours if p["Handler"].startswith("jalsakshi.")}
     assert "jalsakshi.handlers.sfn_tasks.place_call" in handlers
     assert "jalsakshi.handlers.api.handler" in handlers
-    assert len(handlers) == 14
+    assert {
+        "jalsakshi.handlers.outbound.handler",
+        "jalsakshi.handlers.notes.handler",
+        "jalsakshi.handlers.public.handler",
+    } <= handlers
+    assert len(handlers) == 17
     for props in ours:
         if not props["Handler"].startswith("jalsakshi."):
             continue
@@ -121,7 +130,7 @@ def test_cognito_client_is_public_pkce(stacks: dict[str, Any]) -> None:
             "EnableTokenRevocation": True,
         },
     )
-    t.resource_count_is("AWS::Cognito::UserPoolGroup", 5)
+    t.resource_count_is("AWS::Cognito::UserPoolGroup", len(OperatorRole) + 1)  # + ADMIN
 
 
 def test_dashboard_and_dlq_alarms(stacks: dict[str, Any]) -> None:

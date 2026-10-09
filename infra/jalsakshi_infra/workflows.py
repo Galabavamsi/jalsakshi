@@ -290,7 +290,13 @@ def ticket_flow_definition(scope: Construct, fns: TaskFunctions, timing: Timing)
         .when(sfn.Condition.boolean_equals("$.open.opened", True), init)
         .otherwise(sfn.Succeed(scope, "TicketAlreadyOpen"))
     )
-    init.next(notify)
+    # A resident who reported by missed call is still on the line for a few seconds; wait
+    # before calling the operator so the two calls never collide on a shared phone.
+    settle = sfn.Wait(
+        scope, "SettleBeforeNotify", time=sfn.WaitTime.duration(cdk.Duration.seconds(45))
+    )
+    init.next(settle)
+    settle.next(notify)
     notify.next(start_verify)
     escalate.next(start_verify)
     start_verify.next(skip)

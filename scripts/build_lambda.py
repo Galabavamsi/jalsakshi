@@ -125,7 +125,8 @@ def copy_sources(out: Path) -> None:
     shutil.copytree(REPO / "src" / "jalsakshi", package, ignore=ignore)
     prompts = out / "prompts"
     prompts.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(REPO / "prompts" / "hi.yaml", prompts / "hi.yaml")
+    for catalog in sorted((REPO / "prompts").glob("*.yaml")):  # every call language
+        shutil.copy2(catalog, prompts / catalog.name)
 
 
 def prune(out: Path) -> None:
